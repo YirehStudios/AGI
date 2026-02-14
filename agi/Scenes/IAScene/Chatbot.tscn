@@ -1,0 +1,1153 @@
+[gd_scene format=3 uid="uid://bolcjtvklqbax"]
+
+[ext_resource type="Script" uid="uid://laxqt8bmvnnx" path="res://Script/Cs/ChatbotMain.cs" id="1_8rl47"]
+
+[sub_resource type="SystemFont" id="SystemFont_bold"]
+font_names = PackedStringArray("Sans-Serif")
+font_weight = 700
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_send_btn_normal"]
+bg_color = Color(0.102, 0.451, 0.91, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_scroll"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_send_btn_hover"]
+bg_color = Color(0.082, 0.361, 0.729, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_send_btn_pressed"]
+bg_color = Color(0.063, 0.278, 0.561, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+
+[sub_resource type="SystemFont" id="SystemFont_regular"]
+font_names = PackedStringArray("Sans-Serif")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+bg_color = Color(0.9725, 0.9765, 0.9843, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_header"]
+bg_color = Color(1, 1, 1, 1)
+shadow_color = Color(0, 0, 0, 0.05)
+shadow_size = 4
+shadow_offset = Vector2(0, 2)
+
+[sub_resource type="SystemFont" id="SystemFont_light"]
+font_names = PackedStringArray("Sans-Serif")
+font_weight = 300
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_scroll_grabber"]
+bg_color = Color(0.8, 0.8, 0.8, 0.8)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="Theme" id="Theme_main"]
+default_font = SubResource("SystemFont_regular")
+default_font_size = 16
+Button/colors/font_color = Color(1, 1, 1, 1)
+Button/colors/font_disabled_color = Color(0.875, 0.875, 0.875, 0.5)
+Button/colors/font_focus_color = Color(1, 1, 1, 1)
+Button/colors/font_hover_color = Color(1, 1, 1, 1)
+Button/colors/font_hover_pressed_color = Color(1, 1, 1, 1)
+Button/colors/font_outline_color = Color(1, 1, 1, 1)
+Button/colors/font_pressed_color = Color(1, 1, 1, 1)
+Button/colors/icon_disabled_color = Color(1, 1, 1, 0.4)
+Button/colors/icon_focus_color = Color(1, 1, 1, 1)
+Button/colors/icon_hover_color = Color(1, 1, 1, 1)
+Button/colors/icon_hover_pressed_color = Color(1, 1, 1, 1)
+Button/colors/icon_normal_color = Color(1, 1, 1, 1)
+Button/colors/icon_pressed_color = Color(1, 1, 1, 1)
+Button/constants/h_separation = 2
+Button/constants/icon_max_width = 0
+Button/constants/outline_size = 0
+Button/font_sizes/font_size = 16
+Button/fonts/font = SubResource("SystemFont_bold")
+Button/styles/disabled = SubResource("StyleBoxFlat_send_btn_normal")
+Button/styles/focus = SubResource("StyleBoxEmpty_scroll")
+Button/styles/hover = SubResource("StyleBoxFlat_send_btn_hover")
+Button/styles/normal = SubResource("StyleBoxFlat_send_btn_normal")
+Button/styles/pressed = SubResource("StyleBoxFlat_send_btn_pressed")
+Label/colors/font_color = Color(0.12, 0.12, 0.12, 1)
+Label/colors/font_outline_color = Color(1, 1, 1, 1)
+Label/colors/font_shadow_color = Color(0, 0, 0, 0)
+Label/constants/line_spacing = 3
+Label/constants/outline_size = 0
+Label/constants/shadow_offset_x = 1
+Label/constants/shadow_offset_y = 1
+Label/constants/shadow_outline_size = 1
+Label/font_sizes/font_size = 16
+Label/fonts/font = SubResource("SystemFont_regular")
+Label/styles/normal = SubResource("StyleBoxEmpty_scroll")
+LineEdit/colors/caret_color = Color(0.12, 0.12, 0.12, 1)
+LineEdit/colors/clear_button_color = Color(0.12, 0.12, 0.12, 1)
+LineEdit/colors/clear_button_color_pressed = Color(0.12, 0.12, 0.12, 1)
+LineEdit/colors/font_color = Color(0.12, 0.12, 0.12, 1)
+LineEdit/colors/font_outline_color = Color(1, 1, 1, 1)
+LineEdit/colors/font_placeholder_color = Color(0.4, 0.4, 0.4, 1)
+LineEdit/colors/font_selected_color = Color(1, 1, 1, 1)
+LineEdit/colors/font_uneditable_color = Color(0.4, 0.4, 0.4, 0.5)
+LineEdit/colors/selection_color = Color(0.25, 0.52, 0.95, 1)
+LineEdit/constants/caret_width = 1
+LineEdit/constants/minimum_character_width = 4
+LineEdit/font_sizes/font_size = 16
+LineEdit/fonts/font = SubResource("SystemFont_regular")
+Panel/styles/panel = SubResource("StyleBoxFlat_bg")
+PanelContainer/styles/panel = SubResource("StyleBoxFlat_header")
+RichTextLabel/colors/default_color = Color(0.12, 0.12, 0.12, 1)
+RichTextLabel/colors/font_outline_color = Color(1, 1, 1, 1)
+RichTextLabel/colors/font_selected_color = Color(0, 0, 0, 0)
+RichTextLabel/colors/font_shadow_color = Color(0, 0, 0, 0)
+RichTextLabel/colors/selection_color = Color(0.1, 0.1, 1, 0.8)
+RichTextLabel/colors/table_border = Color(0, 0, 0, 0)
+RichTextLabel/colors/table_even_row_bg = Color(0, 0, 0, 0)
+RichTextLabel/colors/table_odd_row_bg = Color(0, 0, 0, 0)
+RichTextLabel/constants/line_separation = 2
+RichTextLabel/constants/outline_size = 0
+RichTextLabel/constants/shadow_offset_x = 1
+RichTextLabel/constants/shadow_offset_y = 1
+RichTextLabel/constants/shadow_outline_size = 1
+RichTextLabel/constants/table_h_separation = 3
+RichTextLabel/constants/table_v_separation = 3
+RichTextLabel/font_sizes/bold_font_size = 16
+RichTextLabel/font_sizes/bold_italics_font_size = 16
+RichTextLabel/font_sizes/italics_font_size = 16
+RichTextLabel/font_sizes/mono_font_size = 16
+RichTextLabel/font_sizes/normal_font_size = 16
+RichTextLabel/fonts/bold_font = SubResource("SystemFont_bold")
+RichTextLabel/fonts/bold_italics_font = SubResource("SystemFont_bold")
+RichTextLabel/fonts/italics_font = SubResource("SystemFont_light")
+RichTextLabel/fonts/mono_font = SubResource("SystemFont_regular")
+RichTextLabel/fonts/normal_font = SubResource("SystemFont_regular")
+ScrollContainer/styles/panel = SubResource("StyleBoxEmpty_scroll")
+VScrollBar/styles/grabber = SubResource("StyleBoxFlat_scroll_grabber")
+VScrollBar/styles/grabber_highlight = SubResource("StyleBoxFlat_scroll_grabber")
+VScrollBar/styles/grabber_pressed = SubResource("StyleBoxFlat_scroll_grabber")
+VScrollBar/styles/scroll = SubResource("StyleBoxEmpty_scroll")
+VScrollBar/styles/scroll_focus = SubResource("StyleBoxEmpty_scroll")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_avatar_bot"]
+bg_color = Color(0.102, 0.451, 0.91, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bot_bubble"]
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
+bg_color = Color(0.9412, 0.9569, 0.9765, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_user_bubble"]
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
+bg_color = Color(0.9098, 0.9412, 0.9961, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 4
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_avatar_user"]
+bg_color = Color(0.2, 0.2, 0.2, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_input_area"]
+content_margin_left = 20.0
+content_margin_top = 12.0
+content_margin_right = 20.0
+content_margin_bottom = 12.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.85, 0.85, 0.85, 1)
+corner_radius_top_left = 24
+corner_radius_top_right = 24
+corner_radius_bottom_right = 24
+corner_radius_bottom_left = 24
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_input_area_focus"]
+content_margin_left = 20.0
+content_margin_top = 12.0
+content_margin_right = 20.0
+content_margin_bottom = 12.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.102, 0.451, 0.91, 1)
+corner_radius_top_left = 24
+corner_radius_top_right = 24
+corner_radius_bottom_right = 24
+corner_radius_bottom_left = 24
+
+[node name="ChatbotUI" type="Control" unique_id=2040490338]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("Theme_main")
+script = ExtResource("1_8rl47")
+
+[node name="Background" type="Panel" parent="." unique_id=734943706]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_bg")
+
+[node name="MainLayout" type="VBoxContainer" parent="Background" unique_id=1822640010]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="HeaderPanel" type="PanelContainer" parent="Background/MainLayout" unique_id=1979597763]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_header")
+
+[node name="HeaderMargin" type="MarginContainer" parent="Background/MainLayout/HeaderPanel" unique_id=572871341]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 16
+
+[node name="HeaderHBox" type="HBoxContainer" parent="Background/MainLayout/HeaderPanel/HeaderMargin" unique_id=264471223]
+layout_mode = 2
+
+[node name="BrandTitle" type="Label" parent="Background/MainLayout/HeaderPanel/HeaderMargin/HeaderHBox" unique_id=142163638]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.12, 0.12, 0.12, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+theme_override_font_sizes/font_size = 20
+text = "YirehStudios AI"
+
+[node name="HeaderSpacer" type="MarginContainer" parent="Background/MainLayout/HeaderPanel/HeaderMargin/HeaderHBox" unique_id=882398049]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ChatScroll" type="ScrollContainer" parent="Background/MainLayout" unique_id=287141004]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ChatMargin" type="MarginContainer" parent="Background/MainLayout/ChatScroll" unique_id=1289175221]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="MessageList" type="VBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin" unique_id=557758987]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 24
+
+[node name="BotMessage1" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=644434046]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BotAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage1" unique_id=827694655]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_bot")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage1/BotAvatar" unique_id=1262832709]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "Y"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage1" unique_id=1190304275]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
+
+[node name="BotText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage1/BotBubble" unique_id=138704956]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.12, 0.12, 0.12, 1)
+bbcode_enabled = true
+text = "¡Hola! Soy el asistente virtual de YirehStudios. ¿En qué te puedo ayudar hoy?"
+fit_content = true
+scroll_active = false
+
+[node name="UserMessage1" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=2063498981]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
+
+[node name="Spacer" type="MarginContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage1" unique_id=581858473]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+
+[node name="UserBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage1" unique_id=1155335960]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
+
+[node name="UserText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage1/UserBubble" unique_id=756563672]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.04, 0.04, 0.04, 1)
+bbcode_enabled = true
+text = "Hola, busco información detallada sobre sus servicios tecnológicos."
+fit_content = true
+scroll_active = false
+
+[node name="UserAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage1" unique_id=2025896867]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_user")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage1/UserAvatar" unique_id=1153176520]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "U"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotMessage2" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1350930110]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BotAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage2" unique_id=107762520]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_bot")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage2/BotAvatar" unique_id=1576500609]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "Y"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage2" unique_id=1547563276]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
+
+[node name="BotText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage2/BotBubble" unique_id=307480238]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.12, 0.12, 0.12, 1)
+bbcode_enabled = true
+text = "¡Claro! En YirehStudios nos especializamos en Desarrollo Web, Aplicaciones Móviles, Videojuegos y Diseño UI/UX. ¿Qué área te interesa más?"
+fit_content = true
+scroll_active = false
+
+[node name="UserMessage2" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=966398055]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
+
+[node name="Spacer" type="MarginContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage2" unique_id=2059549104]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+
+[node name="UserBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage2" unique_id=2065674682]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
+
+[node name="UserText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage2/UserBubble" unique_id=788296193]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.04, 0.04, 0.04, 1)
+bbcode_enabled = true
+text = "Me gustaría saber un poco más sobre su departamento de desarrollo web."
+fit_content = true
+scroll_active = false
+
+[node name="UserAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage2" unique_id=2111373919]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_user")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage2/UserAvatar" unique_id=1947441511]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "U"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotMessage3" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1933881397]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BotAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage3" unique_id=2102087095]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_bot")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage3/BotAvatar" unique_id=684283336]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "Y"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage3" unique_id=1328747297]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
+
+[node name="BotText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage3/BotBubble" unique_id=902534887]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.12, 0.12, 0.12, 1)
+bbcode_enabled = true
+text = "Creamos páginas web modernas, responsivas y altamente optimizadas. Utilizamos tecnologías frontend avanzadas como React, Vue y Svelte, respaldadas por arquitecturas sólidas en el backend."
+fit_content = true
+scroll_active = false
+
+[node name="UserMessage3" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1492732475]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
+
+[node name="Spacer" type="MarginContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage3" unique_id=1359752095]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+
+[node name="UserBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage3" unique_id=1264557689]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
+
+[node name="UserText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage3/UserBubble" unique_id=469549355]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.04, 0.04, 0.04, 1)
+bbcode_enabled = true
+text = "Excelente. ¿También hacen desarrollo de aplicaciones móviles a la medida?"
+fit_content = true
+scroll_active = false
+
+[node name="UserAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage3" unique_id=1432211823]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_user")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage3/UserAvatar" unique_id=1886908125]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "U"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotMessage4" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1558312503]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BotAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage4" unique_id=1171791959]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_bot")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage4/BotAvatar" unique_id=1448500914]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "Y"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage4" unique_id=1495744284]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
+
+[node name="BotText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage4/BotBubble" unique_id=1313474681]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.12, 0.12, 0.12, 1)
+bbcode_enabled = true
+text = "Sí, desarrollamos aplicaciones nativas y multiplataforma. Principalmente usamos Flutter y React Native para garantizar un rendimiento excepcional tanto en ecosistemas iOS como Android."
+fit_content = true
+scroll_active = false
+
+[node name="UserMessage4" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1045563261]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
+
+[node name="Spacer" type="MarginContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage4" unique_id=1250269540]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+
+[node name="UserBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage4" unique_id=1561001653]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
+
+[node name="UserText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage4/UserBubble" unique_id=1062216103]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.04, 0.04, 0.04, 1)
+bbcode_enabled = true
+text = "¿Y cómo funciona su área de desarrollo de videojuegos interactivos?"
+fit_content = true
+scroll_active = false
+
+[node name="UserAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage4" unique_id=132975689]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_user")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage4/UserAvatar" unique_id=521128681]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "U"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotMessage5" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=804413037]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BotAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage5" unique_id=795293083]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_bot")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage5/BotAvatar" unique_id=744115915]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "Y"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage5" unique_id=580756982]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
+
+[node name="BotText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage5/BotBubble" unique_id=193209334]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.12, 0.12, 0.12, 1)
+bbcode_enabled = true
+text = "Para videojuegos y simulaciones, utilizamos motores potentes como Godot Engine y Unity. Podemos crear desde juegos móviles casuales en 2D hasta complejas experiencias 3D en PC."
+fit_content = true
+scroll_active = false
+
+[node name="UserMessage5" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1449657146]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
+
+[node name="Spacer" type="MarginContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage5" unique_id=45845817]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+
+[node name="UserBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage5" unique_id=896391938]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
+
+[node name="UserText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage5/UserBubble" unique_id=1383636744]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.04, 0.04, 0.04, 1)
+bbcode_enabled = true
+text = "Eso me interesa bastante. Personalmente, yo utilizo Godot 4 para prototipos."
+fit_content = true
+scroll_active = false
+
+[node name="UserAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage5" unique_id=1873641289]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_user")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage5/UserAvatar" unique_id=335234271]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "U"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotMessage6" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1798870141]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BotAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage6" unique_id=1398882995]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_bot")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage6/BotAvatar" unique_id=1974129227]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "Y"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage6" unique_id=2044352003]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
+
+[node name="BotText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage6/BotBubble" unique_id=2077683479]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.12, 0.12, 0.12, 1)
+bbcode_enabled = true
+text = "¡Godot 4 es fantástico! Ofrece un pipeline de renderizado completamente nuevo basado en Vulkan y un flujo de trabajo optimizado. Somos expertos en la arquitectura de escenas de Godot."
+fit_content = true
+scroll_active = false
+
+[node name="UserMessage6" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=158366782]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
+
+[node name="Spacer" type="MarginContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage6" unique_id=1145550038]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+
+[node name="UserBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage6" unique_id=660306948]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
+
+[node name="UserText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage6/UserBubble" unique_id=1079682930]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.04, 0.04, 0.04, 1)
+bbcode_enabled = true
+text = "¿Ustedes también podrían hacerse cargo del diseño UI/UX de una app existente?"
+fit_content = true
+scroll_active = false
+
+[node name="UserAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage6" unique_id=857051978]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_user")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage6/UserAvatar" unique_id=1928984348]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "U"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotMessage7" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1819826792]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BotAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage7" unique_id=713323018]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_bot")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage7/BotAvatar" unique_id=1434624157]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "Y"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage7" unique_id=1642331062]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
+
+[node name="BotText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage7/BotBubble" unique_id=728917079]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.12, 0.12, 0.12, 1)
+bbcode_enabled = true
+text = "Así es. Diseñamos interfaces limpias, intuitivas y muy atractivas visualmente (como este chatbot) centradas por completo en maximizar la experiencia del usuario y la conversión."
+fit_content = true
+scroll_active = false
+
+[node name="UserMessage7" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1543180491]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
+
+[node name="Spacer" type="MarginContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage7" unique_id=1433393984]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+
+[node name="UserBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage7" unique_id=2078513146]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
+
+[node name="UserText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage7/UserBubble" unique_id=1301952854]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.04, 0.04, 0.04, 1)
+bbcode_enabled = true
+text = "¿Ofrecen servicios de branding para startups nuevas o en crecimiento?"
+fit_content = true
+scroll_active = false
+
+[node name="UserAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage7" unique_id=222395942]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_user")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage7/UserAvatar" unique_id=476499023]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "U"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotMessage8" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=38245154]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BotAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage8" unique_id=2030675914]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_bot")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage8/BotAvatar" unique_id=1508340318]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "Y"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage8" unique_id=1600525574]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
+
+[node name="BotText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage8/BotBubble" unique_id=839604841]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.12, 0.12, 0.12, 1)
+bbcode_enabled = true
+text = "Por supuesto. Diseñamos logotipos, definimos paletas de colores corporativas, tipografías y entregamos un manual de identidad visual completo para que tu marca destaque con fuerza en el mercado."
+fit_content = true
+scroll_active = false
+
+[node name="UserMessage8" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1065026730]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
+
+[node name="Spacer" type="MarginContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage8" unique_id=1238912583]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+
+[node name="UserBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage8" unique_id=1448010136]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
+
+[node name="UserText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage8/UserBubble" unique_id=1902853912]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.04, 0.04, 0.04, 1)
+bbcode_enabled = true
+text = "¿Qué pasa una vez que entregan el proyecto? ¿Hay algún tipo de soporte?"
+fit_content = true
+scroll_active = false
+
+[node name="UserAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage8" unique_id=264551526]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_user")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage8/UserAvatar" unique_id=908857429]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "U"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotMessage9" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1363747020]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BotAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage9" unique_id=1104840619]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_bot")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage9/BotAvatar" unique_id=120028954]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "Y"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage9" unique_id=860610195]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
+
+[node name="BotText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage9/BotBubble" unique_id=969750970]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.12, 0.12, 0.12, 1)
+bbcode_enabled = true
+text = "Totalmente. Contamos con planes de mantenimiento escalables, aplicamos parches de seguridad, realizamos actualizaciones preventivas y brindamos soporte técnico continuo para tu tranquilidad."
+fit_content = true
+scroll_active = false
+
+[node name="UserMessage9" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=94204072]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
+
+[node name="Spacer" type="MarginContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage9" unique_id=1741510594]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+
+[node name="UserBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage9" unique_id=1523201413]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
+
+[node name="UserText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage9/UserBubble" unique_id=18899917]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.04, 0.04, 0.04, 1)
+bbcode_enabled = true
+text = "Me parece genial. ¿Cómo estructuran sus modelos de precios para los clientes?"
+fit_content = true
+scroll_active = false
+
+[node name="UserAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage9" unique_id=1401414338]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_user")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage9/UserAvatar" unique_id=1086921547]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "U"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotMessage10" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1904942726]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BotAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage10" unique_id=900095789]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_bot")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage10/BotAvatar" unique_id=417206221]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "Y"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage10" unique_id=980172841]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
+
+[node name="BotText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage10/BotBubble" unique_id=989216170]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.12, 0.12, 0.12, 1)
+bbcode_enabled = true
+text = "Trabajamos mediante dos modalidades: contratos cerrados por proyecto, ideales cuando el alcance está muy bien definido; o facturación por horas (Time & Materials) para proyectos ágiles en constante evolución."
+fit_content = true
+scroll_active = false
+
+[node name="UserMessage10" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1346283606]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
+
+[node name="Spacer" type="MarginContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage10" unique_id=424853184]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+
+[node name="UserBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage10" unique_id=1626918955]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
+
+[node name="UserText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage10/UserBubble" unique_id=477333322]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.04, 0.04, 0.04, 1)
+bbcode_enabled = true
+text = "¿Cuánto tiempo toma desarrollar una aplicación comercial promedio desde cero?"
+fit_content = true
+scroll_active = false
+
+[node name="UserAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage10" unique_id=2106716596]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_user")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage10/UserAvatar" unique_id=757676379]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "U"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotMessage11" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=664532628]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BotAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage11" unique_id=446719095]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_bot")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage11/BotAvatar" unique_id=1769177637]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "Y"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage11" unique_id=2119849359]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
+
+[node name="BotText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage11/BotBubble" unique_id=1735026484]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.12, 0.12, 0.12, 1)
+bbcode_enabled = true
+text = "Depende mucho de la complejidad técnica y las integraciones, pero un MVP (Producto Mínimo Viable) suele estar listo entre 8 y 12 semanas para su lanzamiento inicial."
+fit_content = true
+scroll_active = false
+
+[node name="UserMessage11" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=190982199]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
+
+[node name="Spacer" type="MarginContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage11" unique_id=828224157]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+
+[node name="UserBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage11" unique_id=688256907]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
+
+[node name="UserText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage11/UserBubble" unique_id=2080678813]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.04, 0.04, 0.04, 1)
+bbcode_enabled = true
+text = "Perfecto. ¿Cómo puedo contactar a su equipo comercial para pedir una cotización?"
+fit_content = true
+scroll_active = false
+
+[node name="UserAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage11" unique_id=129809763]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_user")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage11/UserAvatar" unique_id=747909636]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "U"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotMessage12" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=777217781]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BotAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage12" unique_id=557623577]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_bot")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage12/BotAvatar" unique_id=1735927378]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "Y"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage12" unique_id=738316294]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
+
+[node name="BotText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage12/BotBubble" unique_id=983787785]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.12, 0.12, 0.12, 1)
+bbcode_enabled = true
+text = "Puedes enviarnos un correo electrónico directo a hola@yirehstudios.com o, si prefieres, usar el formulario de contacto integrado en nuestra página web principal."
+fit_content = true
+scroll_active = false
+
+[node name="UserMessage12" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1606200552]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
+
+[node name="Spacer" type="MarginContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage12" unique_id=1172301114]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+
+[node name="UserBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage12" unique_id=935566290]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
+
+[node name="UserText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage12/UserBubble" unique_id=402976109]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.04, 0.04, 0.04, 1)
+bbcode_enabled = true
+text = "¡Muchas gracias por toda la información detallada! Me pondré en contacto muy pronto."
+fit_content = true
+scroll_active = false
+
+[node name="UserAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage12" unique_id=176057556]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_user")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/UserMessage12/UserAvatar" unique_id=2088897618]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "U"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotMessage13" type="HBoxContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList" unique_id=1712080857]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BotAvatar" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage13" unique_id=219697756]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_bot")
+
+[node name="AvatarLabel" type="Label" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage13/BotAvatar" unique_id=1048491170]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "Y"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BotBubble" type="PanelContainer" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage13" unique_id=2136193742]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
+
+[node name="BotText" type="RichTextLabel" parent="Background/MainLayout/ChatScroll/ChatMargin/MessageList/BotMessage13/BotBubble" unique_id=1858292195]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.12, 0.12, 0.12, 1)
+bbcode_enabled = true
+text = "¡Gracias a ti por acercarte a nosotros! Estamos listos y ansiosos por ayudarte a hacer realidad tu próximo gran proyecto tecnológico. ¡Que tengas un excelente día!"
+fit_content = true
+scroll_active = false
+
+[node name="InputPanel" type="PanelContainer" parent="Background/MainLayout" unique_id=543138673]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_header")
+
+[node name="InputMargin" type="MarginContainer" parent="Background/MainLayout/InputPanel" unique_id=880500810]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="InputHBox" type="HBoxContainer" parent="Background/MainLayout/InputPanel/InputMargin" unique_id=1841664317]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TextInput" type="LineEdit" parent="Background/MainLayout/InputPanel/InputMargin/InputHBox" unique_id=564949696]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/normal = SubResource("StyleBoxFlat_input_area")
+theme_override_styles/focus = SubResource("StyleBoxFlat_input_area_focus")
+placeholder_text = "Escribe un mensaje para YirehStudios AI..."
+caret_blink = true
+
+[node name="SendButton" type="Button" parent="Background/MainLayout/InputPanel/InputMargin/InputHBox" unique_id=31330676]
+custom_minimum_size = Vector2(96, 48)
+layout_mode = 2
+size_flags_vertical = 4
+text = "Enviar"
