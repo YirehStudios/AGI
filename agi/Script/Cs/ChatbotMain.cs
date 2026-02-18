@@ -1,206 +1,134 @@
 using Godot;
 using System;
+using System.Threading.Tasks;
 
-/// <summary>
-/// Core controller for the Chatbot interface.
-/// Manages user interactions, message rendering, and automated responses.
-/// </summary>
 public partial class ChatbotMain : Control
 {
+    // UI Node References
+    private VBoxContainer _messagesVBox;
+    private LineEdit _chatInput;
+    private Button _btnSend;
     private ScrollContainer _chatScroll;
-    private VBoxContainer _messageList;
-    private LineEdit _textInput;
-    private Button _sendButton;
-    private ScrollBar _vScrollBar;
+    private HBoxContainer _userMsgTemplate;
+    private HBoxContainer _botMsgTemplate;
+    
+    // References for Sidebar logic
+    private Control _sidebarWrapper;
+    private Button _btnMenuToggle;
+    
+    // State and configuration
+    private bool _isSidebarOpen = true;
+    private float _sidebarWidth = 250.0f;
 
     /// <summary>
-    /// Lifecycle method called when the node enters the scene tree.
-    /// Initializes UI references and establishes event subscriptions.
+    /// Godot lifecycle initialization method.
+    /// Responsible for obtaining references to scene tree nodes and subscribing to events.
     /// </summary>
     public override void _Ready()
     {
-        _chatScroll = GetNode<ScrollContainer>("Background/MainLayout/ChatScroll");
-        _messageList = GetNode<VBoxContainer>("Background/MainLayout/ChatScroll/ChatMargin/MessageList");
-        _textInput = GetNode<LineEdit>("Background/MainLayout/InputPanel/InputMargin/InputHBox/TextInput");
-        _sendButton = GetNode<Button>("Background/MainLayout/InputPanel/InputMargin/InputHBox/SendButton");
+        // Direct retrieval of UI node references
+        _messagesVBox = GetNode<VBoxContainer>("MainLayout/ChatAreaVBox/ChatScroll/ScrollMargin/MessagesVBox");
+        _chatInput = GetNode<LineEdit>("MainLayout/ChatAreaVBox/InputMargin/InputContainer/InputHBox/ChatInput");
+        _btnSend = GetNode<Button>("MainLayout/ChatAreaVBox/InputMargin/InputContainer/InputHBox/BtnSend");
+        _chatScroll = GetNode<ScrollContainer>("MainLayout/ChatAreaVBox/ChatScroll");
         
-        _vScrollBar = _chatScroll.GetVScrollBar();
-        
-        // Subscription to scrollbar changes to maintain visibility of new content
-        _vScrollBar.Changed += ScrollToBottom;
+        _sidebarWrapper = GetNode<Control>("MainLayout/SidebarWrapper");
+        _btnMenuToggle = GetNode<Button>("MainLayout/ChatAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox/BtnMenuToggle");
 
-        // User input signal connections
-        _sendButton.Pressed += OnSendPressed;
-        _textInput.TextSubmitted += OnTextSubmitted;
+        // Retrieval of message templates for cloning
+        _userMsgTemplate = _messagesVBox.GetNode<HBoxContainer>("UserMsg1");
+        _botMsgTemplate = _messagesVBox.GetNode<HBoxContainer>("BotMsg1");
+
+        // UI Event Subscriptions
+        _btnSend.Pressed += OnSendPressed;
+        _chatInput.TextSubmitted += OnTextSubmitted;
+        _btnMenuToggle.Pressed += OnMenuTogglePressed;
     }
 
     /// <summary>
-    /// Event handler for manual button press.
+    /// Handles toggling the sidebar visibility using interpolation (Tween).
+    /// </summary>
+    private void OnMenuTogglePressed()
+    {
+        // Invert current sidebar state
+        _isSidebarOpen = !_isSidebarOpen;
+        
+        // Create a tween to animate the 'custom_minimum_size:x' property
+        Tween tween = GetTree().CreateTween();
+        float targetWidth = _isSidebarOpen ? _sidebarWidth : 0.0f;
+        
+        // Execute animation with a duration of 0.3 seconds and a smooth cubic curve
+        tween.TweenProperty(_sidebarWrapper, "custom_minimum_size:x", targetWidth, 0.3f)
+             .SetTrans(Tween.TransitionType.Cubic)
+             .SetEase(Tween.EaseType.InOut);
+    }
+
+    /// <summary>
+    /// Handler for the send button press event.
+    /// Initiates message processing asynchronously.
     /// </summary>
     private void OnSendPressed()
     {
-        SendMessage(_textInput.Text);
+        // Task is intentionally discarded as this is a UI event handler
+        _ = ProcessMessage(_chatInput.Text);
     }
 
     /// <summary>
-    /// Event handler for text submission via the Enter key.
+    /// Handler for text submission from the LineEdit (Enter key).
     /// </summary>
-    /// <param name="text">The submitted string from the input field.</param>
-    private void OnTextSubmitted(string text)
+    /// <param name="newText">The text entered by the user.</param>
+    private void OnTextSubmitted(string newText)
     {
-        SendMessage(text);
+        _ = ProcessMessage(newText);
     }
 
     /// <summary>
-    /// Processes the outbound message and triggers the automated response sequence.
-    /// Implements asynchronous delays to enhance user experience realism.
+    /// Processes the core chat logic: validates input, updates user UI,
+    /// simulates latency, and generates the bot response.
     /// </summary>
-    /// <param name="text">Input text to be displayed and processed.</param>
-    private async void SendMessage(string text)
+    /// <param name="text">The message to process.</param>
+    private async Task ProcessMessage(string text)
     {
-        if (string.IsNullOrWhiteSpace(text)) return;
-        
-        _textInput.Clear();
-        AddMessageNode(text, true);
-        
-        // Simulated latency for the automated assistant response
-        await ToSignal(GetTree().CreateTimer(1.0f), SceneTreeTimer.SignalName.Timeout);
-        
-        const string botResponse = "Gracias por tu mensaje. Como asistente virtual de YirehStudios, estoy procesando tu solicitud para brindarte la mejor solución tecnológica.";
-        AddMessageNode(botResponse, false);
+        // Validate empty or whitespace input
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+
+        // Immediate cleanup of the input field to improve UX
+        _chatInput.Text = string.Empty;
+
+        // Instantiation and configuration of the user's message
+        HBoxContainer newUserMsg = (HBoxContainer)_userMsgTemplate.Duplicate();
+        newUserMsg.GetNode<Label>("Bubble/Text").Text = text;
+        newUserMsg.Visible = true; // Ensure the copy is visible
+        _messagesVBox.AddChild(newUserMsg);
+
+        // Force scroll down after adding content
+        ScrollToBottom();
+
+        // Simulate network delay or processing time (0.6 seconds)
+        await ToSignal(GetTree().CreateTimer(0.6f), SceneTreeTimer.SignalName.Timeout);
+
+        // Instantiation and configuration of the bot's message
+        HBoxContainer newBotMsg = (HBoxContainer)_botMsgTemplate.Duplicate();
+        newBotMsg.GetNode<Label>("Bubble/Text").Text = "¡Hola! Todavía estoy trabajando en mis conexiones y funciones de backend, pero mi interfaz y diseño ya son totalmente funcionales. ¿En qué más te puedo ayudar?";
+        newBotMsg.Visible = true;
+        _messagesVBox.AddChild(newBotMsg);
+
+        // Final scroll update
+        ScrollToBottom();
     }
 
     /// <summary>
-    /// Handles the structural creation of a message row.
-    /// Dynamically aligns content and adds spacers based on the message source.
+    /// Forces the scroll container to scroll to the absolute bottom.
+    /// Waits for the next process frame to ensure the UI engine has recalculated sizes.
     /// </summary>
-    /// <param name="text">Textual content of the message.</param>
-    /// <param name="isUser">True if the sender is the client; false for the system/bot.</param>
-    private void AddMessageNode(string text, bool isUser)
+    private async void ScrollToBottom()
     {
-        HBoxContainer messageRow = new HBoxContainer();
-        messageRow.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        // Wait for a process frame to ensure VBoxContainer has updated its height with new children
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         
-        if (isUser)
-        {
-            messageRow.Alignment = BoxContainer.AlignmentMode.End;
-            
-            // Layout spacer to maintain message width constraints on the left
-            MarginContainer spacer = new MarginContainer();
-            spacer.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            spacer.SizeFlagsStretchRatio = 0.2f;
-            messageRow.AddChild(spacer);
-            
-            messageRow.AddChild(CreateBubble(text, true));
-            messageRow.AddChild(CreateAvatar("U", new Color(0.2f, 0.2f, 0.2f)));
-        }
-        else
-        {
-            messageRow.Alignment = BoxContainer.AlignmentMode.Begin;
-            messageRow.AddChild(CreateAvatar("Y", new Color(0.102f, 0.451f, 0.910f)));
-            messageRow.AddChild(CreateBubble(text, false));
-            
-            // Layout spacer to maintain message width constraints on the right
-            MarginContainer spacer = new MarginContainer();
-            spacer.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            spacer.SizeFlagsStretchRatio = 0.2f;
-            messageRow.AddChild(spacer);
-        }
-        
-        _messageList.AddChild(messageRow);
-    }
-
-    /// <summary>
-    /// Component factory for chat bubbles.
-    /// Configures visual presentation, including corner radii and text wrapping behaviors.
-    /// </summary>
-    /// <param name="text">The text to be rendered.</param>
-    /// <param name="isUser">The context defining the color palette and bubble pointer side.</param>
-    /// <returns>A configured PanelContainer representing the message bubble.</returns>
-    private PanelContainer CreateBubble(string text, bool isUser)
-    {
-        PanelContainer bubble = new PanelContainer();
-        bubble.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        
-        StyleBoxFlat style = new StyleBoxFlat();
-        style.ContentMarginLeft = 16;
-        style.ContentMarginRight = 16;
-        style.ContentMarginTop = 12;
-        style.ContentMarginBottom = 12;
-        
-        if (isUser)
-        {
-            style.BgColor = new Color(0.910f, 0.941f, 0.996f);
-            style.SetCornerRadiusAll(16);
-            style.CornerRadiusTopRight = 4;
-        }
-        else
-        {
-            style.BgColor = new Color(0.941f, 0.957f, 0.976f);
-            style.SetCornerRadiusAll(16);
-            style.CornerRadiusTopLeft = 4;
-        }
-        
-        bubble.AddThemeStyleboxOverride("panel", style);
-        
-        RichTextLabel label = new RichTextLabel();
-        label.BbcodeEnabled = true;
-        label.Text = text;
-        label.FitContent = true;
-        label.ScrollActive = false;
-        label.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        label.SelectionEnabled = true;
-        
-        Color textColor = isUser ? new Color(0.04f, 0.04f, 0.04f) : new Color(0.12f, 0.12f, 0.12f);
-        label.AddThemeColorOverride("default_color", textColor);
-        
-        bubble.AddChild(label);
-        return bubble;
-    }
-
-    /// <summary>
-    /// Component factory for user/bot identifiers.
-    /// Creates a circular container with a centered label.
-    /// </summary>
-    /// <param name="letter">The character displayed.</param>
-    /// <param name="bgColor">The background color of the circle.</param>
-    /// <returns>A styled PanelContainer.</returns>
-    private PanelContainer CreateAvatar(string letter, Color bgColor)
-    {
-        PanelContainer avatar = new PanelContainer();
-        avatar.CustomMinimumSize = new Vector2(36, 36);
-        avatar.SizeFlagsVertical = SizeFlags.ShrinkBegin;
-        
-        StyleBoxFlat style = new StyleBoxFlat();
-        style.BgColor = bgColor;
-        style.SetCornerRadiusAll(18);
-        
-        avatar.AddThemeStyleboxOverride("panel", style);
-        
-        Label label = new Label();
-        label.Text = letter;
-        label.HorizontalAlignment = HorizontalAlignment.Center;
-        label.VerticalAlignment = VerticalAlignment.Center;
-        label.AddThemeColorOverride("font_color", new Color(1, 1, 1));
-        
-        avatar.AddChild(label);
-        return avatar;
-    }
-
-    /// <summary>
-    /// Initiates a scroll adjustment to the bottom of the chat history.
-    /// Defers execution to ensure node sizes are calculated after layout updates.
-    /// </summary>
-    private void ScrollToBottom()
-    {
-        CallDeferred(nameof(DeferredScroll));
-    }
-
-    /// <summary>
-    /// Performs the vertical scroll update based on the current scrollbar maximum.
-    /// </summary>
-    private void DeferredScroll()
-    {
-        _chatScroll.ScrollVertical = (int)_vScrollBar.MaxValue;
+        // Set vertical scroll value to the maximum possible
+        ScrollBar vScroll = _chatScroll.GetVScrollBar();
+        vScroll.Value = vScroll.MaxValue;
     }
 }
