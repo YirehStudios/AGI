@@ -4,17 +4,15 @@ using System.Threading.Tasks;
 
 public partial class ChatbotMain : Control
 {
-    // UI Node References
-    private VBoxContainer _messagesVBox;
-    private LineEdit _chatInput;
-    private Button _btnSend;
-    private ScrollContainer _chatScroll;
-    private HBoxContainer _userMsgTemplate;
-    private HBoxContainer _botMsgTemplate;
-    
-    // References for Sidebar logic
-    private Control _sidebarWrapper;
-    private Button _btnMenuToggle;
+    // UI Node References via Export (Must match Node names in Editor exactly)
+    [Export] public PanelContainer SidebarContainer;
+    [Export] public Button MenuToggleButton;
+    [Export] public ScrollContainer ChatScrollContainer;
+    [Export] public VBoxContainer MessagesContainer;
+    [Export] public LineEdit TextInputField;
+    [Export] public Button SendButton;
+    [Export] public HBoxContainer UserMessageTemplate;
+    [Export] public HBoxContainer BotMessageTemplate;
     
     // State and configuration
     private bool _isSidebarOpen = true;
@@ -22,31 +20,30 @@ public partial class ChatbotMain : Control
 
     /// <summary>
     /// Godot lifecycle initialization method.
-    /// Responsible for obtaining references to scene tree nodes and subscribing to events.
+    /// Subscribes to UI events using the Exported references linked in the editor.
     /// </summary>
     public override void _Ready()
     {
-        // Direct retrieval of UI node references
-        _messagesVBox = GetNode<VBoxContainer>("MainLayout/ChatAreaVBox/ChatScroll/ScrollMargin/MessagesVBox");
-        _chatInput = GetNode<LineEdit>("MainLayout/ChatAreaVBox/InputMargin/InputContainer/InputHBox/ChatInput");
-        _btnSend = GetNode<Button>("MainLayout/ChatAreaVBox/InputMargin/InputContainer/InputHBox/BtnSend");
-        _chatScroll = GetNode<ScrollContainer>("MainLayout/ChatAreaVBox/ChatScroll");
+        // Validation to ensure nodes are assigned in the inspector
+        if (SidebarContainer == null || MenuToggleButton == null || TextInputField == null)
+        {
+            GD.PrintErr("ChatbotMain: One or more Exported nodes are not assigned in the Inspector.");
+            return;
+        }
+
+        // UI Event Subscriptions using the Exported variables
+        SendButton.Pressed += OnSendPressed;
+        TextInputField.TextSubmitted += OnTextSubmitted;
+        MenuToggleButton.Pressed += OnMenuTogglePressed;
         
-        _sidebarWrapper = GetNode<Control>("MainLayout/SidebarWrapper");
-        _btnMenuToggle = GetNode<Button>("MainLayout/ChatAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox/BtnMenuToggle");
-
-        // Retrieval of message templates for cloning
-        _userMsgTemplate = _messagesVBox.GetNode<HBoxContainer>("UserMsg1");
-        _botMsgTemplate = _messagesVBox.GetNode<HBoxContainer>("BotMsg1");
-
-        // UI Event Subscriptions
-        _btnSend.Pressed += OnSendPressed;
-        _chatInput.TextSubmitted += OnTextSubmitted;
-        _btnMenuToggle.Pressed += OnMenuTogglePressed;
+        // Ensure templates are hidden by default if not already
+        if (UserMessageTemplate != null) UserMessageTemplate.Visible = false;
+        if (BotMessageTemplate != null) BotMessageTemplate.Visible = false;
     }
 
     /// <summary>
     /// Handles toggling the sidebar visibility using interpolation (Tween).
+    /// Animates the custom_minimum_size property of the SidebarContainer.
     /// </summary>
     private void OnMenuTogglePressed()
     {
@@ -58,7 +55,7 @@ public partial class ChatbotMain : Control
         float targetWidth = _isSidebarOpen ? _sidebarWidth : 0.0f;
         
         // Execute animation with a duration of 0.3 seconds and a smooth cubic curve
-        tween.TweenProperty(_sidebarWrapper, "custom_minimum_size:x", targetWidth, 0.3f)
+        tween.TweenProperty(SidebarContainer, "custom_minimum_size:x", targetWidth, 0.3f)
              .SetTrans(Tween.TransitionType.Cubic)
              .SetEase(Tween.EaseType.InOut);
     }
@@ -69,8 +66,8 @@ public partial class ChatbotMain : Control
     /// </summary>
     private void OnSendPressed()
     {
-        // Task is intentionally discarded as this is a UI event handler
-        _ = ProcessMessage(_chatInput.Text);
+        // Task is intentionally discarded as this is a UI event handler (fire-and-forget)
+        _ = ProcessMessage(TextInputField.Text);
     }
 
     /// <summary>
@@ -94,13 +91,15 @@ public partial class ChatbotMain : Control
             return;
 
         // Immediate cleanup of the input field to improve UX
-        _chatInput.Text = string.Empty;
+        TextInputField.Text = string.Empty;
 
         // Instantiation and configuration of the user's message
-        HBoxContainer newUserMsg = (HBoxContainer)_userMsgTemplate.Duplicate();
-        newUserMsg.GetNode<Label>("Bubble/Text").Text = text;
+        HBoxContainer newUserMsg = (HBoxContainer)UserMessageTemplate.Duplicate();
+        
+        // Accessing internal components of the clone by relative path
+        newUserMsg.GetNode<RichTextLabel>("MessageBubble/MessageBody").Text = text;
         newUserMsg.Visible = true; // Ensure the copy is visible
-        _messagesVBox.AddChild(newUserMsg);
+        MessagesContainer.AddChild(newUserMsg);
 
         // Force scroll down after adding content
         ScrollToBottom();
@@ -109,10 +108,12 @@ public partial class ChatbotMain : Control
         await ToSignal(GetTree().CreateTimer(0.6f), SceneTreeTimer.SignalName.Timeout);
 
         // Instantiation and configuration of the bot's message
-        HBoxContainer newBotMsg = (HBoxContainer)_botMsgTemplate.Duplicate();
-        newBotMsg.GetNode<Label>("Bubble/Text").Text = "¡Hola! Todavía estoy trabajando en mis conexiones y funciones de backend, pero mi interfaz y diseño ya son totalmente funcionales. ¿En qué más te puedo ayudar?";
+        HBoxContainer newBotMsg = (HBoxContainer)BotMessageTemplate.Duplicate();
+        
+        // Accessing internal components of the clone by relative path
+        newBotMsg.GetNode<RichTextLabel>("MessageBubble/MessageBody").Text = "¡Hola! Todavía estoy trabajando en mis conexiones y funciones de backend, pero mi interfaz y diseño ya son totalmente funcionales. ¿En qué más te puedo ayudar?";
         newBotMsg.Visible = true;
-        _messagesVBox.AddChild(newBotMsg);
+        MessagesContainer.AddChild(newBotMsg);
 
         // Final scroll update
         ScrollToBottom();
@@ -128,7 +129,7 @@ public partial class ChatbotMain : Control
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         
         // Set vertical scroll value to the maximum possible
-        ScrollBar vScroll = _chatScroll.GetVScrollBar();
+        ScrollBar vScroll = ChatScrollContainer.GetVScrollBar();
         vScroll.Value = vScroll.MaxValue;
     }
 }

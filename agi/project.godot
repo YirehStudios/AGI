@@ -14,6 +14,7 @@ config/name="AGI"
 run/main_scene="uid://bolcjtvklqbax"
 config/features=PackedStringArray("4.6", "C#", "Forward Plus")
 boot_splash/bg_color=Color(1, 1, 1, 1)
+boot_splash/stretch_mode=0
 boot_splash/image="uid://dhs77c0pr0uv0"
 config/icon="uid://sq1405bthmjf"
 
@@ -23,7 +24,7 @@ window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/size/mode=3
 window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
+window/stretch/aspect="ignore"
 
 [dotnet]
 
