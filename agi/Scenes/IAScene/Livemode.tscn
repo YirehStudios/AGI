@@ -1,11 +1,7 @@
-[gd_scene load_steps=35 format=3 uid="uid://bx5yq2jklw9p"]
+[gd_scene format=3 uid="uid://bx5yq2jklxap"]
 
-[ext_resource type="Script" path="res://Script/Cs/LivemodeMain.cs" id="1_script"]
+[ext_resource type="Script" uid="uid://cqlqgupb2vwje" path="res://Script/Cs/LivemodeMain.cs" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://dxui8em8fu8w3" path="res://Resources/logo.png" id="2_logo"]
-
-[sub_resource type="SystemFont" id="SystemFont_regular"]
-font_names = PackedStringArray("Sans-Serif")
-subpixel_positioning = 0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_grabber"]
 bg_color = Color(0.8, 0.8, 0.8, 0.5)
@@ -16,13 +12,17 @@ corner_radius_bottom_left = 4
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_scroll"]
 
+[sub_resource type="SystemFont" id="SystemFont_regular"]
+font_names = PackedStringArray("Sans-Serif")
+subpixel_positioning = 0
+
 [sub_resource type="Theme" id="Theme_global"]
 default_font = SubResource("SystemFont_regular")
 default_font_size = 15
 Button/colors/font_color = Color(0.4, 0.4, 0.4, 1)
 Button/colors/font_hover_color = Color(0.2, 0.2, 0.2, 1)
 Button/colors/font_pressed_color = Color(0.1, 0.1, 0.1, 1)
-Label/colors/font_color = Color(0.4, 0.4, 0.4, 1)
+RichTextLabel/colors/default_color = Color(0.4, 0.4, 0.4, 1)
 VScrollBar/styles/grabber = SubResource("StyleBoxFlat_grabber")
 VScrollBar/styles/grabber_highlight = SubResource("StyleBoxFlat_grabber")
 VScrollBar/styles/grabber_pressed = SubResource("StyleBoxFlat_grabber")
@@ -31,8 +31,6 @@ VScrollBar/styles/scroll_focus = SubResource("StyleBoxEmpty_scroll")
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_main_bg"]
 bg_color = Color(0.9647, 0.9686, 0.9725, 1)
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_panel_wrapper"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sidebar_bg"]
 bg_color = Color(0.9647, 0.9686, 0.9725, 1)
@@ -55,6 +53,8 @@ border_width_left = 4
 border_color = Color(0.7, 0.7, 0.75, 1)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_line_edit"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_panel_wrapper"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_header_bg"]
 bg_color = Color(0.9647, 0.9686, 0.9725, 1)
@@ -106,34 +106,25 @@ uniform float voice_level = 0.5;
 uniform float time_speed = 2.0;
 uniform vec4 wave_color_center : source_color = vec4(1.0, 0.9, 0.6, 1.0);
 uniform vec4 wave_color_edge : source_color = vec4(0.8, 0.5, 0.2, 1.0);
-
 void fragment() {
     vec2 uv = UV * 2.0 - 1.0;
     float time = TIME * time_speed;
-    
     vec3 final_color = vec3(0.0);
     float alpha = 0.0;
-    
     for(float i = 1.0; i <= 5.0; i++) {
         float amp = (0.05 + voice_level * 0.35) / (i * 0.8);
         float freq = 1.5 * i;
-        
         float wave = sin(uv.x * freq + time + i * 1.2) * amp;
         wave += cos(uv.x * freq * 0.4 - time * 0.7) * (amp * 0.5);
-        
         float dist = abs(uv.y - wave);
         float glow = 0.008 / (dist + 0.002);
         glow = smoothstep(0.0, 1.2, glow);
-        
         float fade = smoothstep(1.0, 0.0, abs(uv.x));
         glow *= fade;
-        
         alpha += glow;
-        
         vec3 col = mix(wave_color_edge.rgb, wave_color_center.rgb, glow);
         final_color += col * glow * (0.4 + voice_level * 0.4);
     }
-    
     COLOR = vec4(final_color, clamp(alpha, 0.0, 1.0));
 }"
 
@@ -195,7 +186,7 @@ step = 0.05
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("MainLayout/LiveAreaVBox/CenterArea/MicContainer/MicOuter:theme_override_styles/panel:shadow_size")
+tracks/0/path = NodePath("MainContainer/LiveAreaContainer/CenterArea/MicrophoneContainer/MicrophoneOuterRing:theme_override_styles/panel:shadow_size")
 tracks/0/interp = 2
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -207,7 +198,7 @@ tracks/0/keys = {
 tracks/1/type = "value"
 tracks/1/imported = false
 tracks/1/enabled = true
-tracks/1/path = NodePath("MainLayout/LiveAreaVBox/CenterArea/MicContainer/MicOuter:theme_override_styles/panel:shadow_color")
+tracks/1/path = NodePath("MainContainer/LiveAreaContainer/CenterArea/MicrophoneContainer/MicrophoneOuterRing:theme_override_styles/panel:shadow_color")
 tracks/1/interp = 2
 tracks/1/loop_wrap = true
 tracks/1/keys = {
@@ -219,7 +210,7 @@ tracks/1/keys = {
 tracks/2/type = "value"
 tracks/2/imported = false
 tracks/2/enabled = true
-tracks/2/path = NodePath("MainLayout/LiveAreaVBox/CenterArea/MicContainer/MicOuter:scale")
+tracks/2/path = NodePath("MainContainer/LiveAreaContainer/CenterArea/MicrophoneContainer/MicrophoneOuterRing:scale")
 tracks/2/interp = 2
 tracks/2/loop_wrap = true
 tracks/2/keys = {
@@ -237,7 +228,7 @@ step = 0.05
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("MainLayout/LiveAreaVBox/CenterArea/MicContainer/MicOuter:theme_override_styles/panel:shadow_size")
+tracks/0/path = NodePath("MainContainer/LiveAreaContainer/CenterArea/MicrophoneContainer/MicrophoneOuterRing:theme_override_styles/panel:shadow_size")
 tracks/0/interp = 2
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -249,7 +240,7 @@ tracks/0/keys = {
 tracks/1/type = "value"
 tracks/1/imported = false
 tracks/1/enabled = true
-tracks/1/path = NodePath("MainLayout/LiveAreaVBox/CenterArea/MicContainer/MicOuter:theme_override_styles/panel:shadow_color")
+tracks/1/path = NodePath("MainContainer/LiveAreaContainer/CenterArea/MicrophoneContainer/MicrophoneOuterRing:theme_override_styles/panel:shadow_color")
 tracks/1/interp = 2
 tracks/1/loop_wrap = true
 tracks/1/keys = {
@@ -261,7 +252,7 @@ tracks/1/keys = {
 tracks/2/type = "value"
 tracks/2/imported = false
 tracks/2/enabled = true
-tracks/2/path = NodePath("MainLayout/LiveAreaVBox/CenterArea/MicContainer/MicOuter:scale")
+tracks/2/path = NodePath("MainContainer/LiveAreaContainer/CenterArea/MicrophoneContainer/MicrophoneOuterRing:scale")
 tracks/2/interp = 2
 tracks/2/loop_wrap = true
 tracks/2/keys = {
@@ -273,11 +264,11 @@ tracks/2/keys = {
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_waves"]
 _data = {
-"idle": SubResource("Animation_idle"),
-"speak": SubResource("Animation_speak")
+&"idle": SubResource("Animation_idle"),
+&"speak": SubResource("Animation_speak")
 }
 
-[node name="LivemodeMain" type="Panel"]
+[node name="LiveModeInterface" type="Panel" unique_id=1340510373 node_paths=PackedStringArray("WaveVisualizer", "WaveAnimationPlayer")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -286,8 +277,10 @@ grow_vertical = 2
 theme = SubResource("Theme_global")
 theme_override_styles/panel = SubResource("StyleBoxFlat_main_bg")
 script = ExtResource("1_script")
+WaveVisualizer = NodePath("MainContainer/LiveAreaContainer/CenterArea/WaveVisualizer")
+WaveAnimationPlayer = NodePath("WaveAnimationPlayer")
 
-[node name="MainLayout" type="HBoxContainer" parent="."]
+[node name="MainContainer" type="HBoxContainer" parent="." unique_id=913493175]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -296,163 +289,165 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-[node name="SidebarWrapper" type="PanelContainer" parent="MainLayout"]
+[node name="SidebarContainer" type="PanelContainer" parent="MainContainer" unique_id=1045951840]
 clip_contents = true
 custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_sidebar_bg")
 
-[node name="SidebarVBox" type="VBoxContainer" parent="MainLayout/SidebarWrapper"]
+[node name="SidebarLayout" type="VBoxContainer" parent="MainContainer/SidebarContainer" unique_id=180513918]
 layout_mode = 2
 theme_override_constants/separation = 15
 
-[node name="LogoMargin" type="MarginContainer" parent="MainLayout/SidebarWrapper/SidebarVBox"]
+[node name="LogoMargin" type="MarginContainer" parent="MainContainer/SidebarContainer/SidebarLayout" unique_id=1787648471]
 layout_mode = 2
 theme_override_constants/margin_left = 20
 theme_override_constants/margin_top = 30
 theme_override_constants/margin_right = 20
 theme_override_constants/margin_bottom = 20
 
-[node name="LogoHBox" type="HBoxContainer" parent="MainLayout/SidebarWrapper/SidebarVBox/LogoMargin"]
+[node name="LogoContainer" type="HBoxContainer" parent="MainContainer/SidebarContainer/SidebarLayout/LogoMargin" unique_id=139338089]
 layout_mode = 2
 alignment = 1
 
-[node name="LogoRect" type="TextureRect" parent="MainLayout/SidebarWrapper/SidebarVBox/LogoMargin/LogoHBox"]
+[node name="CompanyLogo" type="TextureRect" parent="MainContainer/SidebarContainer/SidebarLayout/LogoMargin/LogoContainer" unique_id=991042847]
 custom_minimum_size = Vector2(160, 160)
 layout_mode = 2
 texture = ExtResource("2_logo")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="BtnInicio" type="Button" parent="MainLayout/SidebarWrapper/SidebarVBox"]
+[node name="HomeButton" type="Button" parent="MainContainer/SidebarContainer/SidebarLayout" unique_id=48088683]
 layout_mode = 2
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = "⌂  Inicio"
 alignment = 0
 
-[node name="BtnHistorial" type="Button" parent="MainLayout/SidebarWrapper/SidebarVBox"]
+[node name="HistoryButton" type="Button" parent="MainContainer/SidebarContainer/SidebarLayout" unique_id=587349644]
 layout_mode = 2
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = "↺  Historial"
 alignment = 0
 
-[node name="BtnConfig" type="Button" parent="MainLayout/SidebarWrapper/SidebarVBox"]
+[node name="SettingsButton" type="Button" parent="MainContainer/SidebarContainer/SidebarLayout" unique_id=1580666725]
 layout_mode = 2
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = "⚙  Configuración"
 alignment = 0
 
-[node name="BtnAyuda" type="Button" parent="MainLayout/SidebarWrapper/SidebarVBox"]
+[node name="HelpButton" type="Button" parent="MainContainer/SidebarContainer/SidebarLayout" unique_id=930407757]
 layout_mode = 2
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
-text = "?  Ayuda"
+theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+text = "? Ayuda"
 alignment = 0
 
-[node name="Spacer" type="Panel" parent="MainLayout/SidebarWrapper/SidebarVBox"]
+[node name="VerticalSpacer" type="Panel" parent="MainContainer/SidebarContainer/SidebarLayout" unique_id=1280701506]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = SubResource("StyleBoxEmpty_panel_wrapper")
 
-[node name="LiveAreaVBox" type="VBoxContainer" parent="MainLayout"]
+[node name="LiveAreaContainer" type="VBoxContainer" parent="MainContainer" unique_id=678113093]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 0
 
-[node name="HeaderContainer" type="PanelContainer" parent="MainLayout/LiveAreaVBox"]
+[node name="HeaderPanel" type="PanelContainer" parent="MainContainer/LiveAreaContainer" unique_id=1468629879]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_header_bg")
 
-[node name="HeaderMargin" type="MarginContainer" parent="MainLayout/LiveAreaVBox/HeaderContainer"]
+[node name="HeaderMargin" type="MarginContainer" parent="MainContainer/LiveAreaContainer/HeaderPanel" unique_id=553540849]
 layout_mode = 2
 theme_override_constants/margin_left = 25
 theme_override_constants/margin_top = 15
 theme_override_constants/margin_right = 25
 theme_override_constants/margin_bottom = 15
 
-[node name="HeaderHBox" type="HBoxContainer" parent="MainLayout/LiveAreaVBox/HeaderContainer/HeaderMargin"]
+[node name="HeaderLayout" type="HBoxContainer" parent="MainContainer/LiveAreaContainer/HeaderPanel/HeaderMargin" unique_id=124891783]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="LeftBox" type="HBoxContainer" parent="MainLayout/LiveAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox"]
+[node name="LeftSection" type="HBoxContainer" parent="MainContainer/LiveAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout" unique_id=983128986]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 15
 
-[node name="BtnMenuToggle" type="Button" parent="MainLayout/LiveAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox/LeftBox"]
+[node name="MenuToggleButton" type="Button" parent="MainContainer/LiveAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout/LeftSection" unique_id=611584046]
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/hover = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/pressed = SubResource("StyleBoxEmpty_line_edit")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_line_edit")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_line_edit")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = "≡"
 flat = true
 
-[node name="Title" type="Label" parent="MainLayout/LiveAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox/LeftBox"]
+[node name="HeaderTitle" type="RichTextLabel" parent="MainContainer/LiveAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout/LeftSection" unique_id=1225537531]
 layout_mode = 2
-theme_override_fonts/font = SubResource("SystemFont_bold")
-theme_override_font_sizes/font_size = 18
+theme_override_fonts/normal_font = SubResource("SystemFont_bold")
+theme_override_font_sizes/normal_font_size = 18
 text = "Modo Live"
+fit_content = true
+autowrap_mode = 0
 
-[node name="CenterBox" type="HBoxContainer" parent="MainLayout/LiveAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox"]
+[node name="CenterSection" type="HBoxContainer" parent="MainContainer/LiveAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout" unique_id=1873995610]
 layout_mode = 2
 theme_override_constants/separation = 10
 alignment = 1
 
-[node name="BtnModoBot" type="Button" parent="MainLayout/LiveAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox/CenterBox"]
+[node name="ChatBotModeButton" type="Button" parent="MainContainer/LiveAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout/CenterSection" unique_id=1749183834]
 layout_mode = 2
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/hover = SubResource("StyleBoxFlat_header_btn_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_header_btn_pressed")
 theme_override_styles/normal = SubResource("StyleBoxFlat_header_btn_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_header_btn_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_header_btn_normal")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 toggle_mode = true
 button_group = SubResource("ButtonGroup_header_modes")
 text = "🗨 Modo Chat Bot"
 
-[node name="BtnModoLive" type="Button" parent="MainLayout/LiveAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox/CenterBox"]
+[node name="LiveModeButton" type="Button" parent="MainContainer/LiveAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout/CenterSection" unique_id=1736962363]
 layout_mode = 2
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/hover = SubResource("StyleBoxFlat_header_btn_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_header_btn_pressed")
 theme_override_styles/normal = SubResource("StyleBoxFlat_header_btn_pressed")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_header_btn_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_header_btn_normal")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 toggle_mode = true
 button_pressed = true
 button_group = SubResource("ButtonGroup_header_modes")
 text = "📺 Modo Live"
 
-[node name="BtnModoAGI" type="Button" parent="MainLayout/LiveAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox/CenterBox"]
+[node name="AgiModeButton" type="Button" parent="MainContainer/LiveAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout/CenterSection" unique_id=1133191890]
 layout_mode = 2
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/hover = SubResource("StyleBoxFlat_header_btn_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_header_btn_pressed")
 theme_override_styles/normal = SubResource("StyleBoxFlat_header_btn_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_header_btn_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_header_btn_normal")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 toggle_mode = true
 button_group = SubResource("ButtonGroup_header_modes")
 text = "≡ Modo AGI"
 
-[node name="RightBox" type="Panel" parent="MainLayout/LiveAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox"]
+[node name="RightSection" type="Panel" parent="MainContainer/LiveAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout" unique_id=1816664190]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxEmpty_panel_wrapper")
 
-[node name="CenterArea" type="Panel" parent="MainLayout/LiveAreaVBox"]
+[node name="CenterArea" type="Panel" parent="MainContainer/LiveAreaContainer" unique_id=894518640]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = SubResource("StyleBoxEmpty_panel_wrapper")
 
-[node name="Waves" type="ColorRect" parent="MainLayout/LiveAreaVBox/CenterArea"]
+[node name="WaveVisualizer" type="ColorRect" parent="MainContainer/LiveAreaContainer/CenterArea" unique_id=1689989887]
 material = SubResource("ShaderMaterial_waves")
 layout_mode = 1
 anchors_preset = 15
@@ -461,7 +456,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="MicContainer" type="Panel" parent="MainLayout/LiveAreaVBox/CenterArea"]
+[node name="MicrophoneContainer" type="Panel" parent="MainContainer/LiveAreaContainer/CenterArea" unique_id=1910095178]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -477,7 +472,7 @@ grow_vertical = 2
 pivot_offset = Vector2(75, 75)
 theme_override_styles/panel = SubResource("StyleBoxEmpty_panel_wrapper")
 
-[node name="MicOuter" type="Panel" parent="MainLayout/LiveAreaVBox/CenterArea/MicContainer"]
+[node name="MicrophoneOuterRing" type="Panel" parent="MainContainer/LiveAreaContainer/CenterArea/MicrophoneContainer" unique_id=1136640829]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -487,7 +482,7 @@ grow_vertical = 2
 pivot_offset = Vector2(75, 75)
 theme_override_styles/panel = SubResource("StyleBoxFlat_mic_outer")
 
-[node name="MicInner" type="Panel" parent="MainLayout/LiveAreaVBox/CenterArea/MicContainer"]
+[node name="MicrophoneInnerRing" type="Panel" parent="MainContainer/LiveAreaContainer/CenterArea/MicrophoneContainer" unique_id=1809567504]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -502,20 +497,20 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_mic_inner")
 
-[node name="LabelIcon" type="Label" parent="MainLayout/LiveAreaVBox/CenterArea/MicContainer/MicInner"]
+[node name="MicrophoneIcon" type="RichTextLabel" parent="MainContainer/LiveAreaContainer/CenterArea/MicrophoneContainer/MicrophoneInnerRing" unique_id=1499366200]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 40
-text = "🎤"
-horizontal_alignment = 1
-vertical_alignment = 1
+theme_override_colors/default_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/normal_font_size = 40
+bbcode_enabled = true
+text = "[center]🎤[/center]"
+fit_content = true
 
-[node name="FABContainer" type="Panel" parent="MainLayout/LiveAreaVBox/CenterArea"]
+[node name="FloatingActionContainer" type="Panel" parent="MainContainer/LiveAreaContainer/CenterArea" unique_id=114668136]
 layout_mode = 1
 anchors_preset = 3
 anchor_left = 1.0
@@ -530,7 +525,7 @@ grow_horizontal = 0
 grow_vertical = 0
 theme_override_styles/panel = SubResource("StyleBoxEmpty_panel_wrapper")
 
-[node name="BtnFAB" type="Button" parent="MainLayout/LiveAreaVBox/CenterArea/FABContainer"]
+[node name="FloatingActionButton" type="Button" parent="MainContainer/LiveAreaContainer/CenterArea/FloatingActionContainer" unique_id=23789466]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -539,14 +534,12 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_color = Color(0.4, 0.4, 0.4, 1)
 theme_override_font_sizes/font_size = 24
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/hover = SubResource("StyleBoxFlat_fab_pressed")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_fab_pressed")
 theme_override_styles/normal = SubResource("StyleBoxFlat_fab_bg")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_fab_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_fab_pressed")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = "📝"
 
-[node name="WaveAnimator" type="AnimationPlayer" parent="."]
-libraries = {
-"": SubResource("AnimationLibrary_waves")
-}
-autoplay = "idle"
+[node name="WaveAnimationPlayer" type="AnimationPlayer" parent="." unique_id=461209766]
+libraries/ = SubResource("AnimationLibrary_waves")
+autoplay = &"idle"

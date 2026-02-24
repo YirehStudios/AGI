@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://laxqt8bmvnnx" path="res://Script/Cs/ChatbotMain.cs" id="1_8rl47"]
 [ext_resource type="Texture2D" uid="uid://dxui8em8fu8w3" path="res://Resources/logo.png" id="2_logo"]
 [ext_resource type="Texture2D" uid="uid://du3w0n73d40lw" path="res://Resources/avatar_bot.png" id="3_avatar_bot"]
-[ext_resource type="Texture2D" uid="uid://vwkodhu786k" path="res://Resources/avatar_usuario.png" id="4_avatar_user"]
+[ext_resource type="Texture2D" uid="uid://debnuc10m0as" path="res://Resources/Images/Icons/JirehStudiosIcon.png" id="3_ug3aw"]
 [ext_resource type="Texture2D" uid="uid://b0gc5q4xau83j" path="res://Resources/flecha_enviar.png" id="5_ug3aw"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_grabber"]
@@ -25,7 +25,7 @@ default_font_size = 15
 Button/colors/font_color = Color(0.4, 0.4, 0.4, 1)
 Button/colors/font_hover_color = Color(0.2, 0.2, 0.2, 1)
 Button/colors/font_pressed_color = Color(0.1, 0.1, 0.1, 1)
-Label/colors/font_color = Color(0.4, 0.4, 0.4, 1)
+RichTextLabel/colors/default_color = Color(0.4, 0.4, 0.4, 1)
 VScrollBar/styles/grabber = SubResource("StyleBoxFlat_grabber")
 VScrollBar/styles/grabber_highlight = SubResource("StyleBoxFlat_grabber")
 VScrollBar/styles/grabber_pressed = SubResource("StyleBoxFlat_grabber")
@@ -174,26 +174,25 @@ corner_radius_top_right = 20
 corner_radius_bottom_right = 20
 corner_radius_bottom_left = 20
 
-[node name="ChatbotUI" type="Control" unique_id=1536372286]
-layout_mode = 3
+[node name="ChatbotInterface" type="Panel" unique_id=1536372286 node_paths=PackedStringArray("SidebarContainer", "MenuToggleButton", "ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "UserMessageTemplate", "BotMessageTemplate")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 theme = SubResource("Theme_global")
-script = ExtResource("1_8rl47")
-
-[node name="Background" type="Panel" parent="." unique_id=766231613]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_main_bg")
+script = ExtResource("1_8rl47")
+SidebarContainer = NodePath("MainContainer/SidebarContainer")
+MenuToggleButton = NodePath("MainContainer/ChatAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout/MenuToggleButton")
+ChatScrollContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer")
+MessagesContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer")
+TextInputField = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/TextInputField")
+SendButton = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/SendButton")
+UserMessageTemplate = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate")
+BotMessageTemplate = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate")
 
-[node name="MainLayout" type="HBoxContainer" parent="." unique_id=600219559]
+[node name="MainContainer" type="HBoxContainer" parent="." unique_id=600219559]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -202,44 +201,35 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-[node name="SidebarWrapper" type="Control" parent="MainLayout" unique_id=9876543210]
+[node name="SidebarContainer" type="PanelContainer" parent="MainContainer" unique_id=1314282596]
 clip_contents = true
 custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
-
-[node name="SidebarContainer" type="PanelContainer" parent="MainLayout/SidebarWrapper" unique_id=1314282596]
-custom_minimum_size = Vector2(250, 0)
-layout_mode = 1
-anchors_preset = 9
-anchor_bottom = 1.0
-offset_right = 250.0
-offset_bottom = 0.0
-grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_sidebar_bg")
 
-[node name="SidebarVBox" type="VBoxContainer" parent="MainLayout/SidebarWrapper/SidebarContainer" unique_id=1169445998]
+[node name="SidebarLayout" type="VBoxContainer" parent="MainContainer/SidebarContainer" unique_id=1169445998]
 layout_mode = 2
 theme_override_constants/separation = 15
 
-[node name="LogoMargin" type="MarginContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarVBox" unique_id=1429148186]
+[node name="LogoMargin" type="MarginContainer" parent="MainContainer/SidebarContainer/SidebarLayout" unique_id=1429148186]
 layout_mode = 2
 theme_override_constants/margin_left = 20
 theme_override_constants/margin_top = 30
 theme_override_constants/margin_right = 20
 theme_override_constants/margin_bottom = 20
 
-[node name="LogoHBox" type="HBoxContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarVBox/LogoMargin" unique_id=538807586]
+[node name="LogoContainer" type="HBoxContainer" parent="MainContainer/SidebarContainer/SidebarLayout/LogoMargin" unique_id=538807586]
 layout_mode = 2
 alignment = 1
 
-[node name="LogoRect" type="TextureRect" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarVBox/LogoMargin/LogoHBox" unique_id=176062553]
+[node name="CompanyLogo" type="TextureRect" parent="MainContainer/SidebarContainer/SidebarLayout/LogoMargin/LogoContainer" unique_id=176062553]
 custom_minimum_size = Vector2(160, 160)
 layout_mode = 2
 texture = ExtResource("2_logo")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="BtnInicio" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarVBox" unique_id=1411348741]
+[node name="HomeButton" type="Button" parent="MainContainer/SidebarContainer/SidebarLayout" unique_id=1411348741]
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
@@ -248,7 +238,7 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = "⌂  Inicio"
 alignment = 0
 
-[node name="BtnHistorial" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarVBox" unique_id=937249160]
+[node name="HistoryButton" type="Button" parent="MainContainer/SidebarContainer/SidebarLayout" unique_id=937249160]
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
@@ -257,7 +247,7 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = "↺  Historial"
 alignment = 0
 
-[node name="BtnConfig" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarVBox" unique_id=890057831]
+[node name="SettingsButton" type="Button" parent="MainContainer/SidebarContainer/SidebarLayout" unique_id=890057831]
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
@@ -266,41 +256,41 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = "⚙  Configuración"
 alignment = 0
 
-[node name="BtnAyuda" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarVBox" unique_id=177271375]
+[node name="HelpButton" type="Button" parent="MainContainer/SidebarContainer/SidebarLayout" unique_id=177271375]
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
 theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-text = "?  Ayuda"
+text = "? Ayuda"
 alignment = 0
 
-[node name="Spacer" type="Panel" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarVBox" unique_id=1484550000]
+[node name="VerticalSpacer" type="Panel" parent="MainContainer/SidebarContainer/SidebarLayout" unique_id=1484550000]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = SubResource("StyleBoxEmpty_spacer")
 
-[node name="ChatAreaVBox" type="VBoxContainer" parent="MainLayout" unique_id=266962075]
+[node name="ChatAreaContainer" type="VBoxContainer" parent="MainContainer" unique_id=266962075]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 0
 
-[node name="HeaderContainer" type="PanelContainer" parent="MainLayout/ChatAreaVBox" unique_id=1175794961]
+[node name="HeaderPanel" type="PanelContainer" parent="MainContainer/ChatAreaContainer" unique_id=1175794961]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_header_bg")
 
-[node name="HeaderMargin" type="MarginContainer" parent="MainLayout/ChatAreaVBox/HeaderContainer" unique_id=1946497192]
+[node name="HeaderMargin" type="MarginContainer" parent="MainContainer/ChatAreaContainer/HeaderPanel" unique_id=1946497192]
 layout_mode = 2
 theme_override_constants/margin_left = 25
 theme_override_constants/margin_top = 15
 theme_override_constants/margin_right = 25
 theme_override_constants/margin_bottom = 15
 
-[node name="HeaderHBox" type="HBoxContainer" parent="MainLayout/ChatAreaVBox/HeaderContainer/HeaderMargin" unique_id=116355596]
+[node name="HeaderLayout" type="HBoxContainer" parent="MainContainer/ChatAreaContainer/HeaderPanel/HeaderMargin" unique_id=116355596]
 layout_mode = 2
 theme_override_constants/separation = 15
 
-[node name="BtnMenuToggle" type="Button" parent="MainLayout/ChatAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox" unique_id=1413048976]
+[node name="MenuToggleButton" type="Button" parent="MainContainer/ChatAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout" unique_id=1413048976]
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
@@ -310,18 +300,20 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = "≡"
 flat = true
 
-[node name="Title" type="Label" parent="MainLayout/ChatAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox" unique_id=1736563295]
+[node name="HeaderTitle" type="RichTextLabel" parent="MainContainer/ChatAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout" unique_id=1736563295]
 layout_mode = 2
-theme_override_fonts/font = SubResource("SystemFont_bold")
-theme_override_font_sizes/font_size = 18
+theme_override_fonts/normal_font = SubResource("SystemFont_bold")
+theme_override_font_sizes/normal_font_size = 18
 text = "Chat"
+fit_content = true
+autowrap_mode = 0
 
-[node name="Spacer" type="Panel" parent="MainLayout/ChatAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox" unique_id=2011255500]
+[node name="HorizontalSpacer" type="Panel" parent="MainContainer/ChatAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout" unique_id=2011255500]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxEmpty_spacer")
 
-[node name="BtnModoBot" type="Button" parent="MainLayout/ChatAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox" unique_id=988350290]
+[node name="ChatBotModeButton" type="Button" parent="MainContainer/ChatAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout" unique_id=988350290]
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_header_btn_normal")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_header_btn_pressed")
@@ -332,7 +324,7 @@ button_pressed = true
 button_group = SubResource("ButtonGroup_header_modes")
 text = "🗨 Modo Chat Bot"
 
-[node name="BtnModoLive" type="Button" parent="MainLayout/ChatAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox" unique_id=1540408789]
+[node name="LiveModeButton" type="Button" parent="MainContainer/ChatAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout" unique_id=1540408789]
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_header_btn_normal")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_header_btn_pressed")
@@ -342,7 +334,7 @@ toggle_mode = true
 button_group = SubResource("ButtonGroup_header_modes")
 text = "📺 Modo Live"
 
-[node name="BtnModoAGI" type="Button" parent="MainLayout/ChatAreaVBox/HeaderContainer/HeaderMargin/HeaderHBox" unique_id=12446483]
+[node name="AgiModeButton" type="Button" parent="MainContainer/ChatAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout" unique_id=12446483]
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_header_btn_normal")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_header_btn_pressed")
@@ -352,12 +344,12 @@ toggle_mode = true
 button_group = SubResource("ButtonGroup_header_modes")
 text = "≡ Modo AGI"
 
-[node name="ChatScroll" type="ScrollContainer" parent="MainLayout/ChatAreaVBox" unique_id=1115442438]
+[node name="ChatScrollContainer" type="ScrollContainer" parent="MainContainer/ChatAreaContainer" unique_id=1115442438]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="ScrollMargin" type="MarginContainer" parent="MainLayout/ChatAreaVBox/ChatScroll" unique_id=1017465704]
+[node name="ScrollMargin" type="MarginContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer" unique_id=1017465704]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_left = 40
@@ -365,101 +357,109 @@ theme_override_constants/margin_top = 30
 theme_override_constants/margin_right = 40
 theme_override_constants/margin_bottom = 30
 
-[node name="MessagesVBox" type="VBoxContainer" parent="MainLayout/ChatAreaVBox/ChatScroll/ScrollMargin" unique_id=660996265]
+[node name="MessagesContainer" type="VBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin" unique_id=660996265]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 25
 
-[node name="UserMsg1" type="HBoxContainer" parent="MainLayout/ChatAreaVBox/ChatScroll/ScrollMargin/MessagesVBox" unique_id=76497262]
-visible = false
+[node name="UserMessageTemplate" type="HBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer" unique_id=76497262]
 layout_mode = 2
 theme_override_constants/separation = 15
 alignment = 2
 
-[node name="Spacer" type="Panel" parent="MainLayout/ChatAreaVBox/ChatScroll/ScrollMargin/MessagesVBox/UserMsg1" unique_id=641086178]
+[node name="LeftSpacer" type="Panel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate" unique_id=641086178]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxEmpty_spacer")
 
-[node name="Bubble" type="PanelContainer" parent="MainLayout/ChatAreaVBox/ChatScroll/ScrollMargin/MessagesVBox/UserMsg1" unique_id=2035035034]
+[node name="MessageBubble" type="PanelContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate" unique_id=2035035034]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
 
-[node name="Text" type="Label" parent="MainLayout/ChatAreaVBox/ChatScroll/ScrollMargin/MessagesVBox/UserMsg1/Bubble" unique_id=1302020720]
+[node name="MessageBody" type="RichTextLabel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/MessageBubble" unique_id=1302020720]
 layout_mode = 2
+focus_mode = 2
+bbcode_enabled = true
 text = "Plantilla Usuario"
+fit_content = true
+autowrap_mode = 0
+context_menu_enabled = true
+selection_enabled = true
 
-[node name="AvatarPanel" type="PanelContainer" parent="MainLayout/ChatAreaVBox/ChatScroll/ScrollMargin/MessagesVBox/UserMsg1" unique_id=1988433205]
+[node name="AvatarPanel" type="PanelContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate" unique_id=1988433205]
 clip_children = 1
 custom_minimum_size = Vector2(70, 70)
 layout_mode = 2
 size_flags_vertical = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_container")
 
-[node name="AvatarTex" type="TextureRect" parent="MainLayout/ChatAreaVBox/ChatScroll/ScrollMargin/MessagesVBox/UserMsg1/AvatarPanel" unique_id=1590279126]
+[node name="UserAvatar" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/AvatarPanel" unique_id=1590279126]
 layout_mode = 2
-texture = ExtResource("4_avatar_user")
+texture = ExtResource("3_ug3aw")
 expand_mode = 1
 stretch_mode = 6
 
-[node name="BotMsg1" type="HBoxContainer" parent="MainLayout/ChatAreaVBox/ChatScroll/ScrollMargin/MessagesVBox" unique_id=1769269851]
+[node name="BotMessageTemplate" type="HBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer" unique_id=1769269851]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 15
 
-[node name="AvatarPanel" type="PanelContainer" parent="MainLayout/ChatAreaVBox/ChatScroll/ScrollMargin/MessagesVBox/BotMsg1" unique_id=1254526909]
+[node name="AvatarPanel" type="PanelContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate" unique_id=1254526909]
 clip_children = 1
 custom_minimum_size = Vector2(70, 70)
 layout_mode = 2
 size_flags_vertical = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_container")
 
-[node name="AvatarTex" type="TextureRect" parent="MainLayout/ChatAreaVBox/ChatScroll/ScrollMargin/MessagesVBox/BotMsg1/AvatarPanel" unique_id=1403646630]
+[node name="BotAvatar" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel" unique_id=1403646630]
 layout_mode = 2
 texture = ExtResource("3_avatar_bot")
 expand_mode = 1
 stretch_mode = 6
 
-[node name="Bubble" type="PanelContainer" parent="MainLayout/ChatAreaVBox/ChatScroll/ScrollMargin/MessagesVBox/BotMsg1" unique_id=1145961745]
+[node name="MessageBubble" type="PanelContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate" unique_id=1145961745]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
 
-[node name="Text" type="Label" parent="MainLayout/ChatAreaVBox/ChatScroll/ScrollMargin/MessagesVBox/BotMsg1/Bubble" unique_id=2134095950]
+[node name="MessageBody" type="RichTextLabel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble" unique_id=2134095950]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.45, 0.45, 0.45, 1)
-theme_override_constants/line_spacing = 6
+focus_mode = 2
+theme_override_colors/default_color = Color(0.45, 0.45, 0.45, 1)
+bbcode_enabled = true
 text = "Plantilla Bot"
-autowrap_mode = 3
+fit_content = true
+autowrap_mode = 2
+context_menu_enabled = true
+selection_enabled = true
 
-[node name="InputMargin" type="MarginContainer" parent="MainLayout/ChatAreaVBox" unique_id=1173488473]
+[node name="InputAreaMargin" type="MarginContainer" parent="MainContainer/ChatAreaContainer" unique_id=1173488473]
 layout_mode = 2
 theme_override_constants/margin_left = 40
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 40
 theme_override_constants/margin_bottom = 30
 
-[node name="InputContainer" type="PanelContainer" parent="MainLayout/ChatAreaVBox/InputMargin" unique_id=912588036]
+[node name="InputPanel" type="PanelContainer" parent="MainContainer/ChatAreaContainer/InputAreaMargin" unique_id=912588036]
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_input_bg")
 
-[node name="InputHBox" type="HBoxContainer" parent="MainLayout/ChatAreaVBox/InputMargin/InputContainer" unique_id=973825203]
+[node name="InputLayout" type="HBoxContainer" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel" unique_id=973825203]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="ChatInput" type="LineEdit" parent="MainLayout/ChatAreaVBox/InputMargin/InputContainer/InputHBox" unique_id=110481454]
+[node name="TextInputField" type="LineEdit" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=110481454]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.2, 0.2, 0.2, 1)
 theme_override_colors/caret_color = Color(0.2, 0.2, 0.2, 1)
 theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-text = "|"
 caret_blink = true
 
-[node name="BtnSend" type="Button" parent="MainLayout/ChatAreaVBox/InputMargin/InputContainer/InputHBox" unique_id=433306789]
+[node name="SendButton" type="Button" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=433306789]
 custom_minimum_size = Vector2(60, 36)
 layout_mode = 2
 size_flags_vertical = 4
@@ -467,22 +467,6 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_send_normal")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_send_pressed")
 theme_override_styles/hover = SubResource("StyleBoxFlat_send_hover")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-
-[node name="SendIcon" type="TextureRect" parent="MainLayout/ChatAreaVBox/InputMargin/InputContainer/InputHBox/BtnSend" unique_id=2033760076]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 18.0
-offset_top = 8.0
-offset_right = -18.0
-offset_bottom = -8.0
-grow_horizontal = 2
-grow_vertical = 2
-expand_mode = 1
-stretch_mode = 5
-
-[node name="FlechaEnviar" type="Sprite2D" parent="." unique_id=1379982448]
-position = Vector2(1845, 1023.0001)
-scale = Vector2(0.07202129, 0.08242371)
-texture = ExtResource("5_ug3aw")
+icon = ExtResource("5_ug3aw")
+icon_alignment = 1
+expand_icon = true
