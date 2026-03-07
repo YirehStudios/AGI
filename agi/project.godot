@@ -39,4 +39,3 @@ project/assembly_name="AGI"
 rendering_device/driver.windows="d3d12"
 lights_and_shadows/use_physical_light_units=true
 viewport/hdr_2d=true
-viewport/transparent_background=true

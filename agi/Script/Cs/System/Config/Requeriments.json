@@ -1,0 +1,12 @@
+{
+  "binaries": [
+    { "name": "llama-server", "url": "URL_BINARIO_LINUX", "target": "bin/" },
+    { "name": "whisper-cli", "url": "URL_WHISPER_LINUX", "target": "bin/" },
+    { "name": "piper", "url": "URL_PIPER_LINUX", "target": "bin/" }
+  ],
+  "models": [
+    { "name": "qwen2.5-7b.gguf", "url": "URL_HUGGINGFACE_GGUF", "target": "models/" },
+    { "name": "whisper-base.bin", "url": "URL_WHISPER_MODEL", "target": "models/" },
+    { "name": "piper-voice.onnx", "url": "URL_PIPER_MODEL", "target": "models/" }
+  ]
+}

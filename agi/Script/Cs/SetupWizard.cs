@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Text.Json;
+using Logic.Network;
 
 namespace Logic.Utils
 {
@@ -14,88 +15,156 @@ namespace Logic.Utils
 
         // Path configuration following architectural standards
         private string _localAppPath;
-        private string _enginePath;
+        private DownloadManager _downloadManager;
+
+        /// <summary>
+        /// Represents the expected structure of the requirements JSON configuration file.
+        /// </summary>
+        private class Requirement
+        {
+            public string FileName { get; set; }
+            public string Url { get; set; }
+            public string Target { get; set; } // Resolves to e.g. "bin/" or "models/"
+        }
 
         public override void _Ready()
         {
-            // Globalize path to ~/.local/share/godot/app_userdata/[ProjectName] (Linux) 
-            // or %APPDATA%/... (Windows) depending on OS, though logic here focuses on Linux portability.
             _localAppPath = ProjectSettings.GlobalizePath("user://");
-            _enginePath = Path.Combine(_localAppPath, "Engine/ComfyUI");
             
-            // Fire and forget the setup sequence
+            _downloadManager = new DownloadManager();
+            AddChild(_downloadManager);
+            
             _ = RunSetupSequence();
         }
 
         /// <summary>
         /// Core sequence to prepare the AGI environment.
-        /// Executes strictly in order: Discovery -> Integrity -> Permissions -> Hardware -> Config.
+        /// Executes strictly in order: Discovery/Download -> Permissions -> Hardware -> Config.
         /// </summary>
         private async Task RunSetupSequence()
         {
             GD.Print("AGI Setup Wizard: Initiating System Discovery...");
 
-            if (!CheckEnvironmentIntegrity())
-            {
-                await DeployEnvironment();
-            }
-
-            await GrantLinuxPermissions();
+            await VerifyAndDownloadRequirements();
             
             bool hasGpu = CheckHardwareCapabilities();
             UpdateLocalConfiguration(hasGpu);
 
             GD.Print("AGI Setup Wizard: Environment Ready.");
             
-            // Notify the main system (ChatbotMain) that the handshake can begin
             EmitSignal(SignalName.SetupCompleted, hasGpu);
         }
 
         /// <summary>
-        /// Validates if the ComfyUI engine exists in the local AppData.
+        /// Retrieves the correct manifest path based on Godot Feature Tags.
         /// </summary>
-        private bool CheckEnvironmentIntegrity()
+        private string GetRequirementFilePath()
         {
-            return Directory.Exists(_enginePath);
+            if (OS.HasFeature("Lite")) return "res://Script/Cs/System/Config/RequerimentsLite.json";
+            if (OS.HasFeature("Server")) return "res://Script/Cs/System/Config/RequerimentsServer.json";
+            if (OS.HasFeature("IU")) return "res://Script/Cs/System/Config/RequerimentsIU.json";
+            return "res://Script/Cs/System/Config/Requeriments.json";
         }
 
         /// <summary>
-        /// Handles the deployment of the Lite engine to local storage.
-        /// Currently a placeholder for ZIP extraction logic.
+        /// Reads the dynamic requirements file, verifies existence and integrity of native files,
+        /// queues missing components, and grants execution permissions immediately post-validation.
         /// </summary>
-        private async Task DeployEnvironment()
+        private async Task VerifyAndDownloadRequirements()
         {
-            GD.Print("Deploying AGI Engine to local storage...");
+            string requirementsPath = GetRequirementFilePath();
             
-            // TODO: Implement ZIP extraction logic here.
-            // For now, we simulate a delay representing the operation.
-            await ToSignal(GetTree().CreateTimer(0.1f), SceneTreeTimer.SignalName.Timeout);
-        }
-
-        /// <summary>
-        /// Grants execution permissions to binary files in Linux to ensure Python embedded works.
-        /// </summary>
-        private async Task GrantLinuxPermissions()
-        {
-            if (OS.GetName() == "Linux")
+            // CORRECCIÓN CS0104: Uso explícito de Godot.FileAccess
+            if (!Godot.FileAccess.FileExists(requirementsPath))
             {
-                GD.Print("AGI Setup Wizard: Granting executable permissions...");
-                string pythonPath = Path.Combine(_enginePath, "python_embeded/python"); // Removed .exe for Linux logic, adjust if using Wine
-                
-                // Ensure the path is absolute for chmod
-                string globalPath = ProjectSettings.GlobalizePath(pythonPath);
+                GD.PrintErr($"AGI Setup Wizard: Requirements file missing at {requirementsPath}");
+                return;
+            }
 
-                // Execute chmod +x on the python binary
-                // Note: Godot 4 OS.Execute returns the exit code.
-                string[] args = { "+x", globalPath };
-                int exitCode = OS.Execute("chmod", args, new Godot.Collections.Array(), true);
-                
-                if (exitCode != 0)
+            // CORRECCIÓN CS0104: Uso explícito de Godot.FileAccess y su enumerador
+            using var file = Godot.FileAccess.Open(requirementsPath, Godot.FileAccess.ModeFlags.Read);
+            string jsonContent = file.GetAsText();
+            
+            List<Requirement> requirements = new List<Requirement>();
+            try
+            {
+                var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                requirements = System.Text.Json.JsonSerializer.Deserialize<List<Requirement>>(jsonContent, options);
+            }
+            catch(Exception ex)
+            {
+                GD.PrintErr($"AGI Setup Wizard: Failed to parse requirements JSON. {ex.Message}");
+                return;
+            }
+
+            using System.Net.Http.HttpClient httpClient = new System.Net.Http.HttpClient();
+
+            foreach (var req in requirements)
+            {
+                string targetSubDir = string.IsNullOrEmpty(req.Target) ? "models/" : req.Target;
+                string globalTargetDir = ProjectSettings.GlobalizePath($"user://agi/{targetSubDir}");
+                string filePath = System.IO.Path.Combine(globalTargetDir, req.FileName);
+
+                bool needsDownload = false;
+                long serverSize = -1;
+
+                // 1. Fetch Content-Length from server to validate integrity
+                try
                 {
-                    GD.PrintErr($"AGI Setup Wizard: Failed to grant permissions. Exit code: {exitCode}");
+                    var headRequest = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, req.Url);
+                    var headResponse = await httpClient.SendAsync(headRequest);
+                    if (headResponse.IsSuccessStatusCode && headResponse.Content.Headers.ContentLength.HasValue)
+                    {
+                        serverSize = headResponse.Content.Headers.ContentLength.Value;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    GD.PrintErr($"AGI Setup Wizard: Could not fetch Content-Length for {req.FileName}. {ex.Message}");
+                }
+
+                // 2. Validate local file
+                if (!System.IO.File.Exists(filePath))
+                {
+                    needsDownload = true;
+                }
+                else if (serverSize > 0)
+                {
+                    System.IO.FileInfo fileInfo = new System.IO.FileInfo(filePath);
+                    if (fileInfo.Length != serverSize)
+                    {
+                        GD.Print($"AGI Setup Wizard: Size mismatch for {req.FileName} ({fileInfo.Length} vs {serverSize}). Re-downloading...");
+                        needsDownload = true;
+                    }
+                }
+
+                // 3. Dispatch download
+                if (needsDownload)
+                {
+                    GD.Print($"AGI Setup Wizard: Queuing download for {req.FileName} into {globalTargetDir}");
+                    bool success = await _downloadManager.DownloadFileAsync(req.Url, globalTargetDir, req.FileName);
+
+                    if (success && serverSize > 0)
+                    {
+                        System.IO.FileInfo postFileInfo = new System.IO.FileInfo(filePath);
+                        if (postFileInfo.Length != serverSize)
+                        {
+                            GD.PrintErr($"AGI Setup Wizard: Post-download integrity check failed for {req.FileName}.");
+                            continue; // Saltar validación de permisos si la integridad se vio comprometida
+                        }
+                    }
+                }
+
+                // 4. Apply execution permissions immediately post-validation for binaries
+                if (targetSubDir.StartsWith("bin") && OS.GetName() == "Linux")
+                {
+                    string[] chmodArgs = { "+x", filePath };
+                    OS.Execute("chmod", chmodArgs, new Godot.Collections.Array(), true);
+                    GD.Print($"AGI Setup Wizard: Execution permissions granted for {req.FileName}");
                 }
             }
-            await Task.CompletedTask;
+            
+            GD.Print("AGI Setup Wizard: All deployment resources verified.");
         }
 
         /// <summary>
@@ -104,8 +173,6 @@ namespace Logic.Utils
         /// </summary>
         private bool CheckHardwareCapabilities()
         {
-            // Simple check for NVIDIA drivers in Linux
-            // This is a naive check; production code might use `nvidia-smi` via OS.Execute for robustness.
             if (File.Exists("/proc/driver/nvidia/version"))
             {
                 GD.Print("NVIDIA GPU Detected. Enabling CUDA Mode.");
@@ -129,7 +196,8 @@ namespace Logic.Utils
                 {
                     { "hardware_mode", useGpu ? "cuda" : "cpu" },
                     { "last_setup_check", DateTime.UtcNow.ToString("o") },
-                    { "engine_path", _enginePath }
+                    // CORRECCIÓN CS0103: Reemplazo de _enginePath obsoleta por la nueva ruta de binarios
+                    { "engine_path", ProjectSettings.GlobalizePath("user://agi/bin") } 
                 };
 
                 var options = new JsonSerializerOptions { WriteIndented = true };

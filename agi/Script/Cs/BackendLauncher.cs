@@ -27,28 +27,43 @@ namespace Logic.Backend
             Task.Run(async () => await ManageBackendLifecycle());
         }
 
+        // Lógica actualizada para ejecutar llama-server nativo y leer el config.json para el Offloading de GPU
         private async Task ManageBackendLifecycle()
         {
             try
             {
+                string binaryPath = ProjectSettings.GlobalizePath("user://agi/bin/llama-server");
+                string modelPath = ProjectSettings.GlobalizePath("user://agi/models/model.gguf"); 
+                
+                // CORRECCIÓN: Uso explícito de System.Environment para evitar ambigüedad con Godot.Environment
+                int threadCount = Math.Max(1, System.Environment.ProcessorCount / 2);
+                
+                string arguments = $"--model \"{modelPath}\" --port 8080 --ctx-size 4096 --threads {threadCount}";
+
+                if (System.IO.File.Exists(PathConstants.ConfigFile))
+                {
+                    string configText = System.IO.File.ReadAllText(PathConstants.ConfigFile);
+                    // Verifica el modo de hardware para determinar la descarga de GPU (Offloading)
+                    if (configText.Contains("\"hardware_mode\": \"cuda\""))
+                    {
+                        arguments += " -ngl 99";
+                    }
+                    else
+                    {
+                        arguments += " -ngl 0";
+                    }
+                }
+
                 ProcessStartInfo startInfo = new ProcessStartInfo
                 {
-                    FileName = PathConstants.PythonExecutable,
-                    Arguments = PathConstants.MainScript + " --listen 127.0.0.1 --port 8188",
+                    FileName = binaryPath,
+                    Arguments = arguments,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true,
-                    WorkingDirectory = PathConstants.EngineRoot
+                    WorkingDirectory = ProjectSettings.GlobalizePath("user://agi/bin/")
                 };
-
-                // Read run mode from config (simplified for brevity)
-                if (System.IO.File.Exists(PathConstants.ConfigFile))
-                {
-                     string configText = System.IO.File.ReadAllText(PathConstants.ConfigFile);
-                     if (configText.Contains("\"cpu\"")) 
-                        startInfo.Arguments += " --cpu";
-                }
 
                 _backendProcess = new Process { StartInfo = startInfo };
                 _backendProcess.EnableRaisingEvents = true;
@@ -59,10 +74,8 @@ namespace Logic.Backend
                 
                 GD.Print($"BackendLauncher: Process started [ID: {_backendProcess.Id}]");
 
-                // Start Monitoring Loop
                 _ = MonitorProcessHealth();
                 
-                // Signal ready (optimistic, NetworkManager will verify)
                 CallDeferred(MethodName.EmitSignal, SignalName.BackendReady);
             }
             catch (Exception ex)

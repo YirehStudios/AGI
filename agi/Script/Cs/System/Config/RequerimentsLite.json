@@ -1,0 +1,12 @@
+{
+  "binaries": [
+    { "name": "llama-server", "url": "https://github.com/ggerganov/llama.cpp/releases/latest/download/llama-bXXXX-bin-universal.zip", "target": "bin/" },
+    { "name": "whisper-cli", "url": "https://github.com/ggerganov/whisper.cpp/releases/latest/download/whisper-bin-linux.zip", "target": "bin/" },
+    { "name": "piper", "url": "https://github.com/rhasspy/piper/releases/latest/download/piper_linux_x86_64.tar.gz", "target": "bin/" }
+  ],
+  "models": [
+    { "name": "mistral-3b-instruct.gguf", "url": "URL_HUGGINGFACE_MISTRAL_3B_Q4", "target": "models/" },
+    { "name": "whisper-tiny.bin", "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin", "target": "models/" },
+    { "name": "piper-voice-low.onnx", "url": "URL_PIPER_LOW_QUALITY_VOICE", "target": "models/" }
+  ]
+}
