@@ -11,14 +11,12 @@ namespace Logic.Utils
     {
         // Base Paths
         public static string UserDataDir => ProjectSettings.GlobalizePath("user://");
-        public static string EngineRoot => Path.Combine(UserDataDir, "Engine/ComfyUI");
         
-        // Python & Venv
-        public static string VenvPath => Path.Combine(EngineRoot, "venv");
-        public static string PythonExecutable => Path.Combine(VenvPath, "bin", "python3"); // Linux specific
+        // Native Binaries Directory (llama-server, whisper-cli, piper)
+        public static string BinDir => Path.Combine(UserDataDir, "agi/bin");
         
-        // Backend Entry Point
-        public static string MainScript => Path.Combine(EngineRoot, "main.py");
+        // Models Directory (Weights, GGUF, ONNX, etc.)
+        public static string ModelsDir => Path.Combine(UserDataDir, "agi/models");
         
         // Config & Logs
         public static string ConfigFile => Path.Combine(UserDataDir, "config.json");
