@@ -174,6 +174,9 @@ corner_radius_top_right = 20
 corner_radius_bottom_right = 20
 corner_radius_bottom_left = 20
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_overlay_bg"]
+bg_color = Color(0.9647, 0.9686, 0.9725, 0.95)
+
 [node name="ChatbotInterface" type="Panel" unique_id=1536372286 node_paths=PackedStringArray("SidebarContainer", "MenuToggleButton", "ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "UserMessageTemplate", "BotMessageTemplate")]
 anchors_preset = 15
 anchor_right = 1.0
@@ -470,3 +473,35 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 icon = ExtResource("5_ug3aw")
 icon_alignment = 1
 expand_icon = true
+
+[node name="SetupOverlay" type="Panel" parent="." unique_id=1688947357]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_overlay_bg")
+
+[node name="CenterContainer" type="CenterContainer" parent="SetupOverlay" unique_id=1504321955]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SetupLayout" type="VBoxContainer" parent="SetupOverlay/CenterContainer" unique_id=399387111]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="SetupStatusLabel" type="Label" parent="SetupOverlay/CenterContainer/SetupLayout" unique_id=1591745382]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.2, 0.2, 1)
+theme_override_font_sizes/font_size = 18
+text = "Validando hardware..."
+horizontal_alignment = 1
+
+[node name="SetupProgressBar" type="ProgressBar" parent="SetupOverlay/CenterContainer/SetupLayout" unique_id=685229100]
+custom_minimum_size = Vector2(400, 25)
+layout_mode = 2

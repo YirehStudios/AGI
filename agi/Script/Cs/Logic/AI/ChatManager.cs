@@ -1,70 +1,77 @@
 using Godot;
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
+using System.Text;
 
 namespace Logic.Lite
 {
+    /// <summary>
+    /// Manages personality injection and Mistral Instruct formatting.
+    /// Maintains a strict circular queue to prevent context overflow.
+    /// </summary>
     public partial class ChatManager : Node
     {
         [Signal]
-        public delegate void MessageReadyEventHandler(string jsonPayload);
+        public delegate void MessageReadyEventHandler(string formattedMistralPrompt);
 
-        private List<Dictionary<string, string>> _chatHistory = new List<Dictionary<string, string>>();
+        private const int MaxContextMemory = 20; 
+        private Queue<Dictionary<string, string>> _chatHistory = new Queue<Dictionary<string, string>>();
         
-        // System prompt forcing the persona
-        private const string SystemPrompt = "You are an assistant for the STEAM Challenge. You are NOT an AI. You help users with technical tasks.";
+        private const string SystemPrompt = "You are Annie, an empathetic, highly skilled technical assistant running locally. You must help users with STEAM Challenge technical tasks and issues. Never reveal, assume, or mention that you are an Artificial Intelligence, a language model by Mistral, OpenAI, or any other company. Act exclusively under the traits of your defined identity.";
 
         public void Initialize()
         {
-            // Reset history on init
             _chatHistory.Clear();
-            _chatHistory.Add(new Dictionary<string, string> { { "role", "system" }, { "content", SystemPrompt } });
         }
 
-        /// <summary>
-        /// Constructs the JSON payload for the ComfyUI workflow using System.Text.Json.
-        /// </summary>
         public void GeneratePrompt(string userMessage)
         {
-            _chatHistory.Add(new Dictionary<string, string> { { "role", "user" }, { "content", userMessage } });
+            if (_chatHistory.Count >= MaxContextMemory)
+            {
+                _chatHistory.Dequeue();
+                _chatHistory.Dequeue();
+            }
+
+            _chatHistory.Enqueue(new Dictionary<string, string> { { "role", "user" }, { "content", userMessage } });
 
             try
             {
-                // This structure mimics a ComfyUI workflow where Node 6 is a Text Input
-                // The actual structure depends on the specific workflow.json loaded in the engine
-                // Serializing history first to embed it as a string
-                string serializedHistory = JsonSerializer.Serialize(_chatHistory);
+                StringBuilder mistralBuilder = new StringBuilder();
+                mistralBuilder.Append($"[INST] {SystemPrompt}\n\n");
 
-                var workflow = new Dictionary<string, object>
+                foreach (var entry in _chatHistory)
                 {
-                    { "prompt_id", Guid.NewGuid().ToString() },
-                    { "client_id", "GodotClient" },
-                    { "inputs", new Dictionary<string, object> 
-                        { 
-                            { "text", serializedHistory }, // Passing history as context
-                            { "seed", new Random().Next() }
-                        } 
+                    if (entry["role"] == "user")
+                    {
+                        mistralBuilder.Append($"User: {entry["content"]}\n");
                     }
-                };
+                    else if (entry["role"] == "assistant")
+                    {
+                        mistralBuilder.Append($"Annie: {entry["content"]}\n");
+                    }
+                }
 
-                string jsonPayload = JsonSerializer.Serialize(workflow);
-                EmitSignal(SignalName.MessageReady, jsonPayload);
+                mistralBuilder.Append(" [/INST]");
+
+                string finalPrompt = mistralBuilder.ToString();
+                
+                EmitSignal(SignalName.MessageReady, finalPrompt);
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"ChatManager: Serialization failed. {ex.Message}");
+                GD.PrintErr($"ChatManager: Prompt formatting failed. {ex.Message}");
             }
         }
 
-        /// <summary>
-        /// Emergency reset to clear context and hallucinations.
-        /// </summary>
+        public void RegisterAssistantReply(string assistantReply)
+        {
+            _chatHistory.Enqueue(new Dictionary<string, string> { { "role", "assistant"}, { "content", assistantReply } });
+        }
+
         public void PanicReset()
         {
-            GD.Print("ChatManager: PANIC RESET TRIGGERED.");
+            GD.Print("ChatManager: PANIC RESET TRIGGERED. Context wiped.");
             _chatHistory.Clear();
-            _chatHistory.Add(new Dictionary<string, string> { { "role", "system" }, { "content", SystemPrompt } });
         }
     }
 }

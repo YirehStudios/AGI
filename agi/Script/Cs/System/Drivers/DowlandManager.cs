@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 namespace Logic.Network
 {
     /// <summary>
-    /// Manages external resource acquisition via terminal execution using aria2c or native fallback.
+    /// Gestiona la adquisición de recursos externos y la extracción de paquetes comprimidos.
+    /// Archivo actualizado para aislar la lógica de red y agregar soporte nativo de extracción para archivos .tar.bz2.
     /// </summary>
     public partial class DownloadManager : Node
     {
@@ -16,9 +17,6 @@ namespace Logic.Network
         [Signal]
         public delegate void DownloadCompletedEventHandler(string fileName, bool success);
 
-        /// <summary>
-        /// Validates the presence of aria2c. If missing on Linux, attempts graphical installation via pkexec.
-        /// </summary>
         private bool CheckAria2Availability()
         {
             Godot.Collections.Array output = new Godot.Collections.Array();
@@ -28,30 +26,25 @@ namespace Logic.Network
 
             if (OS.GetName() == "Linux")
             {
-                GD.Print("DownloadManager: aria2c not found. Attempting automatic installation via pkexec...");
+                GD.Print("DownloadManager: aria2c no encontrado. Intentando instalación automática...");
                 int installExitCode = OS.Execute("pkexec", new string[] { "apt-get", "install", "-y", "aria2" }, output, true);
                 if (installExitCode == 0)
                 {
-                    GD.Print("DownloadManager: aria2c successfully installed.");
+                    GD.Print("DownloadManager: aria2c instalado correctamente.");
                     return true;
                 }
                 else
                 {
-                    GD.PrintErr("DownloadManager: Failed to install aria2c via pkexec. Falling back to native HttpClient.");
+                    GD.PrintErr("DownloadManager: Falló la instalación de aria2c. Usando HttpClient como respaldo.");
                 }
             }
             return false;
         }
 
         /// <summary>
-        /// Executes aria2c binary asynchronously to download a specified file.
-        /// Falls back to HttpClient if aria2 is unavailable.
-        /// Evaluates the exit code to determine the success state.
+        /// Ejecuta la descarga. Utiliza aria2c con la directiva --continue=true para robustez ante fallos de red.
+        /// Aplica extracción automática (tar/unzip/bz2) al finalizar si corresponde y verifica el resultado.
         /// </summary>
-        /// <param name="url">The direct URL of the resource.</param>
-        /// <param name="destinationFolder">The target local directory.</param>
-        /// <param name="fileName">The specific output filename.</param>
-        /// <returns>A boolean indicating if the download operation succeeded.</returns>
         public async Task<bool> DownloadFileAsync(string url, string destinationFolder, string fileName)
         {
             return await Task.Run(async () => 
@@ -66,10 +59,13 @@ namespace Logic.Network
                     }
 
                     string filePath = Path.Combine(globalDestination, fileName);
+                    bool downloadSuccess = false;
 
+                    // Robustez de Red (aria2c continuation support)
                     if (CheckAria2Availability())
                     {
-                        GD.Print($"DownloadManager: Utilizing aria2c for {fileName}");
+                        GD.Print($"DownloadManager: Utilizando aria2c para {fileName}");
+                        
                         string[] args = new string[] 
                         { 
                             "-x", "16", 
@@ -83,36 +79,74 @@ namespace Logic.Network
                         Godot.Collections.Array output = new Godot.Collections.Array();
                         int exitCode = OS.Execute("aria2c", args, output, true);
 
-                        bool success = (exitCode == 0);
-                        
-                        CallDeferred(MethodName.EmitSignal, SignalName.DownloadCompleted, fileName, success);
-                        
-                        return success;
+                        downloadSuccess = (exitCode == 0);
                     }
                     else
                     {
-                        GD.Print($"DownloadManager: Utilizing HttpClient fallback for {fileName}");
+                        GD.Print($"DownloadManager: Utilizando HttpClient fallback para {fileName}");
                         
-                        // CORRECCIÓN CS0104: Declaración explícita para evitar conflicto con Godot.HttpClient
                         using System.Net.Http.HttpClient client = new System.Net.Http.HttpClient();
                         using System.Net.Http.HttpResponseMessage response = await client.GetAsync(url, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
                         response.EnsureSuccessStatusCode();
 
                         using Stream contentStream = await response.Content.ReadAsStreamAsync();
-                        
-                        // CORRECCIÓN CS0104: Declaración explícita para evitar conflicto con Godot.FileAccess
                         using FileStream fileStream = new FileStream(filePath, FileMode.Create, System.IO.FileAccess.Write, FileShare.None, 8192, true);
 
                         await contentStream.CopyToAsync(fileStream);
-
-                        CallDeferred(MethodName.EmitSignal, SignalName.DownloadCompleted, fileName, true);
-                        
-                        return true;
+                        downloadSuccess = true;
                     }
+
+                    // Extracción de Paquetes
+                    if (downloadSuccess)
+                    {
+                        // Estructura el nombre esperado sustrayendo las extensiones de compresión (incluyendo .tar.bz2)
+                        string expectedExtractedName = fileName.Replace(".tar.gz", "").Replace(".zip", "").Replace(".tar.bz2", "");
+                        string expectedExtractedPath = Path.Combine(globalDestination, expectedExtractedName);
+
+                        if (fileName.EndsWith(".tar.gz"))
+                        {
+                            GD.Print($"DownloadManager: Extrayendo paquete tar.gz {fileName}...");
+                            Godot.Collections.Array tarOutput = new Godot.Collections.Array();
+                            int tarExitCode = OS.Execute("tar", new string[] { "-xzf", filePath, "-C", globalDestination }, tarOutput, true);
+                            if (tarExitCode != 0) throw new Exception("La extracción vía tar falló.");
+                        }
+                        else if (fileName.EndsWith(".tar.bz2"))
+                        {
+                            GD.Print($"DownloadManager: Extrayendo paquete tar.bz2 {fileName}...");
+                            Godot.Collections.Array tarOutput = new Godot.Collections.Array();
+                            // Usar -xjf para archivos bzip2 como es requerido por los paquetes de Sherpa-ONNX
+                            int tarExitCode = OS.Execute("tar", new string[] { "-xjf", filePath, "-C", globalDestination }, tarOutput, true);
+                            if (tarExitCode != 0) throw new Exception("La extracción de bz2 vía tar falló.");
+                        }
+                        else if (fileName.EndsWith(".zip"))
+                        {
+                            GD.Print($"DownloadManager: Extrayendo archivo zip {fileName}...");
+                            Godot.Collections.Array zipOutput = new Godot.Collections.Array();
+                            int zipExitCode = OS.Execute("unzip", new string[] { "-o", filePath, "-d", globalDestination }, zipOutput, true);
+                            if (zipExitCode != 0) throw new Exception("La extracción vía unzip falló.");
+                        }
+
+                        // Verificación de post-procesamiento para todas las extensiones administradas
+                        if (fileName.EndsWith(".tar.gz") || fileName.EndsWith(".zip") || fileName.EndsWith(".tar.bz2"))
+                        {
+                            if (!File.Exists(expectedExtractedPath) && !Directory.Exists(expectedExtractedPath))
+                            {
+                                GD.PrintErr($"DownloadManager: Validación fallida. No se detectó la estructura '{expectedExtractedName}' extraída.");
+                                downloadSuccess = false; // Revierte el estado de éxito debido a la falla en la extracción real
+                            }
+                            else
+                            {
+                                GD.Print($"DownloadManager: Validación exitosa post-extracción del recurso {expectedExtractedName}.");
+                            }
+                        }
+                    }
+
+                    CallDeferred(MethodName.EmitSignal, SignalName.DownloadCompleted, fileName, downloadSuccess);
+                    return downloadSuccess;
                 }
                 catch (Exception ex)
                 {
-                    GD.PrintErr($"DownloadManager: Critical failure while downloading {fileName}. Exception: {ex.Message}");
+                    GD.PrintErr($"DownloadManager: Error crítico en descarga/extracción de {fileName}. Excepción: {ex.Message}");
                     CallDeferred(MethodName.EmitSignal, SignalName.DownloadCompleted, fileName, false);
                     return false;
                 }
