@@ -1,11 +1,15 @@
 using Godot;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 using Logic.Utils;
 
 namespace Logic.Backend
 {
+    /// <summary>
+    /// Manages the lifecycle of Docker-isolated engines (Llama, Whisper, Sherpa-ONNX).
+    /// </summary>
     public partial class BackendLauncher : Node
     {
         [Signal]
@@ -19,52 +23,38 @@ namespace Logic.Backend
         private int _retryCount = 0;
         private const int MaxRetries = 3;
 
-        /// <summary>
-        /// Starts the backend process asynchronously.
-        /// </summary>
         public void StartBackend()
         {
             Task.Run(async () => await ManageBackendLifecycle());
         }
 
-        // Lógica actualizada para ejecutar llama-server nativo y leer el config.json para el Offloading de GPU
+        /// <summary>
+        /// Configures llama-server executing within a Docker container.
+        /// </summary>
         private async Task ManageBackendLifecycle()
         {
             try
             {
-                string binaryPath = ProjectSettings.GlobalizePath("user://agi/bin/llama-server");
-                string modelPath = ProjectSettings.GlobalizePath("user://agi/models/model.gguf"); 
+                string modelsDir = PathConstants.ModelsDir;
                 
-                // CORRECCIÓN: Uso explícito de System.Environment para evitar ambigüedad con Godot.Environment
+                // Calculates optimal execution threads based on current hardware architecture.
                 int threadCount = Math.Max(1, System.Environment.ProcessorCount / 2);
                 
-                string arguments = $"--model \"{modelPath}\" --port 8080 --ctx-size 4096 --threads {threadCount}";
+                // Builds Docker execution arguments mapping local volumes and routing ports.
+                string arguments = $"run --rm -v \"{modelsDir}:/app/models\" -p 8080:8080 yirehstudios/agi-backend:latest llama-server --model /app/models/Ministral-3b-instruct.Q4_K_S.gguf --port 8080 --ctx-size 4096 --threads {threadCount} --n-gpu-layers 0";
 
-                if (System.IO.File.Exists(PathConstants.ConfigFile))
-                {
-                    string configText = System.IO.File.ReadAllText(PathConstants.ConfigFile);
-                    // Verifica el modo de hardware para determinar la descarga de GPU (Offloading)
-                    if (configText.Contains("\"hardware_mode\": \"cuda\""))
-                    {
-                        arguments += " -ngl 99";
-                    }
-                    else
-                    {
-                        arguments += " -ngl 0";
-                    }
-                }
-
+                // Configures the native process environment by isolating standard output and error.
                 ProcessStartInfo startInfo = new ProcessStartInfo
                 {
-                    FileName = binaryPath,
+                    FileName = "docker",
                     Arguments = arguments,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
-                    CreateNoWindow = true,
-                    WorkingDirectory = ProjectSettings.GlobalizePath("user://agi/bin/")
+                    CreateNoWindow = true
                 };
 
+                // Initializes and subscribes to process lifecycle events.
                 _backendProcess = new Process { StartInfo = startInfo };
                 _backendProcess.EnableRaisingEvents = true;
                 _backendProcess.Exited += OnProcessExited;
@@ -72,16 +62,86 @@ namespace Logic.Backend
                 _backendProcess.Start();
                 _isRunning = true;
                 
-                GD.Print($"BackendLauncher: Process started [ID: {_backendProcess.Id}]");
+                GD.Print($"BackendLauncher: Docker Llama-server process started [ID: {_backendProcess.Id}]");
 
+                // Decouples health monitoring to avoid blocking the main execution thread.
                 _ = MonitorProcessHealth();
                 
+                // Emits the readiness signal using the Godot main thread.
                 CallDeferred(MethodName.EmitSignal, SignalName.BackendReady);
             }
             catch (Exception ex)
             {
+                // Catches and logs critical exceptions during startup, delegating recovery.
                 GD.PrintErr($"BackendLauncher: Critical Failure. {ex.Message}");
                 HandleCrash();
+            }
+        }
+
+        public void StartWhisper(string audioFilePath)
+        {
+            try
+            {
+                string modelsDir = PathConstants.ModelsDir;
+                string audioDir = Path.GetDirectoryName(audioFilePath);
+                string audioFileName = Path.GetFileName(audioFilePath);
+
+                string arguments = $"run --rm -v \"{modelsDir}:/app/models\" -v \"{audioDir}:/app/audio\" yirehstudios/agi-backend:latest whisper-cli -m /app/models/base.bin -f /app/audio/{audioFileName} --output-txt";
+
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = "docker",
+                    Arguments = arguments,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                Process whisperProcess = new Process { StartInfo = startInfo };
+                whisperProcess.Start();
+                GD.Print($"BackendLauncher: Docker Whisper process started [ID: {whisperProcess.Id}]");
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"BackendLauncher: Docker Whisper execution failed. {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Initializes the Sherpa-ONNX acoustic synthesis engine asynchronously via Docker container.
+        /// </summary>
+        public void StartSherpaTTS(string textToSynthesize)
+        {
+            try
+            {
+                string modelsDir = PathConstants.ModelsDir;
+                string outputAudioDir = ProjectSettings.GlobalizePath("user://agi");
+
+                // Structures command line parameters by injecting containerized volume maps.
+                string arguments = $"run --rm -v \"{modelsDir}:/app/models\" -v \"{outputAudioDir}:/app/audio\" yirehstudios/agi-backend:latest sherpa-onnx-offline-tts --vits-model=\"/app/models/vits-piper-es_ES-miro-high/es_ES-miro-high.onnx\" --vits-tokens=\"/app/models/vits-piper-es_ES-miro-high/tokens.txt\" --vits-lexicon=\"/app/models/vits-piper-es_ES-miro-high/lexicon.txt\" --output-filename=\"/app/audio/temp_voice.wav\" \"{textToSynthesize}\"";
+
+                // Defines execution parameters, suppressing window creation and redirecting I/O streams.
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = "docker",
+                    Arguments = arguments,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                // Instantiates and starts the child process at the operating system level.
+                Process sherpaProcess = new Process { StartInfo = startInfo };
+                sherpaProcess.Start();
+                
+                GD.Print($"BackendLauncher: Docker Sherpa-ONNX process started [ID: {sherpaProcess.Id}]");
+            }
+            catch (Exception ex)
+            {
+                // Intercepts exceptions during process invocation to prevent main thread interruption.
+                GD.PrintErr($"BackendLauncher: Docker Sherpa-ONNX execution failed. {ex.Message}");
             }
         }
 
@@ -89,7 +149,6 @@ namespace Logic.Backend
         {
             while (_isRunning && _backendProcess != null && !_backendProcess.HasExited)
             {
-                // Ping-like check or simple existence check
                 await Task.Delay(5000);
             }
         }
@@ -117,7 +176,6 @@ namespace Logic.Backend
         
         public override void _ExitTree()
         {
-            // Cleanup on exit
             if (_backendProcess != null && !_backendProcess.HasExited)
             {
                 _backendProcess.Kill();

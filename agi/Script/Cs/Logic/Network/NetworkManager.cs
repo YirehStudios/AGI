@@ -8,7 +8,10 @@ using System.Text.Json;
 
 namespace Logic.Network
 {
-    // Clase reescrita en su totalidad para soportar estándar OpenAI API y lecturas SSE (Server-Sent Events)
+    /// <summary>
+    /// Se encarga de la comunicación con el LLM nativo utilizando el estándar de la API de OpenAI.
+    /// Emite los tokens individuales recibidos por Server-Sent Events (SSE).
+    /// </summary>
     public partial class NetworkManager : Node
     {
         [Signal]
@@ -18,14 +21,12 @@ namespace Logic.Network
         public delegate void TokenReceivedEventHandler(string token);
 
         private const string BaseUrl = "http://127.0.0.1:8080";
-        
         private readonly System.Net.Http.HttpClient _httpClient = new System.Net.Http.HttpClient();
 
         public async void PerformHandshake()
         {
             try
             {
-                // Verifica el estado del servidor nativo en el endpoint de modelos
                 HttpResponseMessage response = await _httpClient.GetAsync($"{BaseUrl}/v1/models");
                 
                 if (response.IsSuccessStatusCode)
@@ -46,6 +47,9 @@ namespace Logic.Network
             }
         }
 
+        /// <summary>
+        /// Realiza la petición POST utilizando el esquema de OpenAI (chat/completions) y decodifica el flujo continuo.
+        /// </summary>
         public async Task StreamChatCompletion(string prompt)
         {
             try
@@ -70,7 +74,6 @@ namespace Logic.Network
                 using Stream responseStream = await response.Content.ReadAsStreamAsync();
                 using StreamReader reader = new StreamReader(responseStream);
 
-                // Procesa el flujo de datos del servidor por líneas para extraer los tokens en tiempo real
                 while (!reader.EndOfStream)
                 {
                     string line = await reader.ReadLineAsync();

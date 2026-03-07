@@ -1,12 +1,36 @@
 {
   "binaries": [
-    { "name": "llama-server", "url": "https://github.com/ggerganov/llama.cpp/releases/latest/download/llama-bXXXX-bin-universal.zip", "target": "bin/" },
-    { "name": "whisper-cli", "url": "https://github.com/ggerganov/whisper.cpp/releases/latest/download/whisper-bin-linux.zip", "target": "bin/" },
-    { "name": "piper", "url": "https://github.com/rhasspy/piper/releases/latest/download/piper_linux_x86_64.tar.gz", "target": "bin/" }
+    { 
+      "name": "llama-server.tar.gz", 
+      "url": "https://github.com/ggerganov/llama.cpp/releases/download/b8232/llama-b8232-bin-ubuntu-vulkan-x64.tar.gz", 
+      "target": "bin/" 
+    },
+    { 
+      "name": "sherpa-onnx-linux.tar.bz2", 
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.10.40/sherpa-onnx-v1.10.40-linux-x64.tar.bz2", 
+      "target": "bin/" 
+    },
+    { 
+      "name": "whisper-cli.zip", 
+      "url": "https://github.com/ggerganov/whisper.cpp/releases/download/v1.7.4/whisper-v1.7.4-bin-ubuntu-x64.zip", 
+      "target": "bin/" 
+    }
   ],
   "models": [
-    { "name": "mistral-3b-instruct.gguf", "url": "URL_HUGGINGFACE_MISTRAL_3B_Q4", "target": "models/" },
-    { "name": "whisper-tiny.bin", "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin", "target": "models/" },
-    { "name": "piper-voice-low.onnx", "url": "URL_PIPER_LOW_QUALITY_VOICE", "target": "models/" }
+    { 
+      "name": "Ministral-3b-instruct.Q4_K_S.gguf", 
+      "url": "https://huggingface.co/mistralai/Ministral-3B-Instruct-v0.1/resolve/main/Ministral-3B-Instruct-v0.1.Q4_K_S.gguf", 
+      "target": "models/" 
+    },
+    { 
+      "name": "ggml-base.bin", 
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin", 
+      "target": "models/" 
+    },
+    { 
+      "name": "es_ES-miro-high.tar.bz2", 
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-es_ES-miro-high.tar.bz2", 
+      "target": "models/" 
+    }
   ]
 }

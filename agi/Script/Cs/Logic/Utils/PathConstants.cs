@@ -12,9 +12,6 @@ namespace Logic.Utils
         // Base Paths
         public static string UserDataDir => ProjectSettings.GlobalizePath("user://");
         
-        // Native Binaries Directory (llama-server, whisper-cli, piper)
-        public static string BinDir => Path.Combine(UserDataDir, "agi/bin");
-        
         // Models Directory (Weights, GGUF, ONNX, etc.)
         public static string ModelsDir => Path.Combine(UserDataDir, "agi/models");
         

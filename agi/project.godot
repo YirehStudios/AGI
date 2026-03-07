@@ -12,6 +12,8 @@ config_version=5
 
 config/name="AGI"
 run/main_scene="uid://bolcjtvklqbax"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="agi"
 config/features=PackedStringArray("4.6", "C#", "Forward Plus")
 boot_splash/bg_color=Color(1, 1, 1, 1)
 boot_splash/stretch_mode=0
