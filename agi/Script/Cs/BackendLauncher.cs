@@ -29,21 +29,39 @@ namespace Logic.Backend
         }
 
         /// <summary>
-        /// Configures llama-server executing within a Docker container.
+        /// Configures and orchestrates the llama-server execution within a hardware-aware Docker container.
         /// </summary>
         private async Task ManageBackendLifecycle()
         {
             try
             {
-                string modelsDir = PathConstants.ModelsDir;
+                // Executes a synchronous system call to forcefully terminate and remove any existing container instances to prevent port collisions.
+                Godot.OS.Execute("docker", new string[] { "rm", "-f", "agi-llama-server" }, new Godot.Collections.Array(), true);
+
+                // Resolves the Godot-specific user path to a universal absolute system path required for Docker volume mapping.
+                string modelsDir = ProjectSettings.GlobalizePath("user://models"); 
                 
-                // Calculates optimal execution threads based on current hardware architecture.
+                // Allocates optimal thread count based on available logical processors to balance performance without saturating host resources.
                 int threadCount = Math.Max(1, System.Environment.ProcessorCount / 2);
                 
-                // Builds Docker execution arguments mapping local volumes and routing ports.
-                string arguments = $"run --rm -v \"{modelsDir}:/app/models\" -p 8080:8080 yirehstudios/agi-backend:latest llama-server --model /app/models/Ministral-3b-instruct.Q4_K_S.gguf --port 8080 --ctx-size 4096 --threads {threadCount} --n-gpu-layers 0";
+                // Queries the RenderingServer for the active video adapter to dynamically assign the correct hardware abstraction layer for the container.
+                string hardwareBridge = "";
+                string adapterName = Godot.RenderingServer.GetVideoAdapterName().ToLower();
+                
+                if (adapterName.Contains("nvidia"))
+                {
+                    hardwareBridge = "--gpus all";
+                    GD.Print("BackendLauncher: NVIDIA GPU detected. Initializing CUDA container bridge.");
+                }
+                else
+                {
+                    hardwareBridge = "--device /dev/dri";
+                    GD.Print("BackendLauncher: Non-NVIDIA adapter detected. Initializing universal DRI container bridge.");
+                }
 
-                // Configures the native process environment by isolating standard output and error.
+                // Constructs the Docker execution string interpolating hardware bindings, volume mappings, and engine parameters, binding the host to 0.0.0.0 for external access.
+                string arguments = $"run --name agi-llama-server --rm --gpus all --device /dev/dri -v \"{modelsDir}:/app/models\" -p 8080:8080 yirehstudios/agi-backend:latest llama-server --host 0.0.0.0 --model /app/models/Ministral-3b-instruct.Q4_K_S.gguf --port 8080 --ctx-size 4096 --threads {threadCount} --n-gpu-layers 99";                
+                // Configures the native process environment, suppressing window creation and isolating standard output/error streams for intercepting.
                 ProcessStartInfo startInfo = new ProcessStartInfo
                 {
                     FileName = "docker",
@@ -54,25 +72,32 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
-                // Initializes and subscribes to process lifecycle events.
+                // Initializes the process wrapper and subscribes to structural lifecycle and data stream events.
                 _backendProcess = new Process { StartInfo = startInfo };
                 _backendProcess.EnableRaisingEvents = true;
                 _backendProcess.Exited += OnProcessExited;
 
+                _backendProcess.OutputDataReceived += (sender, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.Print($"[Docker Llama] {e.Data}"); };
+                _backendProcess.ErrorDataReceived += (sender, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.PrintErr($"[Docker Llama ERROR] {e.Data}"); };
+
                 _backendProcess.Start();
+
+                // Initiates asynchronous read operations on the redirected output and error streams to prevent pipeline blocking.
+                _backendProcess.BeginOutputReadLine(); 
+                _backendProcess.BeginErrorReadLine();  
                 _isRunning = true;
-                
+
                 GD.Print($"BackendLauncher: Docker Llama-server process started [ID: {_backendProcess.Id}]");
 
-                // Decouples health monitoring to avoid blocking the main execution thread.
+                // Decouples the health monitoring routine to a separate task, preventing blockage of the current execution thread.
                 _ = MonitorProcessHealth();
                 
-                // Emits the readiness signal using the Godot main thread.
+                // Dispatches the readiness signal via the Godot message queue to ensure thread-safe propagation.
                 CallDeferred(MethodName.EmitSignal, SignalName.BackendReady);
             }
             catch (Exception ex)
             {
-                // Catches and logs critical exceptions during startup, delegating recovery.
+                // Captures critical initialization exceptions and invokes the recovery/retry mechanism.
                 GD.PrintErr($"BackendLauncher: Critical Failure. {ex.Message}");
                 HandleCrash();
             }
@@ -176,6 +201,13 @@ namespace Logic.Backend
         
         public override void _ExitTree()
         {
+            GD.Print("BackendLauncher: Alt+F4 detectado o cerrando app. ¡Asesinando contenedores Zombis!");
+            _isRunning = false;
+            
+            // Comando aniquilador de Docker: borra a la fuerza el contenedor aunque esté en ejecución
+            var output = new Godot.Collections.Array();
+            OS.Execute("docker", new string[] { "rm", "-f", "agi-llama-server" }, output, true);
+            
             if (_backendProcess != null && !_backendProcess.HasExited)
             {
                 _backendProcess.Kill();

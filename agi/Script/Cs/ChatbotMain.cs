@@ -25,6 +25,8 @@ namespace Logic.UI
         private float _sidebarWidth = 250.0f;
         private HBoxContainer _currentBotMessageNode;
         private bool _isLiveModeEnabled = false; // Controls whether TTS is triggered automatically
+        private bool _isWaitingForResponse = false;
+        private Godot.Timer _typingAnimationTimer;
         
         // Processing buffers for the TTS engine and LLM memory
         private string _ttsBuffer = string.Empty;
@@ -101,32 +103,38 @@ namespace Logic.UI
         /// </summary>
         private async Task ProcessMessage(string text)
         {
-            if (string.IsNullOrWhiteSpace(text)) return;
+            // Si ya estamos esperando respuesta, o el texto está vacío, no hacer nada
+            if (string.IsNullOrWhiteSpace(text) || _isWaitingForResponse) return;
 
+            _isWaitingForResponse = true;
             TextInputField.Text = string.Empty;
+            
+            // Bloquear la UI para que el usuario no envíe doble
+            SendButton.Disabled = true;
 
+            // Crear mensaje del usuario
             HBoxContainer newUserMsg = (HBoxContainer)UserMessageTemplate.Duplicate();
             newUserMsg.GetNode<RichTextLabel>("MessageBubble/MessageBody").Text = text;
             newUserMsg.Visible = true;
             MessagesContainer.AddChild(newUserMsg);
-
             ScrollToBottom();
 
+            // Crear mensaje vacío del Bot
             HBoxContainer newBotMsg = (HBoxContainer)BotMessageTemplate.Duplicate();
-            newBotMsg.GetNode<RichTextLabel>("MessageBubble/MessageBody").Text = ""; 
+            RichTextLabel botTextLabel = newBotMsg.GetNode<RichTextLabel>("MessageBubble/MessageBody");
+            botTextLabel.Text = "."; // Iniciar animación
             newBotMsg.Visible = true;
             MessagesContainer.AddChild(newBotMsg);
             
-            // Stores the reference of the current container for real-time concatenation
             _currentBotMessageNode = newBotMsg;
-            
-            // Resets session accumulators
             _ttsBuffer = string.Empty;
             _fullMessageBuffer = string.Empty;
-
             ScrollToBottom();
 
-            // Strong typing to avoid issues with Godot.Variant
+            // Iniciar el Timer para la animación "..."
+            StartTypingAnimation(botTextLabel);
+
+            // Enviar al motor de IA
             Logic.Lite.ChatManager chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
             if (chatManager != null)
             {
@@ -165,6 +173,14 @@ namespace Logic.UI
             if (_currentBotMessageNode == null) return;
 
             RichTextLabel messageBody = _currentBotMessageNode.GetNode<RichTextLabel>("MessageBubble/MessageBody");
+            
+            // Si es la primera palabra, detenemos la animación de "..." y borramos los puntos
+            if (_typingAnimationTimer != null)
+            {
+                StopTypingAnimationAndUnlock();
+                messageBody.Text = ""; 
+            }
+
             messageBody.Text += token;
 
             ScrollToBottom();
@@ -215,6 +231,39 @@ namespace Logic.UI
             
             ScrollBar vScroll = ChatScrollContainer.GetVScrollBar();
             vScroll.Value = vScroll.MaxValue;
+        }
+
+        private void StartTypingAnimation(RichTextLabel label)
+        {
+            _typingAnimationTimer = new Godot.Timer();
+            _typingAnimationTimer.WaitTime = 0.4f; // Velocidad de los puntos
+            _typingAnimationTimer.OneShot = false;
+            
+            // Función anónima para animar los puntitos
+            _typingAnimationTimer.Timeout += () => 
+            {
+                if (label.Text == "...") label.Text = ".";
+                else if (label.Text == "..") label.Text = "...";
+                else if (label.Text == ".") label.Text = "..";
+            };
+            
+            AddChild(_typingAnimationTimer);
+            _typingAnimationTimer.Start();
+        }
+
+        private void StopTypingAnimationAndUnlock()
+        {
+            if (_typingAnimationTimer != null)
+            {
+                _typingAnimationTimer.Stop();
+                _typingAnimationTimer.QueueFree();
+                _typingAnimationTimer = null;
+            }
+            
+            _isWaitingForResponse = false;
+            TextInputField.Editable = true;
+            SendButton.Disabled = false;
+            TextInputField.GrabFocus(); // Regresar el cursor al chat
         }
     }
 }

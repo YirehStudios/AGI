@@ -1,42 +1,41 @@
-# Usa Ubuntu como base limpia
+# Volvemos a Ubuntu 22.04 (Nuestra roca sólida)
 FROM ubuntu:22.04
 
-# Evita prompts interactivos
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Instala dependencias necesarias para descargar y ejecutar
+# 1. Instalamos dependencias básicas y el SDK OFICIAL DE VULKAN (LunarG)
 RUN apt-get update && apt-get install -y \
-    wget \
-    tar \
-    unzip \
-    bzip2 \
-    libvulkan1 \
-    libgomp1 \
-    && rm -rf /var/lib/apt/lists/*
+    wget gnupg2 software-properties-common tar unzip bzip2 libgomp1 build-essential git cmake && \
+    wget -qO /etc/apt/trusted.gpg.d/lunarg.asc https://packages.lunarg.com/lunarg-signing-key-pub.asc && \
+    wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list http://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list && \
+    apt-get update && apt-get install -y vulkan-sdk && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Descarga los binarios precompilados (Igual que hacias antes localmente, pero ahora dentro de la imagen)
-RUN wget https://github.com/ggerganov/llama.cpp/releases/download/b8232/llama-b8232-bin-ubuntu-vulkan-x64.tar.gz && \
-    tar -xzf llama-b8232-bin-ubuntu-vulkan-x64.tar.gz && \
-    mv build/bin/llama-server /usr/local/bin/ && \
-    rm -rf build llama-b8232-bin-ubuntu-vulkan-x64.tar.gz
+# 2. LLAMA.CPP (Compilará impecable porque ahora tiene el Vulkan de última generación)
+RUN git clone https://github.com/ggerganov/llama.cpp.git && \
+    cd llama.cpp && \
+    cmake -B build -DLLAMA_CURL=OFF -DBUILD_SHARED_LIBS=OFF -DGGML_VULKAN=ON && \
+    cmake --build build -j 4 --config Release --target llama-server && \
+    cp $(find build -type f -name "llama-server" | head -n 1) /usr/local/bin/llama-server && \
+    cd .. && rm -rf llama.cpp
 
-RUN wget https://github.com/ggerganov/whisper.cpp/releases/download/v1.7.4/whisper-v1.7.4-bin-ubuntu-x64.zip && \
-    unzip whisper-v1.7.4-bin-ubuntu-x64.zip && \
-    mv whisper-v1.7.4-bin-ubuntu-x64/whisper-cli /usr/local/bin/ && \
-    rm -rf whisper-v1.7.4-bin-ubuntu-x64 whisper-v1.7.4-bin-ubuntu-x64.zip
+# 3. WHISPER.CPP 
+RUN git clone -b v1.7.4 https://github.com/ggerganov/whisper.cpp.git && \
+    cd whisper.cpp && \
+    cmake -B build -DWHISPER_BUILD_EXAMPLES=ON -DWHISPER_BUILD_TESTS=OFF && \
+    cmake --build build -j 4 --config Release && \
+    if [ -f "build/bin/whisper-cli" ]; then cp build/bin/whisper-cli /usr/local/bin/whisper-cli; \
+    elif [ -f "build/bin/main" ]; then cp build/bin/main /usr/local/bin/whisper-cli; \
+    else cp $(find build -type f -name "whisper-cli" -o -name "main" | head -n 1) /usr/local/bin/whisper-cli; fi && \
+    cd .. && rm -rf whisper.cpp
 
-RUN wget https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.10.40/sherpa-onnx-v1.10.40-linux-x64.tar.bz2 && \
-    tar -xjf sherpa-onnx-v1.10.40-linux-x64.tar.bz2 && \
-    mv sherpa-onnx-v1.10.40-linux-x64/bin/sherpa-onnx-offline-tts /usr/local/bin/ && \
-    mv sherpa-onnx-v1.10.40-linux-x64/lib/* /usr/local/lib/ && \
-    rm -rf sherpa-onnx-v1.10.40-linux-x64 sherpa-onnx-v1.10.40-linux-x64.tar.bz2
+# 4. SHERPA-ONNX
+RUN wget https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.28/sherpa-onnx-v1.12.28-linux-x64-static.tar.bz2 && \
+    tar -xjf sherpa-onnx-v1.12.28-linux-x64-static.tar.bz2 && \
+    cp $(find . -name "sherpa-onnx-offline-tts" | head -n 1) /usr/local/bin/ && \
+    rm -rf sherpa-onnx-v1.12.28-linux-x64-static*
 
-# Actualiza las librerías del sistema para que encuentre los archivos de sherpa
 RUN ldconfig
-
-# Exponer el puerto de llama-server
 EXPOSE 8080
-
-# El entrypoint está vacío porque el BackendLauncher decidirá qué comando ejecutar (llama-server, whisper-cli, etc.)
