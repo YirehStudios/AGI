@@ -3,31 +3,23 @@ using System;
 
 public partial class LivemodeMain : Panel
 {
-    // Core visual components via Export (Must match Node names in Editor exactly)
     [Export] public ColorRect WaveVisualizer;
     [Export] public AnimationPlayer WaveAnimationPlayer;
     
-    // Internal reference for the shader
     private ShaderMaterial _wavesMaterial;
     
-    // Simulation variables
     public float TargetVoiceLevel = 0.0f;
     private float _currentVoiceLevel = 0.0f;
     public bool IsSimulating = true;
 
-    /// <summary>
-    /// Initializes references to the visualizer components.
-    /// Checks if Exported nodes are valid.
-    /// </summary>
+    private bool _isSidebarOpen = true;
+    private Tween _sidebarTween;
+
     public override void _Ready()
     {
         if (WaveVisualizer != null)
         {
             _wavesMaterial = WaveVisualizer.Material as ShaderMaterial;
-        }
-        else
-        {
-            GD.PrintErr("LivemodeMain: WaveVisualizer is not assigned in the Inspector.");
         }
 
         if (WaveAnimationPlayer == null)
@@ -36,26 +28,19 @@ public partial class LivemodeMain : Panel
         }
     }
 
-    /// <summary>
-    /// Per-frame processing to handle audio simulation and shader parameter updates.
-    /// </summary>
-    /// <param name="delta">Time elapsed since the last frame.</param>
     public override void _Process(double delta)
     {
-        // Simulate audio input levels using a sine wave if simulation mode is active
         if (IsSimulating)
         {
             TargetVoiceLevel = (Mathf.Sin(Time.GetTicksMsec() / 250.0f) * 0.5f) + 0.5f;
         }
 
-        // Smoothly interpolate the current voice level towards the target and update the shader
         if (_wavesMaterial != null)
         {
             _currentVoiceLevel = Mathf.Lerp(_currentVoiceLevel, TargetVoiceLevel, (float)delta * 12.0f);
             _wavesMaterial.SetShaderParameter("voice_level", _currentVoiceLevel);
         }
 
-        // Handle animation state transitions based on audio levels
         if (WaveAnimationPlayer != null)
         {
             if (TargetVoiceLevel > 0.1f && WaveAnimationPlayer.CurrentAnimation != "speak")
@@ -65,6 +50,41 @@ public partial class LivemodeMain : Panel
             else if (TargetVoiceLevel <= 0.1f && WaveAnimationPlayer.CurrentAnimation != "idle")
             {
                 WaveAnimationPlayer.Play("idle");
+            }
+        }
+    }
+
+    public void _OnMenuToggleButtonPressed()
+    {
+        var sidebar = GetNode<Control>("MainContainer/SidebarContainer");
+        if (sidebar != null)
+        {
+            if (_sidebarTween != null && _sidebarTween.IsValid())
+            {
+                _sidebarTween.Kill();
+            }
+
+            _sidebarTween = CreateTween();
+            _isSidebarOpen = !_isSidebarOpen;
+
+            if (_isSidebarOpen)
+            {
+                sidebar.Visible = true;
+                _sidebarTween.SetParallel(true);
+                _sidebarTween.SetTrans(Tween.TransitionType.Cubic);
+                _sidebarTween.SetEase(Tween.EaseType.Out);
+                _sidebarTween.TweenProperty(sidebar, "custom_minimum_size:x", 250.0f, 0.4f);
+                _sidebarTween.TweenProperty(sidebar, "modulate", new Color(1, 1, 1, 1), 0.4f);
+            }
+            else
+            {
+                _sidebarTween.SetParallel(true);
+                _sidebarTween.SetTrans(Tween.TransitionType.Cubic);
+                _sidebarTween.SetEase(Tween.EaseType.Out);
+                _sidebarTween.TweenProperty(sidebar, "custom_minimum_size:x", 0.0f, 0.4f);
+                _sidebarTween.TweenProperty(sidebar, "modulate", new Color(1, 1, 1, 0), 0.3f);
+                _sidebarTween.SetParallel(false);
+                _sidebarTween.TweenCallback(Callable.From(() => sidebar.Visible = false));
             }
         }
     }
