@@ -20,6 +20,12 @@ boot_splash/stretch_mode=0
 boot_splash/image="uid://dhs77c0pr0uv0"
 config/icon="uid://sq1405bthmjf"
 
+[autoload]
+
+NetworkManager="*uid://dd0kvqdfb8yt5"
+ChatManager="*uid://dkwmatdh8pqge"
+BackendLauncher="*uid://d2ggr6q7smtv6"
+
 [display]
 
 window/size/viewport_width=1920

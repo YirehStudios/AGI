@@ -5,6 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://du3w0n73d40lw" path="res://Resources/avatar_bot.png" id="3_avatar_bot"]
 [ext_resource type="Texture2D" uid="uid://debnuc10m0as" path="res://Resources/Images/Icons/JirehStudiosIcon.png" id="3_ug3aw"]
 [ext_resource type="Texture2D" uid="uid://b0gc5q4xau83j" path="res://Resources/flecha_enviar.png" id="5_ug3aw"]
+[ext_resource type="Script" uid="uid://dt6nsxyppscs7" path="res://Script/Cs/SetupWizard.cs" id="6_jwrhj"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_grabber"]
 bg_color = Color(0.8, 0.8, 0.8, 0.5)
@@ -176,6 +177,12 @@ corner_radius_bottom_left = 20
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_overlay_bg"]
 bg_color = Color(0.9647, 0.9686, 0.9725, 0.95)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jwrhj"]
+bg_color = Color(0.8039216, 0.5803922, 0.25882354, 0.44313726)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nscit"]
+bg_color = Color(0.8046805, 0.57898253, 0.25737986, 1)
 
 [node name="ChatbotInterface" type="Panel" unique_id=1536372286 node_paths=PackedStringArray("SidebarContainer", "MenuToggleButton", "ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "UserMessageTemplate", "BotMessageTemplate")]
 anchors_preset = 15
@@ -474,7 +481,7 @@ icon = ExtResource("5_ug3aw")
 icon_alignment = 1
 expand_icon = true
 
-[node name="SetupOverlay" type="Panel" parent="." unique_id=1688947357]
+[node name="SetupOverlay" type="Panel" parent="." unique_id=1688947357 node_paths=PackedStringArray("SetupOverlay", "SetupProgressBar", "SetupStatusLabel")]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -482,6 +489,10 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_overlay_bg")
+script = ExtResource("6_jwrhj")
+SetupOverlay = NodePath(".")
+SetupProgressBar = NodePath("CenterContainer/SetupLayout/SetupProgressBar")
+SetupStatusLabel = NodePath("CenterContainer/SetupLayout/SetupStatusLabel")
 
 [node name="CenterContainer" type="CenterContainer" parent="SetupOverlay" unique_id=1504321955]
 layout_mode = 1
@@ -505,3 +516,7 @@ horizontal_alignment = 1
 [node name="SetupProgressBar" type="ProgressBar" parent="SetupOverlay/CenterContainer/SetupLayout" unique_id=685229100]
 custom_minimum_size = Vector2(400, 25)
 layout_mode = 2
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_styles/background = SubResource("StyleBoxFlat_jwrhj")
+theme_override_styles/fill = SubResource("StyleBoxFlat_nscit")
+value = 15.52

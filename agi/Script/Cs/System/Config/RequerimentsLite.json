@@ -1,35 +1,13 @@
 {
-  "binaries": [
-    { 
-      "name": "llama-server.tar.gz", 
-      "url": "https://github.com/ggerganov/llama.cpp/releases/download/b8232/llama-b8232-bin-ubuntu-vulkan-x64.tar.gz", 
-      "target": "bin/" 
-    },
-    { 
-      "name": "sherpa-onnx-linux.tar.bz2", 
-      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.10.40/sherpa-onnx-v1.10.40-linux-x64.tar.bz2", 
-      "target": "bin/" 
-    },
-    { 
-      "name": "whisper-cli.zip", 
-      "url": "https://github.com/ggerganov/whisper.cpp/releases/download/v1.7.4/whisper-v1.7.4-bin-ubuntu-x64.zip", 
-      "target": "bin/" 
-    }
-  ],
   "models": [
     { 
       "name": "Ministral-3b-instruct.Q4_K_S.gguf", 
-      "url": "https://huggingface.co/mistralai/Ministral-3B-Instruct-v0.1/resolve/main/Ministral-3B-Instruct-v0.1.Q4_K_S.gguf", 
+      "url": "https://cas-bridge.xethub.hf.co/xet-bridge-us/6710adc0652ac1d1e6e4ebc1/8f17138fa1317c732e4b31659c36df13fc46a3b64251f91e6fc79573b4977642?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=cas%2F20260308%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260308T004045Z&X-Amz-Expires=3600&X-Amz-Signature=3661e52317261af34ebd111dd47da56bfe63af5c01af092fe02784588509245e&X-Amz-SignedHeaders=host&X-Xet-Cas-Uid=6962dc51aa6b67e1b60b8ad5&response-content-disposition=attachment%3B+filename*%3DUTF-8%27%27Ministral-3b-instruct.Q4_K_S.gguf%3B+filename%3D%22Ministral-3b-instruct.Q4_K_S.gguf%22%3B&x-amz-checksum-mode=ENABLED&x-id=GetObject&Expires=1772934045&Policy=eyJTdGF0ZW1lbnQiOlt7IkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc3MjkzNDA0NX19LCJSZXNvdXJjZSI6Imh0dHBzOi8vY2FzLWJyaWRnZS54ZXRodWIuaGYuY28veGV0LWJyaWRnZS11cy82NzEwYWRjMDY1MmFjMWQxZTZlNGViYzEvOGYxNzEzOGZhMTMxN2M3MzJlNGIzMTY1OWMzNmRmMTNmYzQ2YTNiNjQyNTFmOTFlNmZjNzk1NzNiNDk3NzY0MioifV19&Signature=d7kYXPz-7scH%7EnkU-RHmdoLsdisQ1WL7zwVSU7yIJYgOP9yGz%7EvmiZHrbQkh-jLzTWu9h7fi83CC7rl4lGZWNiWZFAKYYE3ez-ZwNlaS7FsblcDhB6dvFx110UfvaSBgydLxZpzze%7EzdBDqSS%7E%7ECB9VjLGIZYZNHpK%7EW%7E-5egtGbEMEnmUZea%7Eedx5kbE7a7YLBa9ChMPpcQDnlaRpUbriO-fHxqMUTMw2o8ealYpcni1Bz9VFsrfI%7EZTs-6kF2xmVicsQkd17Tl6WtS3dYQeGKRVwMOuysVh-uGKl4nXVeXllpQZX7kkQ8BvV9s3Vvbb%7EJnUp4dCAU-gP%7EACCw7%7Eg__&Key-Pair-Id=K2L8F4GPSG1IFC", 
       "target": "models/" 
     },
     { 
       "name": "ggml-base.bin", 
       "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin", 
-      "target": "models/" 
-    },
-    { 
-      "name": "es_ES-miro-high.tar.bz2", 
-      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-es_ES-miro-high.tar.bz2", 
       "target": "models/" 
     }
   ]

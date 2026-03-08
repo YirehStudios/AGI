@@ -12,7 +12,7 @@ namespace Logic.Utils
     /// Handles initial configuration, dependency validation, Docker image orchestration,
     /// and ensures the environment is prepared for execution.
     /// </summary>
-    public partial class SetupWizard : Node
+    public partial class SetupWizard : Panel
     {
         [Signal]
         public delegate void SetupCompletedEventHandler(bool isGpuEnabled);
@@ -26,7 +26,9 @@ namespace Logic.Utils
 
         private class Requirement
         {
+            [System.Text.Json.Serialization.JsonPropertyName("name")]
             public string FileName { get; set; }
+            
             public string Url { get; set; }
             public string Target { get; set; }
         }
@@ -46,52 +48,85 @@ namespace Logic.Utils
             _ = RunSetupSequence();
         }
 
+        private bool CheckIfImageExists(string imageName)
+        {
+            var output = new Godot.Collections.Array();
+            // Runs a docker command to see if the image is registered
+            int exitCode = OS.Execute("docker", new string[] { "images", "-q", imageName }, output, true);
+            
+            // If output is not empty, the image exists locally
+            return exitCode == 0 && output.Count > 0 && !string.IsNullOrEmpty(output[0].ToString());
+        }
+
         private async Task RunSetupSequence()
         {
-            UpdateStatus("Initiating system discovery...");
-            GD.Print("AGI Setup Wizard: Initiating System Discovery...");
-
-            UpdateStatus("Verifying Docker installation...");
-            if (!CheckDockerAvailability())
+            try
             {
-                UpdateStatus("Critical error: Docker is not installed or not running.");
-                GD.PrintErr("AGI Setup Wizard: Docker daemon unreachable. Halting startup.");
-                return;
+                UpdateStatus("Initiating system discovery...");
+                GD.Print("AGI Setup Wizard: Initiating System Discovery...");
+
+                UpdateStatus("Verifying Docker installation...");
+                if (!CheckDockerAvailability())
+                {
+                    UpdateStatus("Critical error: Docker is not installed or not running.");
+                    GD.PrintErr("AGI Setup Wizard: Docker daemon unreachable. Halting startup.");
+                    return;
+                }
+
+                // 1. DESCARGA LOS MODELOS (GGUF, BIN, ONNX)
+                UpdateStatus("Verifying and downloading AI models...");
+                await VerifyAndDownloadRequirements();
+
+                // 2. CONSTRUYE LA IMAGEN DE DOCKER LOCALMENTE
+                
+                //UpdateStatus("Verifying AI engine container...");
+                //if (!CheckIfImageExists("yirehstudios/agi-backend:latest"))
+                //{
+                    UpdateStatus("Building backend Docker container... (This happens only once)");
+                    await BuildDockerImage();
+                    
+                    // Verificación post-construcción (por si falla el internet a la mitad)
+                    //if (!CheckIfImageExists("yirehstudios/agi-backend:latest")) 
+                    //{
+                        //UpdateStatus("Critical Error: AI Image could not be built. Check logs.");
+                        //GD.PrintErr("AGI Setup Wizard: Halting startup. Docker image missing.");
+                        //return; 
+                    //}
+                //}
+                //else
+                //{
+                    //GD.Print("AGI Setup Wizard: Docker image already exists. Skipping build phase! (Fast Boot)");
+                //}
+
+                if (!CheckIfImageExists("yirehstudios/agi-backend:latest")) {
+                    UpdateStatus("Critical Error: AI Image could not be built. Check logs.");
+                    return; 
+                }
+
+                UpdateStatus("Verifying hardware capabilities...");
+                bool hasGpu = CheckHardwareCapabilities();
+
+                UpdateStatus("Configuring the local environment...");
+                UpdateLocalConfiguration(hasGpu);
+
+                UpdateStatus("Setup completed successfully. Welcome!");
+                GD.Print("AGI Setup Wizard: Environment Ready.");
+                
+                FinalizeSetup();
+                EmitSignal(SignalName.SetupCompleted, hasGpu);
+
+                // 3. ENCIENDE EL SERVIDOR (Ahora sí, con la imagen construida)
+                Node backendLauncher = GetNodeOrNull("/root/BackendLauncher");
+                if (backendLauncher != null)
+                {
+                    GD.Print("AGI Setup Wizard: Invoking initial startup of Docker engine (StartBackend).");
+                    backendLauncher.Call("StartBackend");
+                }
             }
-
-            await VerifyAndDownloadRequirements();
-
-            UpdateStatus("Pulling backend Docker container...");
-            PullDockerImage();
-            
-            UpdateStatus("Verifying acoustic model integrity...");
-            
-            // Inspects the strict availability of the three layers of the Sherpa-ONNX engine
-            if (!ValidateSherpaModels())
+            catch (Exception ex)
             {
-                UpdateStatus("Critical error: Voice model files missing.");
-                GD.PrintErr("AGI Setup Wizard: Strict validation of Sherpa-ONNX models failed. Halting startup.");
-                return;
-            }
-
-            UpdateStatus("Verifying hardware capabilities...");
-            bool hasGpu = CheckHardwareCapabilities();
-
-            UpdateStatus("Configuring the local environment...");
-            UpdateLocalConfiguration(hasGpu);
-
-            UpdateStatus("Setup completed successfully. Welcome!");
-            GD.Print("AGI Setup Wizard: Environment Ready.");
-            
-            FinalizeSetup();
-            EmitSignal(SignalName.SetupCompleted, hasGpu);
-
-            // Startup Trigger: Ignites the native server after securing dependencies
-            Node backendLauncher = GetNodeOrNull("/root/BackendLauncher");
-            if (backendLauncher != null)
-            {
-                GD.Print("AGI Setup Wizard: Invoking initial startup of Docker engine (StartBackend).");
-                backendLauncher.Call("StartBackend");
+                GD.PrintErr($"AGI Setup Wizard: FATAL ERROR - {ex.Message}\n{ex.StackTrace}");
+                UpdateStatus("Error crítico durante la instalación. Revisa la consola.");
             }
         }
 
@@ -115,24 +150,53 @@ namespace Logic.Utils
             return false;
         }
 
-        private void PullDockerImage()
+        private async Task BuildDockerImage()
         {
-            try
+            UpdateStatus("Building Docker AI Engine... (This may take several minutes)");
+            GD.Print("AGI Setup Wizard: Starting Docker build in background...");
+
+            await Task.Run(() =>
             {
-                GD.Print("AGI Setup Wizard: Requesting yirehstudios/agi-backend:latest from Docker Hub...");
-                var output = new Godot.Collections.Array();
-                string dockerfilePath = ProjectSettings.GlobalizePath("res://Script/Cs/System/Drivers/"); 
-                int exitCode = OS.Execute("docker", new string[] { "build", "-t", "yirehstudios/agi-backend:latest", dockerfilePath }, output, true);
-                
-                if (exitCode != 0)
+                try
                 {
-                    GD.PrintErr("AGI Setup Wizard: Failed to pull Docker image.");
+                    string dockerFileDir = ProjectSettings.GlobalizePath("res://Script/Cs/System/Drivers/"); 
+                    string dockerFilePath = System.IO.Path.Combine(dockerFileDir, "DockerFile");
+
+                    var startInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "docker",
+                        Arguments = $"build --no-cache -f \"{dockerFilePath}\" -t yirehstudios/agi-backend:latest \"{dockerFileDir}\"",
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    using var process = new System.Diagnostics.Process { StartInfo = startInfo };
+                    
+                    // Esto imprimirá en Godot cada línea que Docker vaya descargando/construyendo
+                    process.OutputDataReceived += (sender, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.Print($"[Docker] {e.Data}"); };
+                    process.ErrorDataReceived += (sender, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.PrintErr($"[Docker] {e.Data}"); };
+
+                    process.Start();
+                    process.BeginOutputReadLine();
+                    process.BeginErrorReadLine();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0)
+                    {
+                        GD.Print("AGI Setup Wizard: Docker image built successfully!");
+                    }
+                    else
+                    {
+                        GD.PrintErr($"AGI Setup Wizard: Docker build failed with code {process.ExitCode}.");
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                GD.PrintErr($"AGI Setup Wizard: Docker pull execution failed. {ex.Message}");
-            }
+                catch (Exception ex)
+                {
+                    GD.PrintErr($"AGI Setup Wizard: Docker build process failed. {ex.Message}");
+                }
+            });
         }
 
         /// <summary>
@@ -141,9 +205,9 @@ namespace Logic.Utils
         /// </summary>
         private bool ValidateSherpaModels()
         {
-            string modelPath = ProjectSettings.GlobalizePath("user://agi/models/vits-piper-es_ES-miro-high/es_ES-miro-high.onnx");
-            string tokensPath = ProjectSettings.GlobalizePath("user://agi/models/vits-piper-es_ES-miro-high/tokens.txt");
-            string lexiconPath = ProjectSettings.GlobalizePath("user://agi/models/vits-piper-es_ES-miro-high/lexicon.txt");
+            string modelPath = ProjectSettings.GlobalizePath("user://models/vits-piper-es_ES-miro-high/es_ES-miro-high.onnx");
+            string tokensPath = ProjectSettings.GlobalizePath("user://models/vits-piper-es_ES-miro-high/tokens.txt");
+            string lexiconPath = ProjectSettings.GlobalizePath("user://models/vits-piper-es_ES-miro-high/lexicon.txt");
 
             // Checks the directory tree to ensure models will not fail due to orphaned dependencies
             return File.Exists(modelPath) && File.Exists(tokensPath) && File.Exists(lexiconPath);
@@ -175,10 +239,11 @@ namespace Logic.Utils
 
         private string GetRequirementFilePath()
         {
-            if (OS.HasFeature("Lite")) return "res://Script/Cs/System/Config/RequerimentsLite.json";
-            if (OS.HasFeature("Server")) return "res://Script/Cs/System/Config/RequerimentsServer.json";
-            if (OS.HasFeature("IU")) return "res://Script/Cs/System/Config/RequerimentsIU.json";
-            return "res://Script/Cs/System/Config/Requeriments.json";
+            //if (OS.HasFeature("Lite")) 
+            return "res://Script/Cs/System/Config/RequerimentsLite.json";
+            //if (OS.HasFeature("Server")) return "res://Script/Cs/System/Config/RequerimentsServer.json";
+            //if (OS.HasFeature("IU")) return "res://Script/Cs/System/Config/RequerimentsIU.json";
+            //return "res://Script/Cs/System/Config/Requeriments.json";
         }
 
         private async Task VerifyAndDownloadRequirements()
@@ -201,9 +266,12 @@ namespace Logic.Utils
                 var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var root = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, List<Requirement>>>(jsonContent, options);
                 
-                if (root != null && root.ContainsKey("models"))
+                // ¡Magia! Ahora descarga y organiza todo lo que pongas en el JSON
+                if (root != null)
                 {
-                    requirements = root["models"];
+                    if (root.ContainsKey("models")) requirements.AddRange(root["models"]);
+                    if (root.ContainsKey("binaries")) requirements.AddRange(root["binaries"]);
+                    if (root.ContainsKey("drivers")) requirements.AddRange(root["drivers"]); // Por si agregas esta lista al JSON
                 }
             }
             catch(Exception ex)
@@ -219,14 +287,16 @@ namespace Logic.Utils
 
             foreach (var req in requirements)
             {
+                // Esto respeta la carpeta que pusiste en el JSON (ej. "bin/" o "settings/")
                 string targetSubDir = string.IsNullOrEmpty(req.Target) ? "models/" : req.Target;
-                string globalTargetDir = ProjectSettings.GlobalizePath($"user://agi/{targetSubDir}");
+                string globalTargetDir = ProjectSettings.GlobalizePath($"user://{targetSubDir}");
                 string filePath = System.IO.Path.Combine(globalTargetDir, req.FileName);
 
                 bool needsDownload = false;
                 long serverSize = -1;
 
                 UpdateStatus($"Verifying integrity: {req.FileName}...");
+                await Task.Delay(50); // <-- ESTO EVITA QUE LA PANTALLA SE CONGELE
 
                 try
                 {
@@ -259,6 +329,7 @@ namespace Logic.Utils
                 if (needsDownload)
                 {
                     UpdateStatus($"Downloading and processing: {req.FileName}...");
+                    await Task.Delay(50); // <-- OBLIGA A REFRESCAR LA BARRA DE CARGA
                     GD.Print($"AGI Setup Wizard: Queuing download for {req.FileName} into {globalTargetDir}");
                     
                     await _downloadManager.DownloadFileAsync(req.Url, globalTargetDir, req.FileName);
@@ -288,7 +359,15 @@ namespace Logic.Utils
         {
             try
             {
-                string configPath = Path.Combine(_localAppPath, "config.json");
+                // 1. Creamos la ruta completa user://agi/settings/
+                string settingsDir = ProjectSettings.GlobalizePath("user://settings");
+                if (!Directory.Exists(settingsDir))
+                {
+                    Directory.CreateDirectory(settingsDir);
+                }
+
+                // 2. Apuntamos el archivo config.json allí dentro
+                string configPath = Path.Combine(settingsDir, "config.json");
                 
                 var configData = new Dictionary<string, object>
                 {
