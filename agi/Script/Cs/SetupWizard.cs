@@ -62,6 +62,13 @@ namespace Logic.Utils
         {
             try
             {
+
+                bool isDockerReady = await EnsureDockerInstalled();
+                if (!isDockerReady) 
+                {
+                    return; // Detiene la secuencia si falló la instalación o si pide reiniciar
+                }
+                
                 UpdateStatus("Initiating system discovery...");
                 GD.Print("AGI Setup Wizard: Initiating System Discovery...");
 
@@ -79,24 +86,24 @@ namespace Logic.Utils
 
                 // 2. CONSTRUYE LA IMAGEN DE DOCKER LOCALMENTE
                 
-                //UpdateStatus("Verifying AI engine container...");
-                //if (!CheckIfImageExists("yirehstudios/agi-backend:latest"))
-                //{
+                UpdateStatus("Verifying AI engine container...");
+                if (!CheckIfImageExists("yirehstudios/agi-backend:latest"))
+                {
                     UpdateStatus("Building backend Docker container... (This happens only once)");
                     await BuildDockerImage();
                     
                     // Verificación post-construcción (por si falla el internet a la mitad)
-                    //if (!CheckIfImageExists("yirehstudios/agi-backend:latest")) 
-                    //{
-                        //UpdateStatus("Critical Error: AI Image could not be built. Check logs.");
-                        //GD.PrintErr("AGI Setup Wizard: Halting startup. Docker image missing.");
-                        //return; 
-                    //}
-                //}
-                //else
-                //{
-                    //GD.Print("AGI Setup Wizard: Docker image already exists. Skipping build phase! (Fast Boot)");
-                //}
+                    if (!CheckIfImageExists("yirehstudios/agi-backend:latest")) 
+                    {
+                        UpdateStatus("Critical Error: AI Image could not be built. Check logs.");
+                        GD.PrintErr("AGI Setup Wizard: Halting startup. Docker image missing.");
+                        return; 
+                    }
+                }
+                else
+                {
+                    GD.Print("AGI Setup Wizard: Docker image already exists. Skipping build phase! (Fast Boot)");
+                }
 
                 if (!CheckIfImageExists("yirehstudios/agi-backend:latest")) {
                     UpdateStatus("Critical Error: AI Image could not be built. Check logs.");
@@ -150,6 +157,55 @@ namespace Logic.Utils
             return false;
         }
 
+        private async Task<bool> EnsureDockerInstalled()
+        {
+            UpdateStatus("Checking Docker engine...");
+
+            // 1. Verificamos si docker ya responde
+            var checkOutput = new Godot.Collections.Array();
+            int checkExitCode = OS.Execute("docker", new string[] { "--version" }, checkOutput, true);
+
+            if (checkExitCode == 0)
+            {
+                GD.Print("SetupWizard: Docker is already installed.");
+                return true;
+            }
+
+            // 2. Si no existe, iniciamos el protocolo de instalación
+            GD.Print("SetupWizard: Docker not found. Initiating secure installation...");
+            UpdateStatus("Docker missing. Please enter your password in the popup to install it...");
+
+            // Obtenemos el nombre del usuario real (ej. Yahir_js) para darle permisos
+            string currentUser = System.Environment.UserName;
+
+            // Creamos el comando bash: Actualiza repositorios, instala docker y añade al usuario al grupo
+            string installCommand = $"apt-get update && apt-get install -y docker.io && usermod -aG docker {currentUser}";
+
+            // pkexec es el puente gráfico nativo de Linux para permisos root
+            var output = new Godot.Collections.Array();
+            int installExitCode = OS.Execute("pkexec", new string[] { "bash", "-c", installCommand }, output, true);
+
+            if (installExitCode == 0)
+            {
+                GD.Print("SetupWizard: Docker installed successfully.");
+                UpdateStatus("Docker installed! IMPORTANT: Please RESTART your computer to apply permissions.");
+                
+                // Linux requiere cerrar sesión o reiniciar para que el grupo 'docker' tenga efecto.
+                // Pausamos la ejecución para que el usuario lea el mensaje.
+                await ToSignal(GetTree().CreateTimer(5.0f), "timeout"); 
+                
+                // Cerramos la app porque sin reiniciar, los comandos de Godot hacia Docker darán "Permission Denied"
+                GetTree().Quit(); 
+                return false; 
+            }
+            else
+            {
+                GD.PrintErr("SetupWizard: Installation failed or user canceled the password prompt.");
+                UpdateStatus("Installation failed. Annie needs Docker to run.");
+                return false;
+            }
+        }
+
         private async Task BuildDockerImage()
         {
             UpdateStatus("Building Docker AI Engine... (This may take several minutes)");
@@ -165,7 +221,7 @@ namespace Logic.Utils
                     var startInfo = new System.Diagnostics.ProcessStartInfo
                     {
                         FileName = "docker",
-                        Arguments = $"build --no-cache -f \"{dockerFilePath}\" -t yirehstudios/agi-backend:latest \"{dockerFileDir}\"",
+                        Arguments = $"build -f \"{dockerFilePath}\" -t yirehstudios/agi-backend:latest \"{dockerFileDir}\"",
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,

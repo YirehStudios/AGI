@@ -143,29 +143,6 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Receives the formatted Mistral prompt and triggers the Streaming HTTP request.
-        /// Resolves CS0030 error via explicit casting.
-        /// </summary>
-        private async void OnMessageReady(string formattedMistralPrompt)
-        {
-            // Explicit casting to the NetworkManager class to access the asynchronous Task method directly
-            Logic.Network.NetworkManager networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
-            if (networkManager != null)
-            {
-                // Explicitly wait for the streaming from the server to finish ([DONE])
-                await networkManager.StreamChatCompletion(formattedMistralPrompt);
-
-                // Memory insertion: Persists the complete response in the ChatManager to maintain historical context
-                Logic.Lite.ChatManager chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
-                if (chatManager != null)
-                {
-                    chatManager.RegisterAssistantReply(_fullMessageBuffer);
-                    GD.Print("ChatbotMain: Response successfully persisted in dynamic memory.");
-                }
-            }
-        }
-
-        /// <summary>
         /// Receives live stream tokens (SSE), injects them into the UI, and checks punctuation for speech.
         /// </summary>
         private void OnTokenReceived(string token)
@@ -177,7 +154,7 @@ namespace Logic.UI
             // Si es la primera palabra, detenemos la animación de "..." y borramos los puntos
             if (_typingAnimationTimer != null)
             {
-                StopTypingAnimationAndUnlock();
+                StopTypingAnimation(); // Usamos el nuevo método
                 messageBody.Text = ""; 
             }
 
@@ -251,7 +228,7 @@ namespace Logic.UI
             _typingAnimationTimer.Start();
         }
 
-        private void StopTypingAnimationAndUnlock()
+        private void StopTypingAnimation()
         {
             if (_typingAnimationTimer != null)
             {
@@ -260,10 +237,31 @@ namespace Logic.UI
                 _typingAnimationTimer = null;
             }
             
-            _isWaitingForResponse = false;
-            TextInputField.Editable = true;
-            SendButton.Disabled = false;
-            TextInputField.GrabFocus(); // Regresar el cursor al chat
+            //_isWaitingForResponse = false;
+            //TextInputField.Editable = true;
+            //SendButton.Disabled = false;
+            //TextInputField.GrabFocus(); // Regresar el cursor al chat
+        }
+
+        private async void OnMessageReady(string formattedMistralPrompt)
+        {
+            Logic.Network.NetworkManager networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
+            if (networkManager != null)
+            {
+                await networkManager.StreamChatCompletion(formattedMistralPrompt);
+
+                Logic.Lite.ChatManager chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+                if (chatManager != null)
+                {
+                    chatManager.RegisterAssistantReply(_fullMessageBuffer);
+                    GD.Print("ChatbotMain: Response successfully persisted in dynamic memory.");
+                }
+
+                _isWaitingForResponse = false;
+                TextInputField.Editable = true;
+                SendButton.Disabled = false;
+                TextInputField.GrabFocus(); 
+            }
         }
     }
 }
