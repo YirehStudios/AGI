@@ -175,13 +175,24 @@ namespace Logic.Utils
             GD.Print("SetupWizard: Docker not found. Initiating secure installation...");
             UpdateStatus("Docker missing. Please enter your password in the popup to install it...");
 
-            // Obtenemos el nombre del usuario real (ej. Yahir_js) para darle permisos
+            // Obtenemos el nombre del usuario real para darle permisos
             string currentUser = System.Environment.UserName;
 
-            // Creamos el comando bash: Actualiza repositorios, instala docker y añade al usuario al grupo
-            string installCommand = $"apt-get update && apt-get install -y docker.io && usermod -aG docker {currentUser}";
+            // ¡EL SCRIPT UNIVERSAL! Detecta apt (Ubuntu/Debian), dnf (Fedora) o pacman (Arch)
+            string installCommand = $@"
+            if command -v apt-get >/dev/null 2>&1; then 
+                apt-get update && apt-get install -y docker.io; 
+            elif command -v dnf >/dev/null 2>&1; then 
+                dnf install -y docker; 
+            elif command -v pacman >/dev/null 2>&1; then 
+                pacman -S --noconfirm docker; 
+            else 
+                curl -fsSL https://get.docker.com | sh; 
+            fi && 
+            systemctl enable --now docker && 
+            usermod -aG docker {currentUser}";
 
-            // pkexec es el puente gráfico nativo de Linux para permisos root
+            // Ejecutamos el puente gráfico nativo y guardamos lo que Linux nos responda
             var output = new Godot.Collections.Array();
             int installExitCode = OS.Execute("pkexec", new string[] { "bash", "-c", installCommand }, output, true);
 
@@ -190,18 +201,21 @@ namespace Logic.Utils
                 GD.Print("SetupWizard: Docker installed successfully.");
                 UpdateStatus("Docker installed! IMPORTANT: Please RESTART your computer to apply permissions.");
                 
-                // Linux requiere cerrar sesión o reiniciar para que el grupo 'docker' tenga efecto.
-                // Pausamos la ejecución para que el usuario lea el mensaje.
                 await ToSignal(GetTree().CreateTimer(5.0f), "timeout"); 
-                
-                // Cerramos la app porque sin reiniciar, los comandos de Godot hacia Docker darán "Permission Denied"
                 GetTree().Quit(); 
                 return false; 
             }
             else
             {
-                GD.PrintErr("SetupWizard: Installation failed or user canceled the password prompt.");
-                UpdateStatus("Installation failed. Annie needs Docker to run.");
+                // ¡EL MODO FORENSE! Extraemos exactamente qué le dolió a Linux
+                string linuxError = output.Count > 0 ? output[0].ToString() : "Sin respuesta de la terminal.";
+                
+                GD.PrintErr("========================================");
+                GD.PrintErr($"SetupWizard: Instalación fallida. Código de salida: {installExitCode}");
+                GD.PrintErr($"Mensaje exacto de Linux:\n{linuxError}");
+                GD.PrintErr("========================================");
+
+                UpdateStatus("Installation failed. Annie needs Docker to run. Check logs.");
                 return false;
             }
         }
