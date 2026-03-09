@@ -12,9 +12,6 @@ public partial class LivemodeMain : Panel
     private float _currentVoiceLevel = 0.0f;
     public bool IsSimulating = true;
 
-    private bool _isSidebarOpen = true;
-    private Tween _sidebarTween;
-
     public override void _Ready()
     {
         if (WaveVisualizer != null)
@@ -26,6 +23,14 @@ public partial class LivemodeMain : Panel
         {
             GD.PrintErr("LivemodeMain: WaveAnimationPlayer is not assigned in the Inspector.");
         }
+
+        // Conectar botón de menú hamburguesa (Ruta actualizada)
+        Button menuBtn = GetNodeOrNull<Button>("MainContainer/LiveAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout/MenuToggleButton");
+        if (menuBtn != null) menuBtn.Pressed += OnMenuTogglePressed;
+
+        // Conectar botón para regresar al Chatbot (Ruta actualizada)
+        Button chatBtn = GetNodeOrNull<Button>("MainContainer/LiveAreaContainer/HeaderPanel/HeaderMargin/HeaderLayout/ChatBotModeButton");
+        if (chatBtn != null) chatBtn.Pressed += OnChatBotModePressed;
     }
 
     public override void _Process(double delta)
@@ -54,38 +59,15 @@ public partial class LivemodeMain : Panel
         }
     }
 
-    public void _OnMenuToggleButtonPressed()
+    private void OnMenuTogglePressed()
     {
-        var sidebar = GetNode<Control>("MainContainer/SidebarContainer");
-        if (sidebar != null)
-        {
-            if (_sidebarTween != null && _sidebarTween.IsValid())
-            {
-                _sidebarTween.Kill();
-            }
+        Logic.UI.MainApp mainApp = GetNodeOrNull<Logic.UI.MainApp>("/root/MainApp");
+        if (mainApp != null) mainApp.ToggleSidebar();
+    }
 
-            _sidebarTween = CreateTween();
-            _isSidebarOpen = !_isSidebarOpen;
-
-            if (_isSidebarOpen)
-            {
-                sidebar.Visible = true;
-                _sidebarTween.SetParallel(true);
-                _sidebarTween.SetTrans(Tween.TransitionType.Cubic);
-                _sidebarTween.SetEase(Tween.EaseType.Out);
-                _sidebarTween.TweenProperty(sidebar, "custom_minimum_size:x", 250.0f, 0.4f);
-                _sidebarTween.TweenProperty(sidebar, "modulate", new Color(1, 1, 1, 1), 0.4f);
-            }
-            else
-            {
-                _sidebarTween.SetParallel(true);
-                _sidebarTween.SetTrans(Tween.TransitionType.Cubic);
-                _sidebarTween.SetEase(Tween.EaseType.Out);
-                _sidebarTween.TweenProperty(sidebar, "custom_minimum_size:x", 0.0f, 0.4f);
-                _sidebarTween.TweenProperty(sidebar, "modulate", new Color(1, 1, 1, 0), 0.3f);
-                _sidebarTween.SetParallel(false);
-                _sidebarTween.TweenCallback(Callable.From(() => sidebar.Visible = false));
-            }
-        }
+    private void OnChatBotModePressed()
+    {
+        Logic.UI.MainApp mainApp = GetNodeOrNull<Logic.UI.MainApp>("/root/MainApp");
+        if (mainApp != null) mainApp.LoadMode(mainApp.ChatbotScene);
     }
 }
