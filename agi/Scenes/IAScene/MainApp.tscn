@@ -1,0 +1,149 @@
+[gd_scene format=3 uid="uid://s8tuasw0blu"]
+
+[ext_resource type="Script" uid="uid://cburckky6i8de" path="res://Script/Cs/MainApp.cs" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://bolcjtvklqbax" path="res://Scenes/IAScene/Chatbot.tscn" id="2_dpcee"]
+[ext_resource type="Texture2D" uid="uid://dxui8em8fu8w3" path="res://Resources/logo.png" id="2_logo"]
+[ext_resource type="PackedScene" uid="uid://bx5yq2jklxap" path="res://Scenes/IAScene/Livemode.tscn" id="3_l7jlp"]
+
+[sub_resource type="SystemFont" id="SystemFont_regular"]
+font_names = PackedStringArray("Sans-Serif")
+subpixel_positioning = 0
+
+[sub_resource type="Theme" id="Theme_global"]
+default_font = SubResource("SystemFont_regular")
+default_font_size = 15
+Button/colors/font_color = Color(0.2, 0.2, 0.2, 1)
+Button/colors/font_hover_color = Color(0.1, 0.1, 0.1, 1)
+Button/colors/font_pressed_color = Color(1, 1, 1, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_main_bg"]
+bg_color = Color(0.9647, 0.9686, 0.9725, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sidebar_bg"]
+bg_color = Color(0.647, 0.714, 0.612, 1)
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_menu_normal"]
+content_margin_left = 25.0
+content_margin_top = 12.0
+content_margin_right = 15.0
+content_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_menu_active"]
+content_margin_left = 21.0
+content_margin_top = 12.0
+content_margin_right = 15.0
+content_margin_bottom = 12.0
+bg_color = Color(0.373, 0.502, 0.357, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_line_edit"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_spacer"]
+
+[node name="MainApp" type="Panel" unique_id=635267023 node_paths=PackedStringArray("SidebarWrapper", "ContentContainer")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("Theme_global")
+theme_override_styles/panel = SubResource("StyleBoxFlat_main_bg")
+script = ExtResource("1_script")
+ChatbotScene = ExtResource("2_dpcee")
+LivemodeScene = ExtResource("3_l7jlp")
+SidebarWrapper = NodePath("MainLayout/SidebarWrapper")
+ContentContainer = NodePath("MainLayout/ContentContainer")
+
+[node name="MainLayout" type="HBoxContainer" parent="." unique_id=2020566488]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="SidebarWrapper" type="Control" parent="MainLayout" unique_id=593602346]
+clip_contents = true
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+
+[node name="SidebarContainer" type="PanelContainer" parent="MainLayout/SidebarWrapper" unique_id=1541977860]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_sidebar_bg")
+
+[node name="SidebarLayout" type="VBoxContainer" parent="MainLayout/SidebarWrapper/SidebarContainer" unique_id=1348013375]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="LogoMargin" type="MarginContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout" unique_id=499228803]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="LogoContainer" type="HBoxContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout/LogoMargin" unique_id=2110262078]
+layout_mode = 2
+alignment = 1
+
+[node name="CompanyLogo" type="TextureRect" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout/LogoMargin/LogoContainer" unique_id=1985099900]
+custom_minimum_size = Vector2(160, 160)
+layout_mode = 2
+texture = ExtResource("2_logo")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HomeButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout" unique_id=1859434720]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+text = "⌂  Inicio"
+alignment = 0
+
+[node name="HistoryButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout" unique_id=42469730]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+text = "↺  Historial"
+alignment = 0
+
+[node name="SettingsButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout" unique_id=418959244]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+text = "⚙  Configuración"
+alignment = 0
+
+[node name="HelpButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout" unique_id=328685902]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+text = "? Ayuda"
+alignment = 0
+
+[node name="VerticalSpacer" type="Panel" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout" unique_id=1568023607]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxEmpty_spacer")
+
+[node name="ContentContainer" type="Panel" parent="MainLayout" unique_id=909171477]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxEmpty_spacer")
