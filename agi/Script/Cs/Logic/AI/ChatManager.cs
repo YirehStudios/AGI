@@ -37,21 +37,25 @@ namespace Logic.Lite
             try
             {
                 StringBuilder mistralBuilder = new StringBuilder();
-                mistralBuilder.Append($"[INST] {SystemPrompt}\n\n");
+                
+                // 1. Formato nativo ChatML para la identidad del sistema
+                mistralBuilder.Append($"<|im_start|>system\n{SystemPrompt}<|im_end|>\n");
 
+                // 2. Formato nativo para el historial
                 foreach (var entry in _chatHistory)
                 {
                     if (entry["role"] == "user")
                     {
-                        mistralBuilder.Append($"User: {entry["content"]}\n");
+                        mistralBuilder.Append($"<|im_start|>user\n{entry["content"]}<|im_end|>\n");
                     }
                     else if (entry["role"] == "assistant")
                     {
-                        mistralBuilder.Append($"Annie: {entry["content"]}\n");
+                        mistralBuilder.Append($"<|im_start|>assistant\n{entry["content"]}<|im_end|>\n");
                     }
                 }
 
-                mistralBuilder.Append(" [/INST]");
+                // 3. Dejamos la etiqueta de "assistant" abierta para obligarla a responder
+                mistralBuilder.Append("<|im_start|>assistant\n");
 
                 string finalPrompt = mistralBuilder.ToString();
                 

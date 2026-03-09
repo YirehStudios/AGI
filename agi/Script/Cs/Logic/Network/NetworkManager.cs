@@ -54,16 +54,19 @@ namespace Logic.Network
         {
             try
             {
+                // 1. Usamos 'prompt' crudo en lugar de 'messages' para evitar el doble formateo
                 var requestBody = new
                 {
-                    messages = new[] { new { role = "user", content = prompt } },
-                    stream = true
+                    prompt = prompt,
+                    stream = true,
+                    n_predict = 512 // Límite de seguridad para que no hable infinitamente
                 };
 
                 string jsonPayload = JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
-                var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/v1/chat/completions")
+                // 2. Cambiamos la URL a /v1/completions (La ruta para texto crudo y puro)
+                var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/v1/completions")
                 {
                     Content = content
                 };
@@ -88,8 +91,8 @@ namespace Logic.Network
                         JsonElement root = doc.RootElement;
                         if (root.TryGetProperty("choices", out JsonElement choices) && choices.GetArrayLength() > 0)
                         {
-                            JsonElement delta = choices[0].GetProperty("delta");
-                            if (delta.TryGetProperty("content", out JsonElement contentElement))
+                            // 3. En completions crudos, el token viene directo en la propiedad 'text'
+                            if (choices[0].TryGetProperty("text", out JsonElement contentElement))
                             {
                                 string token = contentElement.GetString();
                                 if (!string.IsNullOrEmpty(token))
