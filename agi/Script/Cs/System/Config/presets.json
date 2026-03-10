@@ -1,18 +1,18 @@
 [
   {
-    "Name": "Ministral 3B",
+    "Name": "Ministral 3 Reasoning 2512 3B Q4_K_M",
     "Description": "Rápido y ligero. Ideal para PCs con pocos recursos. (Requiere 4GB RAM)",
     "DownloadLinks": [
-      "https://huggingface.co/tu-link-de-descarga-aqui.gguf"
+      "https://cas-bridge.xethub.hf.co/xet-bridge-us/692f6e9d6405f1d79dcfa04c/d0961e87b2fa56b8e1d7d319ff171b7f51d2e81e1b3258f1f68c2537e4fd1617?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=cas%2F20260310%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260310T044556Z&X-Amz-Expires=3600&X-Amz-Signature=9dfb5154cc23d216588de61764afb97f26018b8a1a4206b5e11b0e4b3b6ea2c0&X-Amz-SignedHeaders=host&X-Xet-Cas-Uid=6962dc51aa6b67e1b60b8ad5&response-content-disposition=attachment%3B+filename*%3DUTF-8%27%27Ministral-3-3B-Reasoning-2512.Q4_K_M.gguf%3B+filename%3D%22Ministral-3-3B-Reasoning-2512.Q4_K_M.gguf%22%3B&x-amz-checksum-mode=ENABLED&x-id=GetObject&Expires=1773121556&Policy=eyJTdGF0ZW1lbnQiOlt7IkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc3MzEyMTU1Nn19LCJSZXNvdXJjZSI6Imh0dHBzOi8vY2FzLWJyaWRnZS54ZXRodWIuaGYuY28veGV0LWJyaWRnZS11cy82OTJmNmU5ZDY0MDVmMWQ3OWRjZmEwNGMvZDA5NjFlODdiMmZhNTZiOGUxZDdkMzE5ZmYxNzFiN2Y1MWQyZTgxZTFiMzI1OGYxZjY4YzI1MzdlNGZkMTYxNyoifV19&Signature=kZuANgpWozCFW0BN0t4L5Xzmp%7E0jbEIdlSCEoUhhVqNf9IAkGBlz8UAvIrshDx1psoo67sRJ%7EoTcABGvV6HGFNoMFKTvQaeJ0ySO6XdIL-FbTkY6BMcSh9T0xGkPC5Myy43yXV1Hu1n1AAuiilobcRPlzgh42OD7vNvtt5YWqUiqPFdzRofXsopbcZoMjArDs0S0pU4etWan3lpCIG-KMeagzz9%7E5-yuZl52irSKOsWbgpCvrWDxk2qY87tSrJMyZhPu1PxK3OtSRagakHkMfYTk766y7g6X5qjsprnsKRXQgKa632mMc0d2lVWxwscw9rNgksySnsgZHxFnLOwmtA__&Key-Pair-Id=K2L8F4GPSG1IFC"
     ],
-    "ExpectedSize": 1800000000
+    "ExpectedSize": 2500000000
   },
   {
-    "Name": "Qwen 2.5 7B",
+    "Name": "Qwen Instruct 2.5 7B Q4_K_S",
     "Description": "Equilibrado. Muy inteligente y excelente para programación. (Requiere 8GB RAM)",
     "DownloadLinks": [
-      "https://huggingface.co/tu-otro-link.gguf"
+      "https://cas-bridge.xethub.hf.co/xet-bridge-us/67d545852e36db434bbf3656/70afb2df939f54c501337fbd25e4a264ceac96f37a06755fe5a60950fe5b77ec?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=cas%2F20260310%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260310T044355Z&X-Amz-Expires=3600&X-Amz-Signature=57233cafe262c56b59a1aa4b2c7e4b39fb5f04c2ac61b4e7402351f819c41282&X-Amz-SignedHeaders=host&X-Xet-Cas-Uid=6962dc51aa6b67e1b60b8ad5&response-content-disposition=attachment%3B+filename*%3DUTF-8%27%27Qwen2.5-7B-Instruct-q4_k_s.gguf%3B+filename%3D%22Qwen2.5-7B-Instruct-q4_k_s.gguf%22%3B&x-amz-checksum-mode=ENABLED&x-id=GetObject&Expires=1773121435&Policy=eyJTdGF0ZW1lbnQiOlt7IkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc3MzEyMTQzNX19LCJSZXNvdXJjZSI6Imh0dHBzOi8vY2FzLWJyaWRnZS54ZXRodWIuaGYuY28veGV0LWJyaWRnZS11cy82N2Q1NDU4NTJlMzZkYjQzNGJiZjM2NTYvNzBhZmIyZGY5MzlmNTRjNTAxMzM3ZmJkMjVlNGEyNjRjZWFjOTZmMzdhMDY3NTVmZTVhNjA5NTBmZTViNzdlYyoifV19&Signature=Vk2WsZ5TzpH2Ki62XePEleMob0q92Rs0H87ClppBF0f8CZIvxj7emjJZHgUgvoWDiWD%7E4ypP4Ei9es9G2YIR%7E5SjEHm0tRtR%7Ef1TLOvitX5lKmxI36xSQz4LRzcmo7W-gKi%7E1FFIS64xpx2gWXTmqXCXn-R3abaHBFcwY50Nq6gjZCubho-5bH2GC%7EzhRxNo64SVSemk2w0or1jx9nqlVkGS4XIF7HCwJi-pSw8jOmqt%7EFLKs0DMgtDATT2np136VZneZSnyi%7EKVK71dqWkVObUExA5zdRctUYdRzJbdIRmszzARYW%7Ebw66WTpsAwv9qLDIi%7EE5wOSc1fEQP1GZsDQ__&Key-Pair-Id=K2L8F4GPSG1IFC"
     ],
-    "ExpectedSize": 4500000000
+    "ExpectedSize": 4300000000
   }
 ]

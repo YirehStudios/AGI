@@ -205,7 +205,7 @@ corner_radius_top_right = 20
 corner_radius_bottom_right = 20
 corner_radius_bottom_left = 20
 
-[node name="SetupWizard" type="Control" unique_id=499605798 node_paths=PackedStringArray("PanelWelcome", "PanelDependencies", "PanelModeSelection", "PanelModelSelection", "PanelDownloading", "TerminalLog", "InstallProgress", "BtnComenzar", "BtnServidorRemoto", "BtnLocalHost", "TxtCommandDisplay", "BtnCopyCommand", "LblRestartWarning")]
+[node name="SetupWizard" type="Control" unique_id=499605798 node_paths=PackedStringArray("PanelWelcome", "PanelDependencies", "PanelModeSelection", "PanelModelSelection", "PanelDownloading", "TerminalLog", "InstallProgress", "BtnComenzar", "BtnServidorRemoto", "BtnLocalHost", "TxtCommandDisplay", "BtnCopyCommand", "LblRestartWarning", "ModelListContainer")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -227,6 +227,7 @@ BtnLocalHost = NodePath("BackgroundPanel/MarginContainer/CenterContainer/PanelMo
 TxtCommandDisplay = NodePath("BackgroundPanel/MarginContainer/CenterContainer/PanelDependencies/Layout/CommandArea/TxtCommandDisplay")
 BtnCopyCommand = NodePath("BackgroundPanel/MarginContainer/CenterContainer/PanelDependencies/Layout/CommandArea/BtnCopyCommand")
 LblRestartWarning = NodePath("BackgroundPanel/MarginContainer/CenterContainer/PanelDependencies/Layout/LblRestartWarning")
+ModelListContainer = NodePath("BackgroundPanel/MarginContainer/CenterContainer/PanelModelSelection/Layout/ScrollContainer/VBoxContainer")
 
 [node name="BackgroundPanel" type="Panel" parent="." unique_id=725765625]
 layout_mode = 1

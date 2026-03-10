@@ -3,6 +3,8 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace Logic.System.Config
 {
@@ -119,28 +121,57 @@ namespace Logic.System.Config
             }
         }
 
-        /// <summary>
-        /// Parses the external presets file to provide a list of available AI models.
-        /// </summary>
-        /// <returns>A list of ModelPreset objects. Returns an empty list if the file is missing or invalid.</returns>
-        public List<ModelPreset> ListAvailablePresets()
+        public async Task<List<ModelPreset>> GetOrDownloadPresetsAsync()
         {
-            if (!File.Exists(_presetsFilePath))
+            string userPresetsPath = ProjectSettings.GlobalizePath("user://presets.json");
+
+            if (!File.Exists(userPresetsPath))
             {
-                GD.PrintErr($"ConfigManager: Presets file not found at {_presetsFilePath}.");
-                return new List<ModelPreset>();
+                bool downloadSuccess = await DownloadPresetsFromGitHub(userPresetsPath);
+                if (!downloadSuccess)
+                {
+                    GD.PrintErr("ConfigManager: La recuperación del archivo de presets remoto ha fallado.");
+                    return new List<ModelPreset>();
+                }
             }
 
             try
             {
-                string jsonString = File.ReadAllText(_presetsFilePath);
+                string jsonString = File.ReadAllText(userPresetsPath);
                 JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 return JsonSerializer.Deserialize<List<ModelPreset>>(jsonString, options) ?? new List<ModelPreset>();
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"ConfigManager: Failed to parse presets. Exception: {ex.Message}");
+                GD.PrintErr($"ConfigManager: Error durante la lectura o deserialización de presets locales. Excepción: {ex.Message}");
                 return new List<ModelPreset>();
+            }
+        }
+
+        /// <summary>
+        /// Instancia un cliente HTTP calificado explícitamente desde System.Net.Http para evitar colisiones 
+        /// con la red nativa de Godot. Realiza una petición GET hacia la URL cruda del repositorio,
+        /// recupera la cadena de texto de la respuesta y la persiste en la ruta de destino especificada.
+        /// </summary>
+        /// <param name="destinationPath">La ruta absoluta del sistema de archivos donde se almacenará el JSON.</param>
+        /// <returns>Una tarea asíncrona que retorna verdadero si el proceso de descarga y escritura concluye con éxito.</returns>
+        private async Task<bool> DownloadPresetsFromGitHub(string destinationPath)
+        {
+            string targetUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/main/agi/Script/Cs/System/Config/presets.json";
+
+            try
+            {
+                // Se utiliza la calificación explícita del espacio de nombres para aislar la implementación de .NET
+                using global::System.Net.Http.HttpClient client = new global::System.Net.Http.HttpClient();
+                string jsonContent = await client.GetStringAsync(targetUrl);
+                
+                File.WriteAllText(destinationPath, jsonContent);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"ConfigManager: Interrupción o error en la solicitud de red para descargar presets. Excepción: {ex.Message}");
+                return false;
             }
         }
 
