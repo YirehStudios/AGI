@@ -32,6 +32,9 @@ namespace Logic.Utils
 		[Export] public Button BtnComenzar;
 		[Export] public Button BtnServidorRemoto;
 		[Export] public Button BtnLocalHost;
+        [Export] public TextEdit TxtCommandDisplay;
+		[Export] public Button BtnCopyCommand;
+		[Export] public Label LblRestartWarning;
 		
 		[Export] public string MainChatScenePath = "res://Scenes/IAScene/MainApp.tscn";
 
@@ -39,17 +42,18 @@ namespace Logic.Utils
 		private DependencyInstaller _dependencyInstaller;
 		private ConfigManager _configManager;
 
+		/// <summary>
+		/// Inicializa los administradores secundarios y enlaza los eventos de la interfaz de usuario.
+		/// Elimina las escuchas de señales del instalador anterior, adoptando un flujo de auditoría pasiva.
+		/// </summary>
 		public override void _Ready()
 		{
 			_configManager = GetNode<ConfigManager>("/root/ConfigManager");
 			
 			_dependencyInstaller = new DependencyInstaller();
 			AddChild(_dependencyInstaller);
-			
-			_dependencyInstaller.TerminalOutputReceived += OnTerminalOutputReceived;
-			_dependencyInstaller.InstallationCompleted += OnInstallationCompleted;
 
-			// Vincula mediante delegados y lambdas las transiciones de estado a los eventos 'Pressed' de los botones exportados
+			// Vinculación de eventos a expresiones lambda y métodos manejadores
 			if (BtnComenzar != null)
 			{
 				BtnComenzar.Pressed += () => SwitchState(WizardState.Dependencies);
@@ -65,7 +69,85 @@ namespace Logic.Utils
 				BtnLocalHost.Pressed += SelectLocalMode;
 			}
 
+			if (BtnCopyCommand != null)
+			{
+				BtnCopyCommand.Pressed += OnCopyCommandPressed;
+			}
+
 			SwitchState(WizardState.Welcome);
+		}
+
+		/// <summary>
+		/// Ejecuta la lógica asíncrona de inicialización de estado.
+		/// Durante la verificación de dependencias, invoca la auditoría del sistema operativo.
+		/// Muestra un bloqueador de UI con las instrucciones requeridas si Docker no está instalado,
+		/// o avanza al siguiente estado en caso de validación exitosa.
+		/// </summary>
+		/// <param name="state">El estado de la máquina que está siendo procesado.</param>
+		private async void HandleStateInitialization(WizardState state)
+		{
+			switch (state)
+			{
+				case WizardState.Dependencies:
+					var result = await _dependencyInstaller.AuditSystemDependenciesAsync();
+					
+					if (result.HasDocker)
+					{
+						// Transición directa omitiendo la pantalla de bloqueo al confirmar la existencia de Docker
+						SwitchState(WizardState.ModeSelection);
+					}
+					else
+					{
+						if (PanelDependencies != null) PanelDependencies.Visible = true;
+						
+						if (TxtCommandDisplay != null) 
+						{
+							string displayText = result.RequiredCommand;
+							// Inyecta un encabezado explicativo si el comando resultante integra aria2
+							if (displayText.Contains("aria2"))
+							{
+								displayText = "# Sugerencia: Se ha incluido aria2 en el comando para habilitar descargas de mayor velocidad.\n" + displayText;
+							}
+							TxtCommandDisplay.Text = displayText;
+						}
+
+						if (LblRestartWarning != null)
+						{
+							// Bloqueo estricto del flujo requiriendo intervención externa y reinicio
+							LblRestartWarning.Text = "Por favor, ejecuta este comando en tu terminal, luego REINICIA esta aplicación.";
+						}
+					}
+					break;
+					
+				case WizardState.ModelSelection:
+					PopulateModelPresets();
+					break;
+			}
+		}
+
+		/// <summary>
+		/// Transfiere el comando bash generado al portapapeles del servidor gráfico (DisplayServer).
+		/// Intercala un temporizador no bloqueante en el árbol de escenas para proveer retroalimentación
+		/// visual efímera en el botón de copia, restaurando su estado original posteriormente.
+		/// </summary>
+		private async void OnCopyCommandPressed()
+		{
+			if (TxtCommandDisplay != null && !string.IsNullOrEmpty(TxtCommandDisplay.Text))
+			{
+				DisplayServer.ClipboardSet(TxtCommandDisplay.Text);
+				GD.Print("SetupWizard: Comando bash copiado al portapapeles de forma exitosa.");
+
+				if (BtnCopyCommand != null)
+				{
+					string originalText = BtnCopyCommand.Text;
+					BtnCopyCommand.Text = "¡Copiado!";
+					
+					// Retardo asíncrono atado al ciclo de ejecución de Godot
+					await ToSignal(GetTree().CreateTimer(2.0), SceneTreeTimer.SignalName.Timeout);
+					
+					BtnCopyCommand.Text = originalText;
+				}
+			}
 		}
 
 		/// <summary>
@@ -89,39 +171,12 @@ namespace Logic.Utils
 		/// Executes specific logic required when entering a new state.
 		/// </summary>
 		/// <param name="state">The state being initialized.</param>
-		private void HandleStateInitialization(WizardState state)
-		{
-			switch (state)
-			{
-				case WizardState.Dependencies:
-					if (TerminalLog != null) TerminalLog.Text = string.Empty;
-					_ = _dependencyInstaller.BeginInstallationAsync();
-					break;
-					
-				case WizardState.ModelSelection:
-					PopulateModelPresets();
-					break;
-			}
-		}
 
 		/// <summary>
 		/// Appends real-time output from the dependency installation process to the UI log
 		/// and automatically scrolls to the latest entry.
 		/// </summary>
 		/// <param name="logLine">The raw terminal output string.</param>
-		private void OnTerminalOutputReceived(string logLine)
-		{
-			if (TerminalLog != null)
-			{
-				TerminalLog.AppendText(logLine + "\n");
-				ScrollToBottom(); // Llamamos al método seguro
-			}
-
-			if (InstallProgress != null)
-			{
-				InstallProgress.Value += 2;
-			}
-		}
 
 		private async void ScrollToBottom()
 		{
