@@ -35,6 +35,7 @@ namespace Logic.Utils
         [Export] public TextEdit TxtCommandDisplay;
 		[Export] public Button BtnCopyCommand;
 		[Export] public Label LblRestartWarning;
+        [Export] public VBoxContainer ModelListContainer;
 		
 		[Export] public string MainChatScenePath = "res://Scenes/IAScene/MainApp.tscn";
 
@@ -93,7 +94,6 @@ namespace Logic.Utils
 					
 					if (result.HasDocker)
 					{
-						// Transición directa omitiendo la pantalla de bloqueo al confirmar la existencia de Docker
 						SwitchState(WizardState.ModeSelection);
 					}
 					else
@@ -103,7 +103,6 @@ namespace Logic.Utils
 						if (TxtCommandDisplay != null) 
 						{
 							string displayText = result.RequiredCommand;
-							// Inyecta un encabezado explicativo si el comando resultante integra aria2
 							if (displayText.Contains("aria2"))
 							{
 								displayText = "# Sugerencia: Se ha incluido aria2 en el comando para habilitar descargas de mayor velocidad.\n" + displayText;
@@ -113,7 +112,6 @@ namespace Logic.Utils
 
 						if (LblRestartWarning != null)
 						{
-							// Bloqueo estricto del flujo requiriendo intervención externa y reinicio
 							LblRestartWarning.Text = "Por favor, ejecuta este comando en tu terminal, luego REINICIA esta aplicación.";
 						}
 					}
@@ -237,17 +235,93 @@ namespace Logic.Utils
 		/// <summary>
 		/// Retrieves pre-configured models from the ConfigManager to populate the UI.
 		/// </summary>
-		private void PopulateModelPresets()
+		/// <summary>
+		/// Limpia el contenedor de nodos de forma iterativa y espera la resolución de la tarea asíncrona 
+		/// de obtención de datos del ConfigManager. Posteriormente instancia dinámicamente los contenedores 
+		/// y controles gráficos de la lista de modelos.
+		/// </summary>
+		private async void PopulateModelPresets()
 		{
-			List<ConfigManager.ModelPreset> presets = _configManager.ListAvailablePresets();
+			if (ModelListContainer != null)
+			{
+				foreach (Node child in ModelListContainer.GetChildren())
+				{
+					child.QueueFree();
+				}
+			}
+
+			List<ConfigManager.ModelPreset> presets = await _configManager.GetOrDownloadPresetsAsync();
 			
-			// Expected Implementation:
-			// Iterate over 'presets' and instantiate UI elements within PanelModelSelection.
-			// Bind the selection event to trigger 'ConfirmModelSelection(preset)'.
+			if (presets == null || presets.Count == 0)
+			{
+				Label noModelsLabel = new Label
+				{
+					Text = "No se encontraron modelos. Verifica tu conexión a internet o el archivo presets.json."
+				};
+				
+				if (ModelListContainer != null)
+				{
+					ModelListContainer.AddChild(noModelsLabel);
+				}
+				
+				GD.PrintErr("SetupWizard: La operación asíncrona retornó una lista de presets vacía o nula.");
+				return;
+			}
+
+			foreach (ConfigManager.ModelPreset preset in presets)
+			{
+				PanelContainer cardPanel = new PanelContainer();
+				HBoxContainer cardLayout = new HBoxContainer();
+				VBoxContainer textContainer = new VBoxContainer();
+				
+				textContainer.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+
+				Label nameLabel = new Label
+				{
+					Text = preset.Name
+				};
+
+				Label descLabel = new Label
+				{
+					Text = preset.Description
+				};
+
+				Button actionButton = new Button
+				{
+					Text = "Descargar / Seleccionar"
+				};
+
+				actionButton.Pressed += () => OnModelSelected(preset);
+
+				textContainer.AddChild(nameLabel);
+				textContainer.AddChild(descLabel);
+				
+				cardLayout.AddChild(textContainer);
+				cardLayout.AddChild(actionButton);
+				
+				cardPanel.AddChild(cardLayout);
+				
+				if (ModelListContainer != null)
+				{
+					ModelListContainer.AddChild(cardPanel);
+				}
+			}
 			
-			GD.Print($"SetupWizard: Loaded {presets.Count} model presets for UI population.");
+			GD.Print($"SetupWizard: Población asíncrona finalizada. Se renderizaron {presets.Count} presets en la interfaz.");
 		}
 
+		/// <summary>
+		/// Registra el modelo seleccionado en la configuración persistente e inicia 
+		/// la transición hacia el estado de descarga.
+		/// </summary>
+		/// <param name="preset">El objeto de configuración del modelo seleccionado por el usuario.</param>
+		private void OnModelSelected(ConfigManager.ModelPreset preset)
+		{
+			_configManager.ActiveModelName = preset.Name;
+			_configManager.SaveConfiguration();
+			
+			SwitchState(WizardState.Downloading);
+		}
 		/// <summary>
 		/// Validates the selected model's integrity before allowing application progression.
 		/// </summary>
