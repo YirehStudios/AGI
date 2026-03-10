@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Logic.System.Config;
 using Logic.System.Drivers;
+using Logic.Network;
 
 namespace Logic.Utils
 {
@@ -38,6 +39,10 @@ namespace Logic.Utils
         [Export] public VBoxContainer ModelListContainer;
 		
 		[Export] public string MainChatScenePath = "res://Scenes/IAScene/MainApp.tscn";
+        [Export] public ProgressBar ModelDownloadProgress;
+		[Export] public Label ModelDownloadStatus;
+		
+		private DownloadManager _downloadManager;
 
 		private WizardState _currentState;
 		private DependencyInstaller _dependencyInstaller;
@@ -45,7 +50,7 @@ namespace Logic.Utils
 
 		/// <summary>
 		/// Inicializa los administradores secundarios y enlaza los eventos de la interfaz de usuario.
-		/// Elimina las escuchas de señales del instalador anterior, adoptando un flujo de auditoría pasiva.
+		/// Suscribe el manejador local a los eventos de progreso en tiempo real emitidos por el DownloadManager.
 		/// </summary>
 		public override void _Ready()
 		{
@@ -54,7 +59,12 @@ namespace Logic.Utils
 			_dependencyInstaller = new DependencyInstaller();
 			AddChild(_dependencyInstaller);
 
-			// Vinculación de eventos a expresiones lambda y métodos manejadores
+			_downloadManager = new DownloadManager();
+			AddChild(_downloadManager);
+
+			_downloadManager.DownloadCompleted += OnModelDownloadCompleted;
+			_downloadManager.DownloadProgress += OnModelDownloadProgress;
+
 			if (BtnComenzar != null)
 			{
 				BtnComenzar.Pressed += () => SwitchState(WizardState.Dependencies);
@@ -80,9 +90,8 @@ namespace Logic.Utils
 
 		/// <summary>
 		/// Ejecuta la lógica asíncrona de inicialización de estado.
-		/// Durante la verificación de dependencias, invoca la auditoría del sistema operativo.
-		/// Muestra un bloqueador de UI con las instrucciones requeridas si Docker no está instalado,
-		/// o avanza al siguiente estado en caso de validación exitosa.
+		/// Invoca las operaciones delegadas según el ciclo de vida de la configuración de inicio,
+		/// anexando la invocación del administrador de descargas.
 		/// </summary>
 		/// <param name="state">El estado de la máquina que está siendo procesado.</param>
 		private async void HandleStateInitialization(WizardState state)
@@ -120,6 +129,116 @@ namespace Logic.Utils
 				case WizardState.ModelSelection:
 					PopulateModelPresets();
 					break;
+
+				case WizardState.Downloading:
+					StartModelDownload();
+					break;
+			}
+		}
+
+        /// <summary>
+		/// Registra el modelo seleccionado, vincula su URL de origen en la configuración persistente 
+		/// e inicia la transición hacia el estado de red.
+		/// </summary>
+		/// <param name="preset">El objeto de configuración del modelo seleccionado por el usuario.</param>
+		private void OnModelSelected(ConfigManager.ModelPreset preset)
+		{
+			_configManager.ActiveModelName = preset.Name;
+			
+			if (preset.DownloadLinks != null && preset.DownloadLinks.Count > 0)
+			{
+				_configManager.ActiveModelUrl = preset.DownloadLinks[0];
+			}
+
+			_configManager.SaveConfiguration();
+			
+			SwitchState(WizardState.Downloading);
+		}
+
+		/// <summary>
+		/// Prepara el entorno del sistema de archivos, establece la retroalimentación visual 
+		/// y delega la ejecución asíncrona de obtención del binario al DownloadManager.
+		/// Garantiza la estandarización nominal del archivo en el sistema operativo local.
+		/// </summary>
+		/// <summary>
+		/// Prepara el entorno del sistema de archivos, establece la retroalimentación visual 
+		/// y delega la ejecución asíncrona de obtención del binario al DownloadManager.
+		/// Garantiza la estandarización nominal del archivo en el sistema operativo local.
+		/// </summary>
+		private async void StartModelDownload()
+		{
+			if (ModelDownloadStatus != null)
+			{
+				ModelDownloadStatus.Text = "Iniciando descarga del modelo...";
+			}
+
+			if (ModelDownloadProgress != null)
+			{
+				ModelDownloadProgress.Value = 0;
+			}
+
+			string safeFileName = _configManager.ActiveModelName.Replace(" ", "_") + ".gguf";
+			
+			_configManager.ActiveModelPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
+			_configManager.SaveConfiguration();
+
+			await _downloadManager.DownloadFileAsync(_configManager.ActiveModelUrl, "user://models", safeFileName);
+		}
+
+		/// <summary>
+		/// Manejador suscrito al evento de actualización de progreso del DownloadManager.
+		/// Refleja de forma interpolada la transferencia de bytes sobre los componentes de interfaz de usuario.
+		/// </summary>
+		/// <param name="fileName">Identificador físico del archivo en tránsito.</param>
+		/// <param name="percentage">Fracción procesada respecto a la longitud de contenido total reportada (0 - 100).</param>
+		private void OnModelDownloadProgress(string fileName, float percentage)
+		{
+			if (ModelDownloadProgress != null)
+			{
+				ModelDownloadProgress.Value = percentage;
+			}
+
+			if (ModelDownloadStatus != null)
+			{
+				ModelDownloadStatus.Text = $"Descargando {fileName}... {percentage:F1}%";
+			}
+		}
+
+		/// <summary>
+		/// Manejador de eventos que evalúa el resultado de la transferencia binaria, realizando la transición
+		/// de escena en caso de éxito o restaurando la interfaz de forma explícita ante un fallo de integridad o red.
+		/// </summary>
+		/// <param name="fileName">Identificador del archivo procesado.</param>
+		/// <param name="success">Bandera de confirmación de integridad pos-descarga.</param>
+		private void OnModelDownloadCompleted(string fileName, bool success)
+		{
+			if (success)
+			{
+				if (ModelDownloadStatus != null)
+				{
+					ModelDownloadStatus.Text = "Descarga completada con éxito. Inicializando entorno...";
+				}
+				
+				if (ModelDownloadProgress != null)
+				{
+					ModelDownloadProgress.Value = ModelDownloadProgress.MaxValue;
+				}
+
+				TransitionToMainScene();
+			}
+			else
+			{
+				if (ModelDownloadStatus != null)
+				{
+					ModelDownloadStatus.Text = "Error en la descarga. Por favor, reinicia la aplicación o verifica tu conexión.";
+				}
+
+				if (ModelDownloadProgress != null)
+				{
+					ModelDownloadProgress.Value = 0;
+				}
+				
+				GD.PrintErr($"SetupWizard: Fallo reportado por DownloadManager durante la obtención de {fileName}");
 			}
 		}
 
@@ -310,18 +429,6 @@ namespace Logic.Utils
 			GD.Print($"SetupWizard: Población asíncrona finalizada. Se renderizaron {presets.Count} presets en la interfaz.");
 		}
 
-		/// <summary>
-		/// Registra el modelo seleccionado en la configuración persistente e inicia 
-		/// la transición hacia el estado de descarga.
-		/// </summary>
-		/// <param name="preset">El objeto de configuración del modelo seleccionado por el usuario.</param>
-		private void OnModelSelected(ConfigManager.ModelPreset preset)
-		{
-			_configManager.ActiveModelName = preset.Name;
-			_configManager.SaveConfiguration();
-			
-			SwitchState(WizardState.Downloading);
-		}
 		/// <summary>
 		/// Validates the selected model's integrity before allowing application progression.
 		/// </summary>

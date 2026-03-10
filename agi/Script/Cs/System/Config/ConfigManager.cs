@@ -41,8 +41,11 @@ namespace Logic.System.Config
             public long ExpectedSize { get; set; }
         }
 
+        public string ActiveModelUrl { get; set; } = string.Empty;
+
         /// <summary>
         /// Internal structure used exclusively for JSON serialization of the configuration state.
+        /// Integra el seguimiento de la URL de descarga del modelo activo.
         /// </summary>
         private class ConfigState
         {
@@ -50,6 +53,7 @@ namespace Logic.System.Config
             public string RemoteHostUrl { get; set; }
             public string ActiveModelPath { get; set; }
             public string ActiveModelName { get; set; }
+            public string ActiveModelUrl { get; set; }
         }
 
         public override void _Ready()
@@ -63,6 +67,7 @@ namespace Logic.System.Config
 
         /// <summary>
         /// Serializes the current application state to the local configuration file.
+        /// Captura y persiste la URL del modelo activo seleccionado en tiempo de ejecución.
         /// </summary>
         public void SaveConfiguration()
         {
@@ -78,7 +83,8 @@ namespace Logic.System.Config
                     Mode = CurrentMode,
                     RemoteHostUrl = RemoteHostUrl,
                     ActiveModelPath = ActiveModelPath,
-                    ActiveModelName = ActiveModelName
+                    ActiveModelName = ActiveModelName,
+                    ActiveModelUrl = ActiveModelUrl
                 };
 
                 JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
@@ -94,6 +100,7 @@ namespace Logic.System.Config
 
         /// <summary>
         /// Reads and deserializes the configuration state from the local file system.
+        /// Restaura en memoria la estructura de configuración incluyendo la URL de descarga del modelo.
         /// </summary>
         public void LoadConfiguration()
         {
@@ -113,6 +120,7 @@ namespace Logic.System.Config
                     RemoteHostUrl = state.RemoteHostUrl;
                     ActiveModelPath = state.ActiveModelPath;
                     ActiveModelName = state.ActiveModelName;
+                    ActiveModelUrl = state.ActiveModelUrl;
                 }
             }
             catch (Exception ex)
@@ -121,16 +129,25 @@ namespace Logic.System.Config
             }
         }
 
+        /// <summary>
+        /// Obtiene la lista de modelos preconfigurados priorizando la última versión del repositorio remoto.
+        /// Implementa una estrategia de tolerancia a fallos empleando la versión en caché local en caso 
+        /// de indisponibilidad de la red.
+        /// </summary>
+        /// <returns>Una tarea asíncrona que contiene la lista de objetos ModelPreset actualizada o respaldada.</returns>
         public async Task<List<ModelPreset>> GetOrDownloadPresetsAsync()
         {
             string userPresetsPath = ProjectSettings.GlobalizePath("user://presets.json");
 
-            if (!File.Exists(userPresetsPath))
+            bool downloadSuccess = await DownloadPresetsFromGitHub(userPresetsPath);
+
+            if (!downloadSuccess)
             {
-                bool downloadSuccess = await DownloadPresetsFromGitHub(userPresetsPath);
-                if (!downloadSuccess)
+                GD.PrintErr("ConfigManager: La actualización remota falló. Evaluando contingencia en caché local.");
+                
+                if (!File.Exists(userPresetsPath))
                 {
-                    GD.PrintErr("ConfigManager: La recuperación del archivo de presets remoto ha fallado.");
+                    GD.PrintErr("ConfigManager: No existe caché local de presets. Operación abortada.");
                     return new List<ModelPreset>();
                 }
             }
@@ -143,7 +160,7 @@ namespace Logic.System.Config
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"ConfigManager: Error durante la lectura o deserialización de presets locales. Excepción: {ex.Message}");
+                GD.PrintErr($"ConfigManager: Error durante la lectura o deserialización de presets. Excepción: {ex.Message}");
                 return new List<ModelPreset>();
             }
         }
