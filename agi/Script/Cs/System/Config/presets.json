@@ -1,0 +1,18 @@
+[
+  {
+    "Name": "Ministral 3B",
+    "Description": "Rápido y ligero. Ideal para PCs con pocos recursos. (Requiere 4GB RAM)",
+    "DownloadLinks": [
+      "https://huggingface.co/tu-link-de-descarga-aqui.gguf"
+    ],
+    "ExpectedSize": 1800000000
+  },
+  {
+    "Name": "Qwen 2.5 7B",
+    "Description": "Equilibrado. Muy inteligente y excelente para programación. (Requiere 8GB RAM)",
+    "DownloadLinks": [
+      "https://huggingface.co/tu-otro-link.gguf"
+    ],
+    "ExpectedSize": 4500000000
+  }
+]

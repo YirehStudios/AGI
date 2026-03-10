@@ -6,159 +6,82 @@ using System.Threading.Tasks;
 namespace Logic.System.Drivers
 {
     /// <summary>
-    /// Handles the automated installation of system-level dependencies securely.
-    /// Redirects process streams to Godot signals for real-time UI logging.
+    /// Instala dependencias lanzando una ventana de terminal nativa para una experiencia transparente.
+    /// Utiliza un archivo temporal de estado para sincronizarse con Godot.
     /// </summary>
     public partial class DependencyInstaller : Node
     {
-        [Signal]
-        public delegate void TerminalOutputReceivedEventHandler(string logLine);
-
-        [Signal]
-        public delegate void InstallationCompletedEventHandler(bool success);
-
         /// <summary>
-        /// Executes the installation script using elevated privileges and captures the output streams asynchronously.
-        /// </summary>
-        public async Task BeginInstallationAsync()
-        {
-            bool installationSuccess = false;
-            
-            // Obtiene el identificador del usuario del sistema operativo activo mediante la resolución global de .NET
-            string currentUser = global::System.Environment.UserName;
+		/// Audita silenciosamente el sistema operativo en busca de los binarios 'docker' y 'aria2c'.
+		/// Identifica dinámicamente el gestor de paquetes de la distribución Linux y construye
+		/// un comando de instalación concatenado. Anexa la configuración de permisos y grupos del usuario
+		/// al final de la cadena de ejecución.
+		/// </summary>
+		/// <returns>Una tupla indicando la presencia de Docker y el comando bash resultante si es necesario.</returns>
+		public async Task<(bool HasDocker, string RequiredCommand)> AuditSystemDependenciesAsync()
+		{
+			return await Task.Run(() =>
+			{
+				bool hasDocker = CheckCommandExists("docker");
+                bool hasAria2 = CheckCommandExists("aria2c");
 
-            await Task.Run(() =>
-            {
-                // Define la ruta absoluta en el directorio temporal del sistema resolviendo explícitamente System.IO
-                string tempScriptPath = global::System.IO.Path.Combine(global::System.IO.Path.GetTempPath(), "agi_install.sh");
+				// Omite la generación del comando si la dependencia central (Docker) existe, delegando fallback de descargas al DownloadManager
+				if (hasDocker)
+				{
+					return (true, string.Empty);
+				}
 
-                try
-                {
-                    // Interpolación de cadenas para la inserción segura del usuario evaluado en el script bash
-                    string installScript = $@"
-                    echo 'Starting dependency checks...'
-                    ARIA2_FALLBACK=0
+				string installCommand = string.Empty;
 
-                    echo 'Checking for aria2...'
-                    if ! command -v aria2c >/dev/null 2>&1; then
-                        echo 'aria2 not found. Attempting installation...'
-                        if command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install -y aria2
-                        elif command -v dnf >/dev/null 2>&1; then dnf install -y aria2
-                        elif command -v pacman >/dev/null 2>&1; then pacman -S --noconfirm aria2
-                        else 
-                            echo 'Could not determine package manager for aria2.'
-                            ARIA2_FALLBACK=1
-                        fi
-                    else
-                        echo 'aria2 is already installed.'
-                    fi
+				bool hasApt = CheckCommandExists("apt-get");
+				bool hasDnf = CheckCommandExists("dnf");
+				bool hasPacman = CheckCommandExists("pacman");
 
-                    echo 'Checking for Docker...'
-                    if ! command -v docker >/dev/null 2>&1; then
-                        echo 'Docker not found. Attempting installation...'
-                        if command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install -y docker.io
-                        elif command -v dnf >/dev/null 2>&1; then dnf install -y docker
-                        elif command -v pacman >/dev/null 2>&1; then pacman -S --noconfirm docker
-                        else curl -fsSL https://get.docker.com | sh
-                        fi
-                        
-                        systemctl enable --now docker
-                        usermod -aG docker {currentUser}
-                        echo 'Docker installed successfully. A system reboot may be required for group permissions.'
-                    else
-                        echo 'Docker is already installed.'
-                    fi
+				string dockerPackage = "docker.io";
+				string ariaPackage = "aria2";
 
-                    if [ $ARIA2_FALLBACK -eq 1 ]; then
-                        echo 'Warning: aria2 installation failed. Downloads will require fallback mechanisms.'
-                    fi
-                    
-                    echo 'Dependency verification complete.'
-                    ";
+				// Compilación lógica del comando de instalación en función del entorno detectado
+				if (hasApt)
+				{
+					string packages = hasAria2 ? dockerPackage : $"{dockerPackage} {ariaPackage}";
+					installCommand = $"sudo apt-get update && sudo apt-get install -y {packages}";
+				}
+				else if (hasDnf)
+				{
+					string dockerDnf = "docker";
+					string packages = hasAria2 ? dockerDnf : $"{dockerDnf} {ariaPackage}";
+					installCommand = $"sudo dnf install -y {packages}";
+				}
+				else if (hasPacman)
+				{
+					string dockerPacman = "docker";
+					string packages = hasAria2 ? dockerPacman : $"{dockerPacman} {ariaPackage}";
+					installCommand = $"sudo pacman -S --noconfirm {packages}";
+				}
+				else
+				{
+					// Redirección de salida directa desde el script remoto al intérprete nativo como último recurso
+					installCommand = "curl -fsSL https://get.docker.com | sudo sh";
+				}
 
-                    // Escribe los bytes completos del script interpolado al disco forzando la ruta global
-                    global::System.IO.File.WriteAllText(tempScriptPath, installScript);
-                    
-                    // Invoca al sistema operativo para asignar permisos de ejecución mediante el binario chmod
-                    Godot.OS.Execute("chmod", new string[] { "+x", tempScriptPath }, new Godot.Collections.Array());
+				// Concatenación de la lógica de daemonización del servicio y elevación de permisos del entorno de escritorio actual
+				string fullCommand = $"{installCommand} && sudo systemctl enable --now docker && sudo usermod -aG docker $USER";
 
-                    // Configura los parámetros de elevación de privilegios apuntando al archivo temporal
-                    ProcessStartInfo startInfo = new ProcessStartInfo
-                    {
-                        FileName = "pkexec",
-                        Arguments = tempScriptPath,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
+				return (false, fullCommand);
+			});
+		}
 
-                    using Process process = new Process { StartInfo = startInfo };
-
-                    process.OutputDataReceived += (sender, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                        {
-                            CallDeferred(MethodName.EmitTerminalLog, e.Data);
-                        }
-                    };
-
-                    process.ErrorDataReceived += (sender, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                        {
-                            CallDeferred(MethodName.EmitTerminalLog, $"[ERROR] {e.Data}");
-                        }
-                    };
-
-                    process.Start();
-                    process.BeginOutputReadLine();
-                    process.BeginErrorReadLine();
-                    process.WaitForExit();
-
-                    installationSuccess = process.ExitCode == 0;
-                }
-                catch (Exception ex)
-                {
-                    CallDeferred(MethodName.EmitTerminalLog, $"[FATAL ERROR] {ex.Message}");
-                    installationSuccess = false;
-                }
-                finally
-                {
-                    // Garantiza la limpieza del sistema de archivos comprobando y eliminando mediante la directiva global
-                    if (global::System.IO.File.Exists(tempScriptPath))
-                    {
-                        try
-                        {
-                            global::System.IO.File.Delete(tempScriptPath);
-                        }
-                        catch (Exception cleanupEx)
-                        {
-                            CallDeferred(MethodName.EmitTerminalLog, $"[CLEANUP ERROR] Failed to remove temp script: {cleanupEx.Message}");
-                        }
-                    }
-                }
-            });
-
-            CallDeferred(MethodName.EmitCompletionSignal, installationSuccess);
-        }
-
-        /// <summary>
-        /// Marshals the log string emission back to the main Godot thread.
-        /// </summary>
-        /// <param name="message">The text line to emit.</param>
-        private void EmitTerminalLog(string message)
-        {
-            EmitSignal(SignalName.TerminalOutputReceived, message);
-        }
-
-        /// <summary>
-        /// Marshals the completion signal back to the main Godot thread.
-        /// </summary>
-        /// <param name="success">The result of the installation process.</param>
-        private void EmitCompletionSignal(bool success)
-        {
-            EmitSignal(SignalName.InstallationCompleted, success);
-        }
+		/// <summary>
+		/// Invoca un proceso del sistema para evaluar la resolución del binario especificado
+		/// utilizando el comando estandarizado POSIX 'which'.
+		/// </summary>
+		/// <param name="command">El nombre del ejecutable a auditar.</param>
+		/// <returns>Verdadero si el binario existe en la variable de entorno PATH.</returns>
+		private bool CheckCommandExists(string command)
+		{
+			var output = new Godot.Collections.Array();
+			int exitCode = Godot.OS.Execute("which", new string[] { command }, output, true);
+			return exitCode == 0;
+		}
     }
 }
