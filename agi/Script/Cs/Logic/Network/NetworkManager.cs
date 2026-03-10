@@ -21,7 +21,7 @@ namespace Logic.Network
         public delegate void TokenReceivedEventHandler(string token);
 
         private const string BaseUrl = "http://127.0.0.1:8080";
-        private readonly System.Net.Http.HttpClient _httpClient = new System.Net.Http.HttpClient();
+        private readonly global::System.Net.Http.HttpClient _httpClient = new global::System.Net.Http.HttpClient();
 
         public async void PerformHandshake()
         {

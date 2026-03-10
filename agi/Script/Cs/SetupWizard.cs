@@ -1,460 +1,226 @@
 using Godot;
 using System;
-using System.IO;
-using System.Threading.Tasks;
 using System.Collections.Generic;
-using System.Text.Json;
-using Logic.Network;
+using Logic.System.Config;
+using Logic.System.Drivers;
 
 namespace Logic.Utils
 {
-    /// <summary>
-    /// Handles initial configuration, dependency validation, Docker image orchestration,
-    /// and ensures the environment is prepared for execution.
-    /// </summary>
-    public partial class SetupWizard : Panel
-    {
-        [Signal]
-        public delegate void SetupCompletedEventHandler(bool isGpuEnabled);
+	/// <summary>
+	/// Orchestrates the initial application setup through a State Machine approach,
+	/// managing UI transitions, dependency installations, and configuration binding.
+	/// </summary>
+	public partial class SetupWizard : Control
+	{
+		public enum WizardState
+		{
+			Welcome,
+			Dependencies,
+			ModeSelection,
+			ModelSelection,
+			Downloading
+		}
 
-        [Export] public Control SetupOverlay;
-        [Export] public ProgressBar SetupProgressBar;
-        [Export] public Label SetupStatusLabel;
+		[Export] public Control PanelWelcome;
+		[Export] public Control PanelDependencies;
+		[Export] public Control PanelModeSelection;
+		[Export] public Control PanelModelSelection;
+		[Export] public Control PanelDownloading;
 
-        private string _localAppPath;
-        private DownloadManager _downloadManager;
+		[Export] public RichTextLabel TerminalLog;
+		[Export] public ProgressBar InstallProgress;
+		[Export] public Button BtnComenzar;
+		[Export] public Button BtnServidorRemoto;
+		[Export] public Button BtnLocalHost;
+		
+		[Export] public string MainChatScenePath = "res://Scenes/IAScene/MainApp.tscn";
 
-        private class Requirement
-        {
-            [System.Text.Json.Serialization.JsonPropertyName("name")]
-            public string FileName { get; set; }
-            
-            public string Url { get; set; }
-            public string Target { get; set; }
-        }
+		private WizardState _currentState;
+		private DependencyInstaller _dependencyInstaller;
+		private ConfigManager _configManager;
 
-        public override void _Ready()
-        {
-            _localAppPath = ProjectSettings.GlobalizePath("user://");
-            
-            _downloadManager = new DownloadManager();
-            AddChild(_downloadManager);
-            
-            if (SetupOverlay != null)
-            {
-                SetupOverlay.Show();
-            }
+		public override void _Ready()
+		{
+			_configManager = GetNode<ConfigManager>("/root/ConfigManager");
+			
+			_dependencyInstaller = new DependencyInstaller();
+			AddChild(_dependencyInstaller);
+			
+			_dependencyInstaller.TerminalOutputReceived += OnTerminalOutputReceived;
+			_dependencyInstaller.InstallationCompleted += OnInstallationCompleted;
 
-            _ = RunSetupSequence();
-        }
+			// Vincula mediante delegados y lambdas las transiciones de estado a los eventos 'Pressed' de los botones exportados
+			if (BtnComenzar != null)
+			{
+				BtnComenzar.Pressed += () => SwitchState(WizardState.Dependencies);
+			}
 
-        private bool CheckIfImageExists(string imageName)
-        {
-            var output = new Godot.Collections.Array();
-            // Runs a docker command to see if the image is registered
-            int exitCode = OS.Execute("docker", new string[] { "images", "-q", imageName }, output, true);
-            
-            // If output is not empty, the image exists locally
-            return exitCode == 0 && output.Count > 0 && !string.IsNullOrEmpty(output[0].ToString());
-        }
+			if (BtnServidorRemoto != null)
+			{
+				BtnServidorRemoto.Pressed += () => SelectRemoteMode("http://127.0.0.1:8080");
+			}
 
-        private async Task RunSetupSequence()
-        {
-            try
-            {
+			if (BtnLocalHost != null)
+			{
+				BtnLocalHost.Pressed += SelectLocalMode;
+			}
 
-                bool isDockerReady = await EnsureDockerInstalled();
-                if (!isDockerReady) 
-                {
-                    return; // Detiene la secuencia si falló la instalación o si pide reiniciar
-                }
-                
-                UpdateStatus("Initiating system discovery...");
-                GD.Print("AGI Setup Wizard: Initiating System Discovery...");
+			SwitchState(WizardState.Welcome);
+		}
 
-                UpdateStatus("Verifying Docker installation...");
-                if (!CheckDockerAvailability())
-                {
-                    UpdateStatus("Critical error: Docker is not installed or not running.");
-                    GD.PrintErr("AGI Setup Wizard: Docker daemon unreachable. Halting startup.");
-                    return;
-                }
+		/// <summary>
+		/// Transitions the internal state and updates the visibility of the corresponding UI panels.
+		/// </summary>
+		/// <param name="newState">The target state to transition into.</param>
+		public void SwitchState(WizardState newState)
+		{
+			_currentState = newState;
 
-                // 1. DESCARGA LOS MODELOS (GGUF, BIN, ONNX)
-                UpdateStatus("Verifying and downloading AI models...");
-                await VerifyAndDownloadRequirements();
+			if (PanelWelcome != null) PanelWelcome.Visible = (newState == WizardState.Welcome);
+			if (PanelDependencies != null) PanelDependencies.Visible = (newState == WizardState.Dependencies);
+			if (PanelModeSelection != null) PanelModeSelection.Visible = (newState == WizardState.ModeSelection);
+			if (PanelModelSelection != null) PanelModelSelection.Visible = (newState == WizardState.ModelSelection);
+			if (PanelDownloading != null) PanelDownloading.Visible = (newState == WizardState.Downloading);
 
-                // 2. CONSTRUYE LA IMAGEN DE DOCKER LOCALMENTE
-                
-                UpdateStatus("Verifying AI engine container...");
-                if (!CheckIfImageExists("yirehstudios/agi-backend:latest"))
-                {
-                    UpdateStatus("Building backend Docker container... (This happens only once)");
-                    await BuildDockerImage();
-                    
-                    // Verificación post-construcción (por si falla el internet a la mitad)
-                    if (!CheckIfImageExists("yirehstudios/agi-backend:latest")) 
-                    {
-                        UpdateStatus("Critical Error: AI Image could not be built. Check logs.");
-                        GD.PrintErr("AGI Setup Wizard: Halting startup. Docker image missing.");
-                        return; 
-                    }
-                }
-                else
-                {
-                    GD.Print("AGI Setup Wizard: Docker image already exists. Skipping build phase! (Fast Boot)");
-                }
+			HandleStateInitialization(newState);
+		}
 
-                if (!CheckIfImageExists("yirehstudios/agi-backend:latest")) {
-                    UpdateStatus("Critical Error: AI Image could not be built. Check logs.");
-                    return; 
-                }
+		/// <summary>
+		/// Executes specific logic required when entering a new state.
+		/// </summary>
+		/// <param name="state">The state being initialized.</param>
+		private void HandleStateInitialization(WizardState state)
+		{
+			switch (state)
+			{
+				case WizardState.Dependencies:
+					if (TerminalLog != null) TerminalLog.Text = string.Empty;
+					_ = _dependencyInstaller.BeginInstallationAsync();
+					break;
+					
+				case WizardState.ModelSelection:
+					PopulateModelPresets();
+					break;
+			}
+		}
 
-                UpdateStatus("Verifying hardware capabilities...");
-                bool hasGpu = CheckHardwareCapabilities();
+		/// <summary>
+		/// Appends real-time output from the dependency installation process to the UI log
+		/// and automatically scrolls to the latest entry.
+		/// </summary>
+		/// <param name="logLine">The raw terminal output string.</param>
+		private void OnTerminalOutputReceived(string logLine)
+		{
+			if (TerminalLog != null)
+			{
+				TerminalLog.AppendText(logLine + "\n");
+				ScrollToBottom(); // Llamamos al método seguro
+			}
 
-                UpdateStatus("Configuring the local environment...");
-                UpdateLocalConfiguration(hasGpu);
+			if (InstallProgress != null)
+			{
+				InstallProgress.Value += 2;
+			}
+		}
 
-                UpdateStatus("Setup completed successfully. Welcome!");
-                GD.Print("AGI Setup Wizard: Environment Ready.");
-                
-                FinalizeSetup();
-                EmitSignal(SignalName.SetupCompleted, hasGpu);
+		private async void ScrollToBottom()
+		{
+			await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+			
+			if (TerminalLog != null)
+			{
+				var scrollBar = TerminalLog.GetVScrollBar();
+				if (scrollBar != null)
+				{
+					scrollBar.Value = scrollBar.MaxValue;
+				}
+			}
+		}
 
-                // 3. ENCIENDE EL SERVIDOR (Ahora sí, con la imagen construida)
-                Node backendLauncher = GetNodeOrNull("/root/BackendLauncher");
-                if (backendLauncher != null)
-                {
-                    GD.Print("AGI Setup Wizard: Invoking initial startup of Docker engine (StartBackend).");
-                    backendLauncher.Call("StartBackend");
-                }
-            }
-            catch (Exception ex)
-            {
-                GD.PrintErr($"AGI Setup Wizard: FATAL ERROR - {ex.Message}\n{ex.StackTrace}");
-                UpdateStatus("Error crítico durante la instalación. Revisa la consola.");
-            }
-        }
+		/// <summary>
+		/// Evaluates the outcome of the installation sequence and determines the next state transition.
+		/// </summary>
+		/// <param name="success">Indicates whether the installation process exited gracefully.</param>
+		private void OnInstallationCompleted(bool success)
+		{
+			if (success)
+			{
+				SwitchState(WizardState.ModeSelection);
+			}
+			else
+			{
+				if (TerminalLog != null)
+				{
+					TerminalLog.AppendText("\n[SYSTEM] Installation failed. Please review the logs above.\n");
+				}
+			}
+		}
 
-        private bool CheckDockerAvailability()
-        {
-            try
-            {
-                var output = new Godot.Collections.Array();
-                int exitCode = OS.Execute("docker", new string[] { "--version" }, output, true);
-                
-                if (exitCode == 0)
-                {
-                    GD.Print($"AGI Setup Wizard: Docker detected. {(output.Count > 0 ? output[0] : string.Empty)}");
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                GD.PrintErr($"AGI Setup Wizard: Docker validation failed. {ex.Message}");
-            }
-            return false;
-        }
+		/// <summary>
+		/// Triggers the transition to the remote configuration flow.
+		/// Connect this method to the 'Remote Mode' Button's Pressed signal.
+		/// </summary>
+		public void SelectRemoteMode(string hostUrl)
+		{
+			_configManager.CurrentMode = ConfigManager.AppMode.RemoteUI;
+			_configManager.RemoteHostUrl = hostUrl;
+			_configManager.SaveConfiguration();
+			
+			TransitionToMainScene();
+		}
 
-        private async Task<bool> EnsureDockerInstalled()
-        {
-            UpdateStatus("Checking Docker engine...");
+		/// <summary>
+		/// Triggers the transition to the local configuration flow.
+		/// Connect this method to the 'Local Mode' Button's Pressed signal.
+		/// </summary>
+		public void SelectLocalMode()
+		{
+			_configManager.CurrentMode = ConfigManager.AppMode.LocalHost;
+			SwitchState(WizardState.ModelSelection);
+		}
 
-            // 1. Verificamos si docker ya responde
-            var checkOutput = new Godot.Collections.Array();
-            int checkExitCode = OS.Execute("docker", new string[] { "--version" }, checkOutput, true);
+		/// <summary>
+		/// Retrieves pre-configured models from the ConfigManager to populate the UI.
+		/// </summary>
+		private void PopulateModelPresets()
+		{
+			List<ConfigManager.ModelPreset> presets = _configManager.ListAvailablePresets();
+			
+			// Expected Implementation:
+			// Iterate over 'presets' and instantiate UI elements within PanelModelSelection.
+			// Bind the selection event to trigger 'ConfirmModelSelection(preset)'.
+			
+			GD.Print($"SetupWizard: Loaded {presets.Count} model presets for UI population.");
+		}
 
-            if (checkExitCode == 0)
-            {
-                GD.Print("SetupWizard: Docker is already installed.");
-                return true;
-            }
+		/// <summary>
+		/// Validates the selected model's integrity before allowing application progression.
+		/// </summary>
+		/// <param name="expectedSize">The required byte size for validation.</param>
+		public void ConfirmModelSelection(long expectedSize)
+		{
+			var validationResult = _configManager.ValidateModelIntegrity(expectedSize);
 
-            // 2. Si no existe, iniciamos el protocolo de instalación
-            GD.Print("SetupWizard: Docker not found. Initiating secure installation...");
-            UpdateStatus("Docker missing. Please enter your password in the popup to install it...");
+			if (!validationResult.IsValid)
+			{
+				GD.PrintErr($"SetupWizard: Validation Error - {validationResult.ErrorMessage}");
+				
+				// Expected Implementation:
+				// Show an error dialog to the user requesting a re-download or path correction.
+				// Optionally transition to WizardState.Downloading if a download is initiated.
+				return;
+			}
 
-            // Obtenemos el nombre del usuario real para darle permisos
-            string currentUser = System.Environment.UserName;
+			_configManager.SaveConfiguration();
+			TransitionToMainScene();
+		}
 
-            // ¡EL SCRIPT UNIVERSAL! Detecta apt (Ubuntu/Debian), dnf (Fedora) o pacman (Arch)
-            string installCommand = $@"
-            if command -v apt-get >/dev/null 2>&1; then 
-                apt-get update && apt-get install -y docker.io; 
-            elif command -v dnf >/dev/null 2>&1; then 
-                dnf install -y docker; 
-            elif command -v pacman >/dev/null 2>&1; then 
-                pacman -S --noconfirm docker; 
-            else 
-                curl -fsSL https://get.docker.com | sh; 
-            fi && 
-            systemctl enable --now docker && 
-            usermod -aG docker {currentUser}";
-
-            // Ejecutamos el puente gráfico nativo y guardamos lo que Linux nos responda
-            var output = new Godot.Collections.Array();
-            int installExitCode = OS.Execute("pkexec", new string[] { "bash", "-c", installCommand }, output, true);
-
-            if (installExitCode == 0)
-            {
-                GD.Print("SetupWizard: Docker installed successfully.");
-                UpdateStatus("Docker installed! IMPORTANT: Please RESTART your computer to apply permissions.");
-                
-                await ToSignal(GetTree().CreateTimer(5.0f), "timeout"); 
-                GetTree().Quit(); 
-                return false; 
-            }
-            else
-            {
-                // ¡EL MODO FORENSE! Extraemos exactamente qué le dolió a Linux
-                string linuxError = output.Count > 0 ? output[0].ToString() : "Sin respuesta de la terminal.";
-                
-                GD.PrintErr("========================================");
-                GD.PrintErr($"SetupWizard: Instalación fallida. Código de salida: {installExitCode}");
-                GD.PrintErr($"Mensaje exacto de Linux:\n{linuxError}");
-                GD.PrintErr("========================================");
-
-                UpdateStatus("Installation failed. Annie needs Docker to run. Check logs.");
-                return false;
-            }
-        }
-
-        private async Task BuildDockerImage()
-        {
-            UpdateStatus("Building Docker AI Engine... (This may take several minutes)");
-            GD.Print("AGI Setup Wizard: Starting Docker build in background...");
-
-            await Task.Run(() =>
-            {
-                try
-                {
-                    string dockerFileDir = ProjectSettings.GlobalizePath("res://Script/Cs/System/Drivers/"); 
-                    string dockerFilePath = System.IO.Path.Combine(dockerFileDir, "DockerFile");
-
-                    var startInfo = new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = "docker",
-                        Arguments = $"build -f \"{dockerFilePath}\" -t yirehstudios/agi-backend:latest \"{dockerFileDir}\"",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-
-                    using var process = new System.Diagnostics.Process { StartInfo = startInfo };
-                    
-                    // Esto imprimirá en Godot cada línea que Docker vaya descargando/construyendo
-                    process.OutputDataReceived += (sender, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.Print($"[Docker] {e.Data}"); };
-                    process.ErrorDataReceived += (sender, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.PrintErr($"[Docker] {e.Data}"); };
-
-                    process.Start();
-                    process.BeginOutputReadLine();
-                    process.BeginErrorReadLine();
-                    process.WaitForExit();
-
-                    if (process.ExitCode == 0)
-                    {
-                        GD.Print("AGI Setup Wizard: Docker image built successfully!");
-                    }
-                    else
-                    {
-                        GD.PrintErr($"AGI Setup Wizard: Docker build failed with code {process.ExitCode}.");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    GD.PrintErr($"AGI Setup Wizard: Docker build process failed. {ex.Message}");
-                }
-            });
-        }
-
-        /// <summary>
-        /// Verifies the disk persistence of fundamental components (Model, Tokens, and Lexicon) 
-        /// required by the Sherpa-ONNX architecture to guarantee stability in the operational phase.
-        /// </summary>
-        private bool ValidateSherpaModels()
-        {
-            string modelPath = ProjectSettings.GlobalizePath("user://models/vits-piper-es_ES-miro-high/es_ES-miro-high.onnx");
-            string tokensPath = ProjectSettings.GlobalizePath("user://models/vits-piper-es_ES-miro-high/tokens.txt");
-            string lexiconPath = ProjectSettings.GlobalizePath("user://models/vits-piper-es_ES-miro-high/lexicon.txt");
-
-            // Checks the directory tree to ensure models will not fail due to orphaned dependencies
-            return File.Exists(modelPath) && File.Exists(tokensPath) && File.Exists(lexiconPath);
-        }
-
-        private void UpdateStatus(string currentStatus)
-        {
-            if (SetupStatusLabel != null)
-            {
-                SetupStatusLabel.Text = currentStatus;
-            }
-        }
-
-        private void OnDownloadProgress(float progressValue)
-        {
-            if (SetupProgressBar != null)
-            {
-                SetupProgressBar.Value = progressValue;
-            }
-        }
-
-        private void FinalizeSetup()
-        {
-            if (SetupOverlay != null)
-            {
-                SetupOverlay.Hide();
-            }
-        }
-
-        private string GetRequirementFilePath()
-        {
-            //if (OS.HasFeature("Lite")) 
-            return "res://Script/Cs/System/Config/RequerimentsLite.json";
-            //if (OS.HasFeature("Server")) return "res://Script/Cs/System/Config/RequerimentsServer.json";
-            //if (OS.HasFeature("IU")) return "res://Script/Cs/System/Config/RequerimentsIU.json";
-            //return "res://Script/Cs/System/Config/Requeriments.json";
-        }
-
-        private async Task VerifyAndDownloadRequirements()
-        {
-            string requirementsPath = GetRequirementFilePath();
-            
-            if (!Godot.FileAccess.FileExists(requirementsPath))
-            {
-                GD.PrintErr($"AGI Setup Wizard: Requirements file not found at {requirementsPath}");
-                UpdateStatus("Error: Requirements file not found.");
-                return;
-            }
-
-            using var file = Godot.FileAccess.Open(requirementsPath, Godot.FileAccess.ModeFlags.Read);
-            string jsonContent = file.GetAsText();
-            
-            List<Requirement> requirements = new List<Requirement>();
-            try
-            {
-                var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var root = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, List<Requirement>>>(jsonContent, options);
-                
-                // ¡Magia! Ahora descarga y organiza todo lo que pongas en el JSON
-                if (root != null)
-                {
-                    if (root.ContainsKey("models")) requirements.AddRange(root["models"]);
-                    if (root.ContainsKey("binaries")) requirements.AddRange(root["binaries"]);
-                    if (root.ContainsKey("drivers")) requirements.AddRange(root["drivers"]); // Por si agregas esta lista al JSON
-                }
-            }
-            catch(Exception ex)
-            {
-                GD.PrintErr($"AGI Setup Wizard: Failed to parse JSON. {ex.Message}");
-                UpdateStatus("Error interpreting JSON configuration.");
-                return;
-            }
-
-            using System.Net.Http.HttpClient httpClient = new System.Net.Http.HttpClient();
-            int totalFiles = requirements.Count;
-            int processedFiles = 0;
-
-            foreach (var req in requirements)
-            {
-                // Esto respeta la carpeta que pusiste en el JSON (ej. "bin/" o "settings/")
-                string targetSubDir = string.IsNullOrEmpty(req.Target) ? "models/" : req.Target;
-                string globalTargetDir = ProjectSettings.GlobalizePath($"user://{targetSubDir}");
-                string filePath = System.IO.Path.Combine(globalTargetDir, req.FileName);
-
-                bool needsDownload = false;
-                long serverSize = -1;
-
-                UpdateStatus($"Verifying integrity: {req.FileName}...");
-                await Task.Delay(50); // <-- ESTO EVITA QUE LA PANTALLA SE CONGELE
-
-                try
-                {
-                    var headRequest = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, req.Url);
-                    var headResponse = await httpClient.SendAsync(headRequest);
-                    if (headResponse.IsSuccessStatusCode && headResponse.Content.Headers.ContentLength.HasValue)
-                    {
-                        serverSize = headResponse.Content.Headers.ContentLength.Value;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    GD.PrintErr($"AGI Setup Wizard: Could not verify Content-Length for {req.FileName}. {ex.Message}");
-                }
-
-                if (!System.IO.File.Exists(filePath))
-                {
-                    needsDownload = true;
-                }
-                else if (serverSize > 0)
-                {
-                    System.IO.FileInfo fileInfo = new System.IO.FileInfo(filePath);
-                    if (fileInfo.Length != serverSize)
-                    {
-                        GD.Print($"AGI Setup Wizard: Size discrepancy in {req.FileName}. Re-downloading...");
-                        needsDownload = true;
-                    }
-                }
-
-                if (needsDownload)
-                {
-                    UpdateStatus($"Downloading and processing: {req.FileName}...");
-                    await Task.Delay(50); // <-- OBLIGA A REFRESCAR LA BARRA DE CARGA
-                    GD.Print($"AGI Setup Wizard: Queuing download for {req.FileName} into {globalTargetDir}");
-                    
-                    await _downloadManager.DownloadFileAsync(req.Url, globalTargetDir, req.FileName);
-                }
-
-                processedFiles++;
-                float progressPercentage = ((float)processedFiles / totalFiles) * 100f;
-                OnDownloadProgress(progressPercentage);
-            }
-            
-            GD.Print("AGI Setup Wizard: All deployment resources verified.");
-        }
-
-        private bool CheckHardwareCapabilities()
-        {
-            if (File.Exists("/proc/driver/nvidia/version"))
-            {
-                GD.Print("NVIDIA GPU Detected. Enabling CUDA Mode.");
-                return true;
-            }
-            
-            GD.Print("NVIDIA GPU Not Found. Defaulting to CPU Fallback.");
-            return false;
-        }
-
-        private void UpdateLocalConfiguration(bool useGpu)
-        {
-            try
-            {
-                // 1. Creamos la ruta completa user://agi/settings/
-                string settingsDir = ProjectSettings.GlobalizePath("user://settings");
-                if (!Directory.Exists(settingsDir))
-                {
-                    Directory.CreateDirectory(settingsDir);
-                }
-
-                // 2. Apuntamos el archivo config.json allí dentro
-                string configPath = Path.Combine(settingsDir, "config.json");
-                
-                var configData = new Dictionary<string, object>
-                {
-                    { "hardware_mode", useGpu ? "cuda" : "cpu" },
-                    { "last_setup_check", DateTime.UtcNow.ToString("o") },
-                    { "engine_mode", "docker" } 
-                };
-
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                string jsonOutput = JsonSerializer.Serialize(configData, options);
-                File.WriteAllText(configPath, jsonOutput);
-                GD.Print($"Configuration saved to: {configPath}");
-            }
-            catch (Exception ex)
-            {
-                GD.PrintErr($"AGI Setup Wizard: Failed to save configuration. Error: {ex.Message}");
-            }
-        }
-    }
+		/// <summary>
+		/// Finalizes the setup sequence and swaps the active scene.
+		/// </summary>
+		private void TransitionToMainScene()
+		{
+			GetTree().ChangeSceneToFile(MainChatScenePath);
+		}
+	}
 }

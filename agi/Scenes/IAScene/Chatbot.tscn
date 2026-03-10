@@ -46,12 +46,12 @@ subpixel_positioning = 0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_spacer"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_header_btn_normal"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_header_btn_pressed"]
 content_margin_left = 12.0
 content_margin_top = 6.0
 content_margin_right = 12.0
 content_margin_bottom = 6.0
-bg_color = Color(0.882, 0.882, 0.839, 1)
+bg_color = Color(0.373, 0.502, 0.357, 1)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
@@ -62,12 +62,12 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_header_btn_pressed"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_header_btn_normal"]
 content_margin_left = 12.0
 content_margin_top = 6.0
 content_margin_right = 12.0
 content_margin_bottom = 6.0
-bg_color = Color(0.373, 0.502, 0.357, 1)
+bg_color = Color(0.882, 0.882, 0.839, 1)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
