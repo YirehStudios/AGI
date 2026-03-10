@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 
+
 namespace Logic.Network
 {
     /// <summary>
@@ -85,12 +86,12 @@ namespace Logic.Network
                     {
                         GD.Print($"DownloadManager: Utilizando HttpClient fallback para {fileName}");
                         
-                        using System.Net.Http.HttpClient client = new System.Net.Http.HttpClient();
-                        using System.Net.Http.HttpResponseMessage response = await client.GetAsync(url, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
+                        using global::System.Net.Http.HttpClient client = new global::System.Net.Http.HttpClient();
+                        using global::System.Net.Http.HttpResponseMessage response = await client.GetAsync(url, global::System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
                         response.EnsureSuccessStatusCode();
 
                         using Stream contentStream = await response.Content.ReadAsStreamAsync();
-                        using FileStream fileStream = new FileStream(filePath, FileMode.Create, System.IO.FileAccess.Write, FileShare.None, 8192, true);
+                        using FileStream fileStream = new FileStream(filePath, FileMode.Create, global::System.IO.FileAccess.Write, FileShare.None, 8192, true);
 
                         await contentStream.CopyToAsync(fileStream);
                         downloadSuccess = true;

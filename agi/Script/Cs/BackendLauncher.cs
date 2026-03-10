@@ -42,7 +42,7 @@ namespace Logic.Backend
                 string modelsDir = ProjectSettings.GlobalizePath("user://models"); 
                 
                 // Allocates optimal thread count based on available logical processors to balance performance without saturating host resources.
-                int threadCount = Math.Max(1, System.Environment.ProcessorCount / 2);
+                int threadCount = Math.Max(1, global::System.Environment.ProcessorCount / 2);
                 
                 // Queries the RenderingServer for the active video adapter to dynamically assign the correct hardware abstraction layer for the container.
                 string hardwareBridge = "";
