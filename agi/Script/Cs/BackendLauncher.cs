@@ -60,7 +60,7 @@ namespace Logic.Backend
                 }
 
                 // Constructs the Docker execution string interpolating hardware bindings, volume mappings, and engine parameters, binding the host to 0.0.0.0 for external access.
-                string arguments = $"run --name agi-llama-server --rm --gpus all --device /dev/dri -v \"{modelsDir}:/app/models\" -p 8080:8080 yirehstudios/agi-backend:latest llama-server --host 0.0.0.0 --model /app/models/Ministral-3b-instruct.Q4_K_S.gguf --port 8080 --ctx-size 4096 --threads {threadCount} --n-gpu-layers 99 --temp 0.7 --repeat-penalty 1.15";
+                string arguments = $"run --name agi-llama-server --rm {hardwareBridge} -v \"{modelsDir}:/app/models\" -p 8080:8080 yirehstudios/agi-backend:latest llama-server --host 0.0.0.0 --model /app/models/Ministral-3b-instruct.Q4_K_S.gguf --port 8080 --ctx-size 4096 --threads {threadCount} --n-gpu-layers 99 --temp 0.7 --repeat-penalty 1.15";
                 
                 // Configures the native process environment, suppressing window creation and isolating standard output/error streams for intercepting.
                 ProcessStartInfo startInfo = new ProcessStartInfo
