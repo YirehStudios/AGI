@@ -23,7 +23,7 @@ namespace Logic.System.Drivers
 			return await Task.Run(() =>
 			{
 				bool hasDocker = CheckCommandExists("docker");
-                bool hasAria2 = CheckCommandExists("aria2c");
+				bool hasAria2 = CheckCommandExists("aria2c");
 
 				// Omite la generación del comando si la dependencia central (Docker) existe, delegando fallback de descargas al DownloadManager
 				if (hasDocker)

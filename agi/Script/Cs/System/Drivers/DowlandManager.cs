@@ -43,6 +43,7 @@ namespace Logic.Network
         public async Task<bool> DownloadFileAsync(string url, string destinationFolder, string fileName)
         {
             // Paso 1: Inicialización en el Hilo Principal
+            url = url.Trim();
             bool hasAria2 = CheckAria2Availability();
             string globalDestination = ProjectSettings.GlobalizePath(destinationFolder);
 
@@ -66,9 +67,13 @@ namespace Logic.Network
                         process.StartInfo.FileName = "aria2c";
                         
                         process.StartInfo.ArgumentList.Add("-x");
-                        process.StartInfo.ArgumentList.Add("16");
+                        process.StartInfo.ArgumentList.Add("4");
                         process.StartInfo.ArgumentList.Add("-s");
-                        process.StartInfo.ArgumentList.Add("16");
+                        process.StartInfo.ArgumentList.Add("4");
+                        // Disfraz de Google Chrome para engañar al 403
+                        process.StartInfo.ArgumentList.Add("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                        process.StartInfo.ArgumentList.Add("--header=Accept: */*");
+                        process.StartInfo.ArgumentList.Add("--summary-interval=1");
                         process.StartInfo.ArgumentList.Add("--continue=true");
                         process.StartInfo.ArgumentList.Add("-d");
                         process.StartInfo.ArgumentList.Add(globalDestination);
@@ -105,6 +110,13 @@ namespace Logic.Network
                         GD.Print($"DownloadManager: Utilizando HttpClient fallback para {fileName}");
                         
                         using global::System.Net.Http.HttpClient client = new global::System.Net.Http.HttpClient();
+                        
+                        // --- NUEVO: Disfraz y Mirror para evitar el 403 ---
+                        client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+                        client.DefaultRequestHeaders.Add("Accept", "*/*");
+                        // --------------------------------------------------
+
+                        // NUEVO: Usamos safeUrl en lugar de url
                         using global::System.Net.Http.HttpResponseMessage response = await client.GetAsync(url, global::System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
                         response.EnsureSuccessStatusCode();
 
