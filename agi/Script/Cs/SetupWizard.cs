@@ -19,7 +19,8 @@ namespace Logic.Utils
 			Dependencies,
 			ModeSelection,
 			ModelSelection,
-			Downloading
+			Downloading,
+			StartingServer // <--- NUEVO ESTADO
 		}
 
 		[Export] public Control PanelWelcome;
@@ -142,18 +143,28 @@ namespace Logic.Utils
 		/// </summary>
 		/// <param name="preset">El objeto de configuración del modelo seleccionado por el usuario.</param>
 		private void OnModelSelected(ConfigManager.ModelPreset preset)
-		{
-			_configManager.ActiveModelName = preset.Name;
-			
-			if (preset.DownloadLinks != null && preset.DownloadLinks.Count > 0)
-			{
-				_configManager.ActiveModelUrl = preset.DownloadLinks[0];
-			}
+        {
+            _configManager.ActiveModelName = preset.Name;
+            if (preset.DownloadLinks != null && preset.DownloadLinks.Count > 0)
+            {
+                _configManager.ActiveModelUrl = preset.DownloadLinks[0];
+            }
 
-			_configManager.SaveConfiguration();
-			
-			SwitchState(WizardState.Downloading);
-		}
+            string safeFileName = preset.Name.Replace(" ", "_") + ".gguf";
+            string globalPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
+            _configManager.ActiveModelPath = globalPath;
+            _configManager.SaveConfiguration();
+
+            // Si ya existe, nos saltamos la descarga y encendemos el servidor
+            if (global::System.IO.File.Exists(globalPath))
+            {
+                StartLlamaServer();
+            }
+            else
+            {
+                SwitchState(WizardState.Downloading);
+            }
+        }
 
 		/// <summary>
 		/// Prepara el entorno del sistema de archivos, establece la retroalimentación visual 
@@ -185,6 +196,87 @@ namespace Logic.Utils
 			await _downloadManager.DownloadFileAsync(_configManager.ActiveModelUrl, "user://models", safeFileName);
 		}
 
+		private void StartLlamaServer()
+        {
+            SwitchState(WizardState.StartingServer); 
+            
+            if (ModelDownloadStatus != null) 
+                ModelDownloadStatus.Text = "Iniciando Preparativos de IA...";
+            
+            // ¡La barra arranca en 0% porque aún no está listo!
+            if (ModelDownloadProgress != null) 
+                ModelDownloadProgress.Value = 0;
+
+            Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
+            if (backend != null)
+            {
+                // Nos suscribimos a los eventos
+                backend.BackendReady += OnBackendReady;
+                backend.ConnectionLost += OnBackendError;
+                backend.BuildLogReceived += OnBuildLogReceived; // ¡Escuchamos a Docker!
+                
+                backend.StartBackend();
+            }
+            else
+            {
+                GD.PrintErr("SetupWizard: ¡BackendLauncher no encontrado en /root/!");
+            }
+        }
+
+		private void OnBuildLogReceived(string logMessage)
+        {
+            if (ModelDownloadStatus != null)
+            {
+                // Mostramos lo que Docker está haciendo en la UI. 
+                // Recortamos el texto si es muy largo para que no rompa tu diseño.
+                string cleanMsg = logMessage.Length > 85 ? logMessage.Substring(0, 85) + "..." : logMessage;
+                ModelDownloadStatus.Text = "> " + cleanMsg;
+            }
+            
+            // Un pequeño truco visual: movemos la barra un poco para que el usuario sepa que está vivo
+            if (ModelDownloadProgress != null && ModelDownloadProgress.Value < 95)
+            {
+                ModelDownloadProgress.Value += 0.1f; 
+            }
+        }
+
+		private void OnBackendReady()
+        {
+            Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
+            if (backend != null)
+            {
+                backend.BackendReady -= OnBackendReady;
+                backend.ConnectionLost -= OnBackendError;
+                backend.BuildLogReceived -= OnBuildLogReceived;
+            }
+
+            // ¡AHORA SÍ ES 100%!
+            if (ModelDownloadProgress != null) ModelDownloadProgress.Value = 100;
+
+            TransitionToMainScene();
+        }
+
+        private void OnBackendError()
+        {
+            Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
+            if (backend != null)
+            {
+                backend.BackendReady -= OnBackendReady;
+                backend.ConnectionLost -= OnBackendError;
+            }
+
+            // El servidor explotó, bloqueamos al usuario y ponemos la barra en 0
+            if (ModelDownloadStatus != null) 
+            {
+                ModelDownloadStatus.Text = "Error crítico al iniciar Docker o Llama Server.\nRevisa la consola o asegúrate de que Docker esté corriendo.";
+                ModelDownloadStatus.AddThemeColorOverride("font_color", new Color(1, 0, 0)); // Texto Rojo
+            }
+            if (ModelDownloadProgress != null) 
+            {
+                ModelDownloadProgress.Value = 0; 
+            }
+        }
+
 		/// <summary>
 		/// Manejador suscrito al evento de actualización de progreso del DownloadManager.
 		/// Refleja de forma interpolada la transferencia de bytes sobre los componentes de interfaz de usuario.
@@ -211,36 +303,21 @@ namespace Logic.Utils
 		/// <param name="fileName">Identificador del archivo procesado.</param>
 		/// <param name="success">Bandera de confirmación de integridad pos-descarga.</param>
 		private void OnModelDownloadCompleted(string fileName, bool success)
-		{
-			if (success)
-			{
-				if (ModelDownloadStatus != null)
-				{
-					ModelDownloadStatus.Text = "Descarga completada con éxito. Inicializando entorno...";
-				}
-				
-				if (ModelDownloadProgress != null)
-				{
-					ModelDownloadProgress.Value = ModelDownloadProgress.MaxValue;
-				}
-
-				TransitionToMainScene();
-			}
-			else
-			{
-				if (ModelDownloadStatus != null)
-				{
-					ModelDownloadStatus.Text = "Error en la descarga. Por favor, reinicia la aplicación o verifica tu conexión.";
-				}
-
-				if (ModelDownloadProgress != null)
-				{
-					ModelDownloadProgress.Value = 0;
-				}
-				
-				GD.PrintErr($"SetupWizard: Fallo reportado por DownloadManager durante la obtención de {fileName}");
-			}
-		}
+        {
+            if (success)
+            {
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "Descarga completada. Preparando servidor Llama...";
+                if (ModelDownloadProgress != null) ModelDownloadProgress.Value = ModelDownloadProgress.MaxValue;
+                
+                // ¡AQUÍ ESTÁ LA MAGIA! En vez de saltar al chat, encendemos el motor.
+                StartLlamaServer(); 
+            }
+            else
+            {
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "Error en la descarga. Por favor, reinicia la aplicación.";
+                if (ModelDownloadProgress != null) ModelDownloadProgress.Value = 0;
+            }
+        }
 
 		/// <summary>
 		/// Transfiere el comando bash generado al portapapeles del servidor gráfico (DisplayServer).
@@ -279,7 +356,9 @@ namespace Logic.Utils
 			if (PanelDependencies != null) PanelDependencies.Visible = (newState == WizardState.Dependencies);
 			if (PanelModeSelection != null) PanelModeSelection.Visible = (newState == WizardState.ModeSelection);
 			if (PanelModelSelection != null) PanelModelSelection.Visible = (newState == WizardState.ModelSelection);
-			if (PanelDownloading != null) PanelDownloading.Visible = (newState == WizardState.Downloading);
+			
+            // Reutilizamos la misma pantalla visual para ambos estados
+			if (PanelDownloading != null) PanelDownloading.Visible = (newState == WizardState.Downloading || newState == WizardState.StartingServer);
 
 			HandleStateInitialization(newState);
 		}

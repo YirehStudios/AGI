@@ -6,82 +6,103 @@ using System.Threading.Tasks;
 namespace Logic.System.Drivers
 {
     /// <summary>
-    /// Instala dependencias lanzando una ventana de terminal nativa para una experiencia transparente.
-    /// Utiliza un archivo temporal de estado para sincronizarse con Godot.
+    /// Instala dependencias lanzando un script maestro generado dinámicamente.
+    /// Detecta hardware (NVIDIA) y la distribución de Linux para automatizar la configuración.
     /// </summary>
     public partial class DependencyInstaller : Node
     {
-        /// <summary>
-		/// Audita silenciosamente el sistema operativo en busca de los binarios 'docker' y 'aria2c'.
-		/// Identifica dinámicamente el gestor de paquetes de la distribución Linux y construye
-		/// un comando de instalación concatenado. Anexa la configuración de permisos y grupos del usuario
-		/// al final de la cadena de ejecución.
-		/// </summary>
-		/// <returns>Una tupla indicando la presencia de Docker y el comando bash resultante si es necesario.</returns>
-		public async Task<(bool HasDocker, string RequiredCommand)> AuditSystemDependenciesAsync()
-		{
-			return await Task.Run(() =>
-			{
-				bool hasDocker = CheckCommandExists("docker");
-				bool hasAria2 = CheckCommandExists("aria2c");
+        public async Task<(bool HasDocker, string RequiredCommand)> AuditSystemDependenciesAsync()
+        {
+            // 1. Detectamos si hay una GPU NVIDIA de forma segura en el hilo principal
+            string adapterName = Godot.RenderingServer.GetVideoAdapterName().ToLower();
+            bool hasNvidiaGpu = adapterName.Contains("nvidia");
 
-				// Omite la generación del comando si la dependencia central (Docker) existe, delegando fallback de descargas al DownloadManager
-				if (hasDocker)
-				{
-					return (true, string.Empty);
-				}
+            return await Task.Run(() =>
+            {
+                // 2. Auditamos qué le falta a la computadora
+                bool hasDocker = CheckCommandExists("docker");
+                bool hasAria2 = CheckCommandExists("aria2c");
+                bool hasNvidiaCtk = CheckCommandExists("nvidia-ctk");
 
-				string installCommand = string.Empty;
+                bool needsDocker = !hasDocker;
+                bool needsAria2 = !hasAria2;
+                bool needsNvidiaCtk = hasNvidiaGpu && !hasNvidiaCtk; // Solo lo pide si hay NVIDIA
 
-				bool hasApt = CheckCommandExists("apt-get");
-				bool hasDnf = CheckCommandExists("dnf");
-				bool hasPacman = CheckCommandExists("pacman");
+                // Si la PC ya está lista, le damos luz verde de inmediato
+                if (!needsDocker && !needsAria2 && !needsNvidiaCtk)
+                {
+                    return (true, string.Empty);
+                }
 
-				string dockerPackage = "docker.io";
-				string ariaPackage = "aria2";
+                // 3. GENERADOR DE SCRIPT AUTOMÁTICO (Infraestructura como Código)
+                string scriptPath = ProjectSettings.GlobalizePath("user://instalar_dependencias.sh");
+                string scriptContent = "#!/bin/bash\nset -e\n\n";
+                scriptContent += "echo '============================================'\n";
+                scriptContent += "echo '  Instalador Automático de AGI (Godot)'\n";
+                scriptContent += "echo '============================================'\n\n";
 
-				// Compilación lógica del comando de instalación en función del entorno detectado
-				if (hasApt)
-				{
-					string packages = hasAria2 ? dockerPackage : $"{dockerPackage} {ariaPackage}";
-					installCommand = $"sudo apt-get update && sudo apt-get install -y {packages}";
-				}
-				else if (hasDnf)
-				{
-					string dockerDnf = "docker";
-					string packages = hasAria2 ? dockerDnf : $"{dockerDnf} {ariaPackage}";
-					installCommand = $"sudo dnf install -y {packages}";
-				}
-				else if (hasPacman)
-				{
-					string dockerPacman = "docker";
-					string packages = hasAria2 ? dockerPacman : $"{dockerPacman} {ariaPackage}";
-					installCommand = $"sudo pacman -S --noconfirm {packages}";
-				}
-				else
-				{
-					// Redirección de salida directa desde el script remoto al intérprete nativo como último recurso
-					installCommand = "curl -fsSL https://get.docker.com | sudo sh";
-				}
+                bool hasApt = CheckCommandExists("apt-get");
+                bool hasDnf = CheckCommandExists("dnf");
+                bool hasPacman = CheckCommandExists("pacman");
 
-				// Concatenación de la lógica de daemonización del servicio y elevación de permisos del entorno de escritorio actual
-				string fullCommand = $"{installCommand} && sudo systemctl enable --now docker && sudo usermod -aG docker $USER";
+                if (needsDocker || needsAria2)
+                {
+                    scriptContent += "echo '-> Instalando Docker y Aria2c...'\n";
+                    if (hasApt) scriptContent += $"sudo apt-get update && sudo apt-get install -y {(needsDocker ? "docker.io " : "")}{(needsAria2 ? "aria2" : "")}\n";
+                    else if (hasDnf) scriptContent += $"sudo dnf install -y {(needsDocker ? "docker " : "")}{(needsAria2 ? "aria2" : "")}\n";
+                    else if (hasPacman) scriptContent += $"sudo pacman -S --noconfirm {(needsDocker ? "docker " : "")}{(needsAria2 ? "aria2" : "")}\n";
+                    else scriptContent += "curl -fsSL https://get.docker.com | sudo sh\n";
+                    scriptContent += "\n";
+                }
 
-				return (false, fullCommand);
-			});
-		}
+                if (needsNvidiaCtk)
+                {
+                    scriptContent += "echo '-> Configurando NVIDIA Container Toolkit (Puente GPU)...'\n";
+                    if (hasApt)
+                    {
+                        scriptContent += "curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg\n";
+                        scriptContent += "curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list > /dev/null\n";
+                        scriptContent += "sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit\n";
+                    }
+                    else if (hasDnf)
+                    {
+                        scriptContent += "curl -s -L https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo | sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo > /dev/null\n";
+                        scriptContent += "sudo dnf install -y nvidia-container-toolkit\n";
+                    }
+                    scriptContent += "sudo nvidia-ctk runtime configure --runtime=docker\n";
+                    scriptContent += "\n";
+                }
 
-		/// <summary>
-		/// Invoca un proceso del sistema para evaluar la resolución del binario especificado
-		/// utilizando el comando estandarizado POSIX 'which'.
-		/// </summary>
-		/// <param name="command">El nombre del ejecutable a auditar.</param>
-		/// <returns>Verdadero si el binario existe en la variable de entorno PATH.</returns>
-		private bool CheckCommandExists(string command)
-		{
-			var output = new Godot.Collections.Array();
-			int exitCode = Godot.OS.Execute("which", new string[] { command }, output, true);
-			return exitCode == 0;
-		}
+                if (needsDocker || needsNvidiaCtk)
+                {
+                    scriptContent += "echo '-> Reiniciando servicios y aplicando permisos...'\n";
+                    scriptContent += "sudo systemctl enable --now docker\n";
+                    scriptContent += "sudo systemctl restart docker\n";
+                    scriptContent += "sudo usermod -aG docker $USER\n";
+                    scriptContent += "\n";
+                }
+
+                scriptContent += "echo '============================================'\n";
+                scriptContent += "echo '¡Todo listo! Cierra esta terminal y reinicia tu app.'\n";
+
+                // Escribimos el script en el disco duro
+                global::System.IO.File.WriteAllText(scriptPath, scriptContent);
+                
+                // Le damos permisos de ejecución en Linux
+                OS.Execute("chmod", new string[] { "+x", scriptPath }, new Godot.Collections.Array(), true);
+
+                // 4. Devolvemos UNA SOLA línea limpia para la interfaz gráfica del usuario
+                string finalCommand = $"bash \"{scriptPath}\"";
+                
+                return (false, finalCommand);
+            });
+        }
+
+        private bool CheckCommandExists(string command)
+        {
+            var output = new Godot.Collections.Array();
+            int exitCode = OS.Execute("which", new string[] { command }, output, true);
+            return exitCode == 0;
+        }
     }
 }
