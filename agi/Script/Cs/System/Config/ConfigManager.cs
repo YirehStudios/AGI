@@ -30,6 +30,10 @@ namespace Logic.System.Config
         private string _configFilePath;
         private string _presetsFilePath;
 
+        // -1 significa "Auto-detectar la GPU más potente". 
+        // 0, 1, 2... serán los índices si el usuario lo cambia manualmente en tu futura UI.
+        public int SelectedGpuIndex { get; set; } = -1;
+
         /// <summary>
         /// Defines the structure for model presets loaded from the external JSON configuration.
         /// </summary>

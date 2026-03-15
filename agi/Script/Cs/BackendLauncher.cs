@@ -17,6 +17,8 @@ namespace Logic.Backend
 
         [Signal]
         public delegate void BackendReadyEventHandler();
+        [Signal]
+        public delegate void BuildLogReceivedEventHandler(string logMessage);
 
         private Process _backendProcess;
         private bool _isRunning = false;
@@ -25,44 +27,140 @@ namespace Logic.Backend
 
         public void StartBackend()
         {
-            Task.Run(async () => await ManageBackendLifecycle());
+            Logic.System.Config.ConfigManager configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+            string safeFileName = "default.gguf";
+            int userGpuPreference = -1;
+
+            if (configManager != null)
+            {
+                if (!string.IsNullOrEmpty(configManager.ActiveModelName))
+                    safeFileName = configManager.ActiveModelName.Replace(" ", "_") + ".gguf";
+                
+                userGpuPreference = configManager.SelectedGpuIndex; 
+            }
+            
+            string modelDockerPath = $"/app/models/{safeFileName}";
+            string modelsDir = ProjectSettings.GlobalizePath("user://models"); 
+
+            string adapterName = Godot.RenderingServer.GetVideoAdapterName().ToLower();
+            GD.Print($"BackendLauncher: GPU detectada por el motor: {adapterName}");
+
+            string hardwareBridge = "";
+            string llamaDeviceEnv = "";
+
+            // --- EL CEREBRO DE DETECCIÓN ---
+            if (adapterName.Contains("nvidia"))
+            {
+                // ¡El puente definitivo para Fedora y Docker!
+                hardwareBridge = "--runtime=nvidia --gpus all --privileged -e NVIDIA_DRIVER_CAPABILITIES=all -e NVIDIA_VISIBLE_DEVICES=all"; 
+                llamaDeviceEnv = $"-e CUDA_VISIBLE_DEVICES={(userGpuPreference >= 0 ? userGpuPreference : 0)}";
+            }
+            else if (adapterName.Contains("amd") || adapterName.Contains("radeon"))
+            {
+                hardwareBridge = "--device /dev/kfd --device /dev/dri"; 
+                llamaDeviceEnv = $"-e GGML_VK_VISIBLE_DEVICES={(userGpuPreference >= 0 ? userGpuPreference : 0)}";
+            }
+            else 
+            {
+                hardwareBridge = "--device /dev/dri"; 
+                llamaDeviceEnv = $"-e GGML_VK_VISIBLE_DEVICES={(userGpuPreference >= 0 ? userGpuPreference : 0)}";
+            }
+
+            Task.Run(async () => await ManageBackendLifecycle(modelsDir, hardwareBridge, llamaDeviceEnv, modelDockerPath));
+        }
+
+        private async Task<bool> EnsureDockerImageExistsAsync()
+        {
+            string serverDir = ProjectSettings.GlobalizePath("user://server");
+            global::System.IO.Directory.CreateDirectory(serverDir);
+            
+            string dockerfilePath = global::System.IO.Path.Combine(serverDir, "Dockerfile");
+            string sourceResPath = "res://Script/Cs/System/Drivers/Dockerfile";
+            string fileContent = "";
+
+            using (var file = Godot.FileAccess.Open(sourceResPath, Godot.FileAccess.ModeFlags.Read))
+            {
+                if (file != null) fileContent = file.GetAsText();
+                else
+                {
+                    GD.PrintErr($"BackendLauncher: Fallo crítico. No se encontró el DockerFile en {sourceResPath}");
+                    return false;
+                }
+            }
+
+            global::System.IO.File.WriteAllText(dockerfilePath, fileContent);
+
+            var output = new Godot.Collections.Array();
+            int inspectCode = Godot.OS.Execute("docker", new string[] { "image", "inspect", "yirehstudios/agi-backend:latest" }, output, true);
+
+            if (inspectCode == 0)
+            {
+                CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, "La imagen Docker ya existe y está lista.");
+                return true;
+            }
+
+            GD.Print("BackendLauncher: Iniciando construcción en segundo plano...");
+            CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, "Descargando entorno y compilando (Esto tomará varios minutos)...");
+
+            // Creamos un proceso que NO congele a Godot para la construcción
+            ProcessStartInfo buildInfo = new ProcessStartInfo
+            {
+                FileName = "docker",
+                Arguments = $"build -t yirehstudios/agi-backend:latest \"{serverDir}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using Process buildProcess = new Process { StartInfo = buildInfo };
+            
+            // Atrapamos cada línea que Docker escupa y la mandamos a Godot y a la UI
+            buildProcess.OutputDataReceived += (sender, e) => {
+                if (!string.IsNullOrEmpty(e.Data)) {
+                    GD.Print($"[Docker Build] {e.Data}");
+                    CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, e.Data);
+                }
+            };
+            buildProcess.ErrorDataReceived += (sender, e) => {
+                if (!string.IsNullOrEmpty(e.Data)) {
+                    GD.Print($"[Docker Build] {e.Data}");
+                    CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, e.Data);
+                }
+            };
+
+            buildProcess.Start();
+            buildProcess.BeginOutputReadLine();
+            buildProcess.BeginErrorReadLine();
+
+            // Esperamos pacientemente sin congelar los FPS del juego
+            await Task.Run(() => buildProcess.WaitForExit());
+
+            return buildProcess.ExitCode == 0;
         }
 
         /// <summary>
         /// Configures and orchestrates the llama-server execution within a hardware-aware Docker container.
         /// </summary>
-        private async Task ManageBackendLifecycle()
+        private async Task ManageBackendLifecycle(string modelsDir, string hardwareBridge, string llamaDeviceEnv, string modelDockerPath)
         {
             try
             {
-                // Executes a synchronous system call to forcefully terminate and remove any existing container instances to prevent port collisions.
+                bool imageReady = await EnsureDockerImageExistsAsync();
+                if (!imageReady)
+                {
+                    GD.PrintErr("BackendLauncher: Abortando inicio. La compilación de Docker falló.");
+                    HandleCrash();
+                    return;
+                }
+
                 Godot.OS.Execute("docker", new string[] { "rm", "-f", "agi-llama-server" }, new Godot.Collections.Array(), true);
 
-                // Resolves the Godot-specific user path to a universal absolute system path required for Docker volume mapping.
-                string modelsDir = ProjectSettings.GlobalizePath("user://models"); 
-                
-                // Allocates optimal thread count based on available logical processors to balance performance without saturating host resources.
                 int threadCount = Math.Max(1, global::System.Environment.ProcessorCount / 2);
-                
-                // Queries the RenderingServer for the active video adapter to dynamically assign the correct hardware abstraction layer for the container.
-                string hardwareBridge = "";
-                string adapterName = Godot.RenderingServer.GetVideoAdapterName().ToLower();
-                
-                if (adapterName.Contains("nvidia"))
-                {
-                    hardwareBridge = "--gpus all";
-                    GD.Print("BackendLauncher: NVIDIA GPU detected. Initializing CUDA container bridge.");
-                }
-                else
-                {
-                    hardwareBridge = "--device /dev/dri";
-                    GD.Print("BackendLauncher: Non-NVIDIA adapter detected. Initializing universal DRI container bridge.");
-                }
 
-                // Constructs the Docker execution string interpolating hardware bindings, volume mappings, and engine parameters, binding the host to 0.0.0.0 for external access.
-                string arguments = $"run --name agi-llama-server --rm {hardwareBridge} -v \"{modelsDir}:/app/models\" -p 8080:8080 yirehstudios/agi-backend:latest llama-server --host 0.0.0.0 --model /app/models/Ministral-3b-instruct.Q4_K_S.gguf --port 8080 --ctx-size 4096 --threads {threadCount} --n-gpu-layers 99 --temp 0.7 --repeat-penalty 1.15";
-                
-                // Configures the native process environment, suppressing window creation and isolating standard output/error streams for intercepting.
+                // --- LA CADENA PLANA --- (Igual de simple que Whisper, pero con el puente inyectado)
+                string arguments = $"run --name agi-llama-server --rm {hardwareBridge} {llamaDeviceEnv} -v \"{modelsDir}:/app/models\" -p 8080:8080 yirehstudios/agi-backend:latest llama-server --host 0.0.0.0 --model \"{modelDockerPath}\" --port 8080 --ctx-size 4096 --threads {threadCount} --n-gpu-layers 99 --temp 0.7 --repeat-penalty 1.15";
+
                 ProcessStartInfo startInfo = new ProcessStartInfo
                 {
                     FileName = "docker",
@@ -73,33 +171,36 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
-                // Initializes the process wrapper and subscribes to structural lifecycle and data stream events.
                 _backendProcess = new Process { StartInfo = startInfo };
-                _backendProcess.EnableRaisingEvents = true;
-                _backendProcess.Exited += OnProcessExited;
 
                 _backendProcess.OutputDataReceived += (sender, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.Print($"[Docker Llama] {e.Data}"); };
-                _backendProcess.ErrorDataReceived += (sender, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.PrintErr($"[Docker Llama ERROR] {e.Data}"); };
+                
+                _backendProcess.ErrorDataReceived += (sender, e) => 
+                { 
+                    if (!string.IsNullOrEmpty(e.Data)) 
+                    {
+                        GD.Print($"[Docker Llama ERROR] {e.Data}"); 
+                        if (e.Data.Contains("server is listening on") || e.Data.Contains("HTTP server listening"))
+                        {
+                            GD.Print("BackendLauncher: Llama Server cargado en memoria exitosamente.");
+                            CallDeferred(MethodName.EmitSignal, SignalName.BackendReady);
+                        }
+                    }
+                };
 
                 _backendProcess.Start();
-
-                // Initiates asynchronous read operations on the redirected output and error streams to prevent pipeline blocking.
-                _backendProcess.BeginOutputReadLine(); 
-                _backendProcess.BeginErrorReadLine();  
+                _backendProcess.BeginOutputReadLine();
+                _backendProcess.BeginErrorReadLine();
                 _isRunning = true;
+                _retryCount = 0;
 
                 GD.Print($"BackendLauncher: Docker Llama-server process started [ID: {_backendProcess.Id}]");
-
-                // Decouples the health monitoring routine to a separate task, preventing blockage of the current execution thread.
-                _ = MonitorProcessHealth();
                 
-                // Dispatches the readiness signal via the Godot message queue to ensure thread-safe propagation.
-                CallDeferred(MethodName.EmitSignal, SignalName.BackendReady);
+                await MonitorProcessHealth();
             }
             catch (Exception ex)
             {
-                // Captures critical initialization exceptions and invokes the recovery/retry mechanism.
-                GD.PrintErr($"BackendLauncher: Critical Failure. {ex.Message}");
+                GD.PrintErr($"BackendLauncher: Failed to start backend process. {ex.Message}");
                 HandleCrash();
             }
         }
@@ -192,7 +293,9 @@ namespace Logic.Backend
             {
                 _retryCount++;
                 GD.Print($"BackendLauncher: Attempting revival ({_retryCount}/{MaxRetries})...");
-                StartBackend();
+                
+                // ¡LA MAGIA AQUÍ! Delegamos el reinicio al hilo principal de Godot
+                CallDeferred(MethodName.StartBackend); 
             }
             else
             {

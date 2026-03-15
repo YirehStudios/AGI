@@ -67,10 +67,9 @@ namespace Logic.Network
                         process.StartInfo.FileName = "aria2c";
                         
                         process.StartInfo.ArgumentList.Add("-x");
-                        process.StartInfo.ArgumentList.Add("4");
+                        process.StartInfo.ArgumentList.Add("16");
                         process.StartInfo.ArgumentList.Add("-s");
-                        process.StartInfo.ArgumentList.Add("4");
-                        // Disfraz de Google Chrome para engañar al 403
+                        process.StartInfo.ArgumentList.Add("16");
                         process.StartInfo.ArgumentList.Add("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
                         process.StartInfo.ArgumentList.Add("--header=Accept: */*");
                         process.StartInfo.ArgumentList.Add("--summary-interval=1");
@@ -93,7 +92,15 @@ namespace Logic.Network
                                 Match match = Regex.Match(e.Data, @"\((\d+)%\)");
                                 if (match.Success && float.TryParse(match.Groups[1].Value, out float percentage))
                                 {
-                                    CallDeferred(MethodName.EmitSignal, SignalName.DownloadProgress, fileName, percentage);
+                                    // Verificación de seguridad nativa de Godot antes de despachar al hilo principal
+                                    if (Godot.GodotObject.IsInstanceValid(this) && !this.IsQueuedForDeletion())
+                                    {
+                                        try 
+                                        {
+                                            CallDeferred(Godot.GodotObject.MethodName.EmitSignal, SignalName.DownloadProgress, fileName, percentage);
+                                        }
+                                        catch (ObjectDisposedException) { /* Ignorar eventos huérfanos */ }
+                                    }
                                 }
                             }
                         };
@@ -111,12 +118,9 @@ namespace Logic.Network
                         
                         using global::System.Net.Http.HttpClient client = new global::System.Net.Http.HttpClient();
                         
-                        // --- NUEVO: Disfraz y Mirror para evitar el 403 ---
                         client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
                         client.DefaultRequestHeaders.Add("Accept", "*/*");
-                        // --------------------------------------------------
 
-                        // NUEVO: Usamos safeUrl en lugar de url
                         using global::System.Net.Http.HttpResponseMessage response = await client.GetAsync(url, global::System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
                         response.EnsureSuccessStatusCode();
 
@@ -202,7 +206,14 @@ namespace Logic.Network
             }
 
             // Paso 4: Finalización y Notificación
-            EmitSignal(SignalName.DownloadCompleted, fileName, downloadSuccess);
+            if (Godot.GodotObject.IsInstanceValid(this) && !this.IsQueuedForDeletion())
+            {
+                try
+                {
+                    CallDeferred(MethodName.EmitSignal, SignalName.DownloadCompleted, fileName, downloadSuccess);
+                }
+                catch (ObjectDisposedException) { }
+            }
             return downloadSuccess;
         }
     }
