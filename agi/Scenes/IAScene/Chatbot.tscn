@@ -337,6 +337,7 @@ theme_override_colors/default_color = Color(0.45, 0.45, 0.45, 1)
 bbcode_enabled = true
 text = "Plantilla Bot"
 fit_content = true
+scroll_following = true
 autowrap_mode = 2
 context_menu_enabled = true
 selection_enabled = true
