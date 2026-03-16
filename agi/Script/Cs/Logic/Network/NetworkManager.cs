@@ -52,63 +52,65 @@ namespace Logic.Network
         /// </summary>
         public async Task StreamChatCompletion(string prompt)
         {
-            try
+            // Envolvemos el trabajo pesado en un hilo de fondo (Background Thread)
+            await Task.Run(async () => 
             {
-                // 1. Usamos 'prompt' crudo en lugar de 'messages' para evitar el doble formateo
-                var requestBody = new
+                try
                 {
-                    prompt = prompt,
-                    stream = true,
-                    n_predict = 512 // Límite de seguridad para que no hable infinitamente
-                };
-
-                string jsonPayload = JsonSerializer.Serialize(requestBody);
-                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-                // 2. Cambiamos la URL a /v1/completions (La ruta para texto crudo y puro)
-                var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/v1/completions")
-                {
-                    Content = content
-                };
-
-                using HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-                response.EnsureSuccessStatusCode();
-
-                using Stream responseStream = await response.Content.ReadAsStreamAsync();
-                using StreamReader reader = new StreamReader(responseStream);
-
-                while (!reader.EndOfStream)
-                {
-                    string line = await reader.ReadLineAsync();
-                    if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data: ")) continue;
-
-                    string data = line.Substring(6);
-                    if (data == "[DONE]") break;
-
-                    try
+                    var requestBody = new
                     {
-                        using JsonDocument doc = JsonDocument.Parse(data);
-                        JsonElement root = doc.RootElement;
-                        if (root.TryGetProperty("choices", out JsonElement choices) && choices.GetArrayLength() > 0)
+                        prompt = prompt,
+                        stream = true,
+                        n_predict = -1 
+                    };
+
+                    string jsonPayload = JsonSerializer.Serialize(requestBody);
+                    var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                    var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/v1/completions")
+                    {
+                        Content = content
+                    };
+
+                    using HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                    response.EnsureSuccessStatusCode();
+
+                    using Stream responseStream = await response.Content.ReadAsStreamAsync();
+                    using StreamReader reader = new StreamReader(responseStream);
+
+                    while (!reader.EndOfStream)
+                    {
+                        string line = await reader.ReadLineAsync();
+                        if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data: ")) continue;
+
+                        string data = line.Substring(6);
+                        if (data == "[DONE]") break;
+
+                        try
                         {
-                            // 3. En completions crudos, el token viene directo en la propiedad 'text'
-                            if (choices[0].TryGetProperty("text", out JsonElement contentElement))
+                            using JsonDocument doc = JsonDocument.Parse(data);
+                            JsonElement root = doc.RootElement;
+                            if (root.TryGetProperty("choices", out JsonElement choices) && choices.GetArrayLength() > 0)
                             {
-                                string token = contentElement.GetString();
-                                if (!string.IsNullOrEmpty(token))
+                                if (choices[0].TryGetProperty("text", out JsonElement contentElement))
                                 {
-                                    CallDeferred(MethodName.EmitSignal, SignalName.TokenReceived, token);
+                                    string token = contentElement.GetString();
+                                    if (!string.IsNullOrEmpty(token))
+                                    {
+                                        // CallDeferred se asegura de enviar esto de vuelta al hilo principal de forma segura
+                                        CallDeferred(MethodName.EmitSignal, SignalName.TokenReceived, token);
+                                    }
                                 }
                             }
                         }
+                        catch (JsonException) { }
                     }
-                    catch (JsonException) { }
                 }
-            }
-            catch (Exception ex)
-            {
-                GD.PrintErr($"NetworkManager: Stream processing failure. {ex.Message}");
-            }
+                catch (Exception ex)
+                {
+                    GD.PrintErr($"NetworkManager: Stream processing failure. {ex.Message}");
+                }
+            });
         }
     }
 }
