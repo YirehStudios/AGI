@@ -17,6 +17,7 @@ namespace Logic.UI
         private HBoxContainer _currentBotMessageNode;
         private bool _isLiveModeEnabled = false; 
         private bool _isWaitingForResponse = false;
+        private bool _isScrolling = false;
         private Godot.Timer _typingAnimationTimer;
         
         private string _ttsBuffer = string.Empty;
@@ -118,7 +119,7 @@ namespace Logic.UI
                 messageBody.Text = ""; 
             }
 
-            messageBody.Text += token;
+            messageBody.AppendText(token);
             ScrollToBottom();
 
             _ttsBuffer += token;
@@ -141,9 +142,19 @@ namespace Logic.UI
 
         private async void ScrollToBottom()
         {
+            // Si ya le dijimos que haga scroll en este frame, ignoramos las peticiones repetidas
+            if (_isScrolling) return; 
+            _isScrolling = true;
+
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            
             ScrollBar vScroll = ChatScrollContainer.GetVScrollBar();
-            vScroll.Value = vScroll.MaxValue;
+            if (vScroll != null) 
+            {
+                vScroll.Value = vScroll.MaxValue;
+            }
+
+            _isScrolling = false;
         }
 
         private void StartTypingAnimation(RichTextLabel label)
