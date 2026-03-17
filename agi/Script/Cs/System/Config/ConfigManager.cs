@@ -29,6 +29,9 @@ namespace Logic.System.Config
         private string _settingsDirectory;
         private string _configFilePath;
         private string _presetsFilePath;
+        public bool SetupCompleted { get; set; } = false;
+        public bool IsLanConnection { get; set; } = false;
+        public string CustomPort { get; set; } = "8080";
 
         // -1 significa "Auto-detectar la GPU más potente". 
         // 0, 1, 2... serán los índices si el usuario lo cambia manualmente en tu futura UI.
@@ -58,12 +61,18 @@ namespace Logic.System.Config
             public string ActiveModelPath { get; set; }
             public string ActiveModelName { get; set; }
             public string ActiveModelUrl { get; set; }
+            
+            // Lo nuevo:
+            public bool SetupCompleted { get; set; }
+            public bool IsLanConnection { get; set; }
+            public string CustomPort { get; set; }
         }
 
         public override void _Ready()
         {
             _settingsDirectory = ProjectSettings.GlobalizePath("user://settings");
-            _configFilePath = Path.Combine(_settingsDirectory, "config.json");
+            // ¡Cambiado a preferences.json!
+            _configFilePath = Path.Combine(_settingsDirectory, "preferences.json"); 
             _presetsFilePath = ProjectSettings.GlobalizePath("user://presets.json");
 
             LoadConfiguration();

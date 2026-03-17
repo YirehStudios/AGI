@@ -46,5 +46,6 @@ project/assembly_name="AGI"
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+textures/vram_compression/import_etc2_astc=true
 lights_and_shadows/use_physical_light_units=true
 viewport/hdr_2d=true
