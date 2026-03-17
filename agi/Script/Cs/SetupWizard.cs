@@ -36,13 +36,18 @@ namespace Logic.Utils
 		[Export] public Button BtnLocalHost;
         [Export] public TextEdit TxtCommandDisplay;
 		[Export] public Button BtnCopyCommand;
-		[Export] public Label LblRestartWarning;
+		[Export] public RichTextLabel LblRestartWarning;
         [Export] public VBoxContainer ModelListContainer;
 		
 		[Export] public string MainChatScenePath = "res://Scenes/IAScene/MainApp.tscn";
         [Export] public ProgressBar ModelDownloadProgress;
-		[Export] public Label ModelDownloadStatus;
-		
+		[Export] public RichTextLabel ModelDownloadStatus;
+		[Export] public Button BtnConnect;
+		[Export] public LineEdit TxtRemoteUrlInput;
+		[Export] public CheckBox ChkIsLan;
+		[Export] public Button BtnAdvancedSettings;
+		[Export] public VBoxContainer AdvancedContainer;
+		[Export] public LineEdit TxtCustomPort;
 		private DownloadManager _downloadManager;
 
 		private WizardState _currentState;
@@ -71,9 +76,39 @@ namespace Logic.Utils
 				BtnComenzar.Pressed += () => SwitchState(WizardState.Dependencies);
 			}
 
-			if (BtnServidorRemoto != null)
+			if (AdvancedContainer != null) 
 			{
-				BtnServidorRemoto.Pressed += () => SelectRemoteMode("http://127.0.0.1:8080");
+				AdvancedContainer.Visible = false;
+			}
+
+			if (BtnAdvancedSettings != null)
+			{
+				BtnAdvancedSettings.Pressed += () => 
+				{
+					if (AdvancedContainer != null)
+						AdvancedContainer.Visible = !AdvancedContainer.Visible;
+				};
+			}
+
+			if (BtnConnect != null)
+			{
+				BtnConnect.Pressed += () => 
+				{
+					string urlIngresada = TxtRemoteUrlInput != null ? TxtRemoteUrlInput.Text.Trim() : "";
+					string puerto = TxtCustomPort != null && !string.IsNullOrWhiteSpace(TxtCustomPort.Text) ? TxtCustomPort.Text.Trim() : "8080";
+					bool isLan = ChkIsLan != null && ChkIsLan.ButtonPressed;
+
+					if (string.IsNullOrWhiteSpace(urlIngresada))
+					{
+						urlIngresada = "192.168.1.100"; // Fallback por defecto si el usuario no pone nada
+					}
+
+					// Validación de calidad de vida
+					if (!urlIngresada.StartsWith("http")) 
+						urlIngresada = "http://" + urlIngresada;
+
+					ConfirmRemoteConnection(urlIngresada, isLan, puerto);
+				};
 			}
 
 			if (BtnLocalHost != null)
@@ -86,7 +121,66 @@ namespace Logic.Utils
 				BtnCopyCommand.Pressed += OnCopyCommandPressed;
 			}
 
-			SwitchState(WizardState.Welcome);
+		
+			// 1. ¿Arranque rápido? Si ya está configurado, nos saltamos la UI
+			if (_configManager.SetupCompleted)
+			{
+				FastBootSequence();
+				return; 
+			}
+
+			// 2. Detección de plataforma
+			string osName = OS.GetName();
+			bool isMobile = osName == "Android" || osName == "iOS";
+
+			if (isMobile)
+			{
+				// Si es celular, Ocultamos el botón de localhost porque no puede hostear Docker
+				if (BtnLocalHost != null) BtnLocalHost.Visible = false;
+				
+				// Saltamos directo a pedir la IP (Modo Selección)
+				SwitchState(WizardState.ModeSelection);
+			}
+			else
+			{
+				// Es PC por primera vez, mostramos la bienvenida normal
+				SwitchState(WizardState.Welcome);
+			}
+		}
+
+		private async void FastBootSequence()
+		{
+			PanelWelcome.Visible = false;
+			
+			if (_configManager.CurrentMode == ConfigManager.AppMode.LocalHost)
+			{
+				// Si es PC y hostea local, encendemos el servidor de Llama
+				StartLlamaServer();
+			}
+			else if (_configManager.CurrentMode == ConfigManager.AppMode.RemoteUI)
+			{
+				// Si es Celular o PC Cliente, verificamos que el host siga vivo
+				Logic.Network.NetworkManager network = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
+				network.PerformHandshake();
+				
+				var signalResult = await ToSignal(network, Logic.Network.NetworkManager.SignalName.HandshakeCompleted);
+				bool success = (bool)signalResult[0];
+
+				if (success)
+				{
+					TransitionToMainScene();
+				}
+				else
+				{
+					// El servidor remoto está apagado, mostramos la UI de configuración otra vez
+					_configManager.SetupCompleted = false; 
+					_configManager.SaveConfiguration();
+					
+					SwitchState(WizardState.ModeSelection);
+					if (ModelDownloadStatus != null) 
+						ModelDownloadStatus.Text = "Se perdió la conexión con el servidor guardado. Configura uno nuevo.";
+				}
+			}
 		}
 
 		/// <summary>
@@ -122,7 +216,7 @@ namespace Logic.Utils
 
 						if (LblRestartWarning != null)
 						{
-							LblRestartWarning.Text = "Por favor, ejecuta este comando en tu terminal, luego REINICIA esta aplicación.";
+							LblRestartWarning.Text = "[center]Por favor, ejecuta este comando en tu terminal, luego REINICIA esta aplicación.[/center]";
 						}
 					}
 					break;
@@ -536,6 +630,43 @@ namespace Logic.Utils
 		private void TransitionToMainScene()
 		{
 			GetTree().ChangeSceneToFile(MainChatScenePath);
+		}
+		// Llama a esta función cuando el usuario presione el botón de "Conectar" en tu UI de LAN/Link
+		public async void ConfirmRemoteConnection(string baseUrl, bool isLan, string port)
+		{
+			if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "Verificando conexión con el servidor...";
+			
+			// Guardamos temporalmente para que NetworkManager sepa a dónde llamar
+			_configManager.CurrentMode = ConfigManager.AppMode.RemoteUI;
+			_configManager.RemoteHostUrl = $"{baseUrl}:{port}";
+			
+			Logic.Network.NetworkManager network = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
+			
+			if (network != null)
+			{
+				// Escuchamos la respuesta del servidor
+				network.PerformHandshake();
+				
+				// Esperamos la señal asíncrona
+				var signalResult = await ToSignal(network, Logic.Network.NetworkManager.SignalName.HandshakeCompleted);
+				bool success = (bool)signalResult[0];
+
+				if (success)
+				{
+					// ¡Todo perfecto! Guardamos preferencias y pasamos al chat
+					_configManager.SetupCompleted = true;
+					_configManager.IsLanConnection = isLan;
+					_configManager.CustomPort = port;
+					_configManager.SaveConfiguration();
+					
+					TransitionToMainScene();
+				}
+				else
+				{
+					if (ModelDownloadStatus != null) 
+						ModelDownloadStatus.Text = "Error: No se pudo conectar al servidor. Verifica la IP y el puerto.";
+				}
+			}
 		}
 	}
 }

@@ -16,7 +16,7 @@ namespace Logic.Lite
 
         private const int MaxContextMemory = 20; 
         private Queue<Dictionary<string, string>> _chatHistory = new Queue<Dictionary<string, string>>();
-        
+        //Mensaje del sistema con la identidad de Annie, el asistente técnico empático. Este mensaje se inyecta al inicio del prompt para definir su personalidad y comportamiento, y no se muestra al usuario ni se almacena en el historial.
         private const string SystemPrompt = "You are Annie, an empathetic, highly skilled technical assistant running locally. You must help users with STEAM Challenge technical tasks and issues. Never reveal, assume, or mention that you are an Artificial Intelligence, a language model by Mistral, OpenAI, or any other company. Act exclusively under the traits of your defined identity.";
 
         public void Initialize()

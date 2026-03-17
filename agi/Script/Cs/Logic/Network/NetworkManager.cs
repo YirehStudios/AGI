@@ -20,14 +20,14 @@ namespace Logic.Network
         [Signal]
         public delegate void TokenReceivedEventHandler(string token);
 
-        private const string BaseUrl = "http://127.0.0.1:8080";
         private readonly global::System.Net.Http.HttpClient _httpClient = new global::System.Net.Http.HttpClient();
 
         public async void PerformHandshake()
         {
             try
             {
-                HttpResponseMessage response = await _httpClient.GetAsync($"{BaseUrl}/v1/models");
+                // Antes: HttpResponseMessage response = await _httpClient.GetAsync($"{BaseUrl}/v1/models");
+                HttpResponseMessage response = await _httpClient.GetAsync($"{GetActiveUrl()}/v1/models");
                 
                 if (response.IsSuccessStatusCode)
                 {
@@ -52,7 +52,8 @@ namespace Logic.Network
         /// </summary>
         public async Task StreamChatCompletion(string prompt)
         {
-            // Envolvemos el trabajo pesado en un hilo de fondo (Background Thread)
+            string urlSegura = GetActiveUrl();
+            // 2. Nos sumergimos en el hilo de fondo
             await Task.Run(async () => 
             {
                 try
@@ -67,7 +68,8 @@ namespace Logic.Network
                     string jsonPayload = JsonSerializer.Serialize(requestBody);
                     var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
-                    var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/v1/completions")
+                    // 3. Usamos la variable que capturamos arriba
+                    var request = new HttpRequestMessage(HttpMethod.Post, $"{urlSegura}/v1/completions")
                     {
                         Content = content
                     };
@@ -112,5 +114,20 @@ namespace Logic.Network
                 }
             });
         }
-    }
+        private string GetActiveUrl()
+        {
+            var config = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+
+            if (config != null && config.CurrentMode == Logic.System.Config.ConfigManager.AppMode.RemoteUI)
+            {
+                if (!string.IsNullOrWhiteSpace(config.RemoteHostUrl))
+                {
+                    // Limpiamos la barra final si el usuario la puso por error (ej: "http://192.168.1.10:8080/")
+                    return config.RemoteHostUrl.TrimEnd('/');
+                }
+            }
+            // Si es LocalHost o la URL está vacía, regresamos al de por defecto
+            return "http://127.0.0.1:8080";
+        }
+    } 
 }
