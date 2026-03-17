@@ -66,7 +66,20 @@ namespace Logic.Backend
             }
 
             // 2. INICIAMOS EL HILO SECUNDARIO PASANDO SOLO TEXTO (Evita el Deadlock)
-            Task.Run(async () => await ManageBackendLifecycle(modelsDir, safeFileName, hardwareBridge, llamaDeviceEnv));
+            Task.Run(async () => 
+            {
+                bool imageReady = await EnsureDockerImageExistsAsync();
+                if (imageReady)
+                {
+                    await ManageBackendLifecycle(modelsDir, safeFileName, hardwareBridge, llamaDeviceEnv);
+                }
+                else
+                {
+                    // Si algo falla al construir, avisamos a la interfaz
+                    GD.PrintErr("BackendLauncher: Error crítico. No se pudo construir la imagen Docker.");
+                    CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
+                }
+            });
         }
 
         private async Task<bool> EnsureDockerImageExistsAsync()
@@ -78,18 +91,44 @@ namespace Logic.Backend
             string sourceResPath = "res://Script/Cs/System/Drivers/Dockerfile";
             string fileContent = "";
 
+            // 1. Intentamos leer el archivo local
             using (var file = Godot.FileAccess.Open(sourceResPath, Godot.FileAccess.ModeFlags.Read))
             {
-                if (file != null) fileContent = file.GetAsText();
+                if (file != null) 
+                {
+                    fileContent = file.GetAsText();
+                    GD.Print("BackendLauncher: Dockerfile cargado desde recursos locales.");
+                }
                 else
                 {
-                    GD.PrintErr($"BackendLauncher: Fallo crítico. No se encontró el DockerFile en {sourceResPath}");
+                    GD.PrintErr($"BackendLauncher: No se encontró el Dockerfile local en {sourceResPath}. Activando protocolo de emergencia...");
+                }
+            }
+
+            // 2. PLAN DE EMERGENCIA: Descargamos desde GitHub si falló lo anterior
+            if (string.IsNullOrEmpty(fileContent))
+            {
+                try
+                {
+                    using global::System.Net.Http.HttpClient client = new global::System.Net.Http.HttpClient();
+                    // Usamos el enlace 'raw' para obtener solo el texto del código
+                    string rawUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/main/agi/Script/Cs/System/Drivers/Dockerfile";
+                    
+                    GD.Print("BackendLauncher: Obteniendo Dockerfile desde el repositorio oficial...");
+                    fileContent = await client.GetStringAsync(rawUrl);
+                    GD.Print("BackendLauncher: ¡Dockerfile descargado con éxito!");
+                }
+                catch (Exception ex)
+                {
+                    GD.PrintErr($"BackendLauncher: Fallo crítico. No se pudo obtener el Dockerfile ni local ni remoto. Verifica tu conexión a internet. {ex.Message}");
                     return false;
                 }
             }
 
+            // 3. Escribimos el contenido (ya sea local o remoto) en la carpeta de usuario
             global::System.IO.File.WriteAllText(dockerfilePath, fileContent);
 
+            // 4. Verificamos si la imagen ya estaba construida
             var output = new Godot.Collections.Array();
             int inspectCode = Godot.OS.Execute("docker", new string[] { "image", "inspect", "yirehstudios/agi-backend:latest" }, output, true);
 
@@ -99,10 +138,10 @@ namespace Logic.Backend
                 return true;
             }
 
+            // 5. Comenzamos la compilación en segundo plano
             GD.Print("BackendLauncher: Iniciando construcción en segundo plano...");
             CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, "Descargando entorno y compilando (Esto tomará varios minutos)...");
 
-            // Creamos un proceso que NO congele a Godot para la construcción
             ProcessStartInfo buildInfo = new ProcessStartInfo
             {
                 FileName = "docker",
@@ -115,7 +154,6 @@ namespace Logic.Backend
 
             using Process buildProcess = new Process { StartInfo = buildInfo };
             
-            // Atrapamos cada línea que Docker escupa y la mandamos a Godot y a la UI
             buildProcess.OutputDataReceived += (sender, e) => {
                 if (!string.IsNullOrEmpty(e.Data)) {
                     GD.Print($"[Docker Build] {e.Data}");
@@ -133,7 +171,6 @@ namespace Logic.Backend
             buildProcess.BeginOutputReadLine();
             buildProcess.BeginErrorReadLine();
 
-            // Esperamos pacientemente sin congelar los FPS del juego
             await Task.Run(() => buildProcess.WaitForExit());
 
             return buildProcess.ExitCode == 0;
