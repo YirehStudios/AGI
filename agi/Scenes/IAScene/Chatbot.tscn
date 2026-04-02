@@ -3,7 +3,10 @@
 [ext_resource type="Script" uid="uid://laxqt8bmvnnx" path="res://Script/Cs/ChatbotMain.cs" id="1_8rl47"]
 [ext_resource type="Texture2D" uid="uid://ctvihwjmfflos" path="res://Resources/img1.png" id="2_q7f8p"]
 [ext_resource type="Texture2D" uid="uid://du3w0n73d40lw" path="res://Resources/avatar_bot.png" id="3_avatar_bot"]
+[ext_resource type="Texture2D" uid="uid://cwv014ynmrq3l" path="res://Resources/img2.png" id="3_jta4j"]
 [ext_resource type="Texture2D" uid="uid://debnuc10m0as" path="res://Resources/Images/Icons/JirehStudiosIcon.png" id="3_ug3aw"]
+[ext_resource type="Texture2D" uid="uid://ca48hqiwv2eiy" path="res://Resources/img3.png" id="4_amhcu"]
+[ext_resource type="Texture2D" uid="uid://b5w5qmdk33hhg" path="res://Resources/img4.png" id="5_675c4"]
 [ext_resource type="Texture2D" uid="uid://b0gc5q4xau83j" path="res://Resources/flecha_enviar.png" id="5_ug3aw"]
 [ext_resource type="VideoStream" uid="uid://vvnb5vwgivbh" path="res://Resources/Carro.ogv" id="6_jta4j"]
 [ext_resource type="VideoStream" uid="uid://0esyq17ynyll" path="res://Resources/Farming-Simulator.ogv" id="7_amhcu"]
@@ -195,6 +198,9 @@ UserMessageTemplate = NodePath("MainContainer/ChatAreaContainer/ChatScrollContai
 BotMessageTemplate = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate")
 ToolSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolSelector")
 RandomImage1 = ExtResource("2_q7f8p")
+RandomImage2 = ExtResource("3_jta4j")
+RandomImage3 = ExtResource("4_amhcu")
+RandomImage4 = ExtResource("5_675c4")
 RandomVideo1 = ExtResource("6_jta4j")
 RandomVideo2 = ExtResource("7_amhcu")
 RandomVideo3 = ExtResource("8_675c4")
