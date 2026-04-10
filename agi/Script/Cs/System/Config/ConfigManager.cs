@@ -14,6 +14,7 @@ namespace Logic.System.Config
     /// </summary>
     public partial class ConfigManager : Node
     {
+        
         public enum AppMode 
         { 
             None, 
@@ -38,6 +39,14 @@ namespace Logic.System.Config
         public int SelectedGpuIndex { get; set; } = -1;
 
         /// <summary>
+        /// Define los motores y modelos de procesamiento de lenguaje natural y síntesis de voz utilizados por defecto.
+        /// </summary>
+        public string ActiveSTTEngine { get; set; } = "whisper.cpp";
+        public string ActiveSTTModel { get; set; } = "base.bin";
+        public string ActiveTTSEngine { get; set; } = "sherpa-onnx";
+        public string ActiveTTSModel { get; set; } = "vits-piper-es_ES-miro-high";
+
+        /// <summary>
         /// Defines the structure for model presets loaded from the external JSON configuration.
         /// </summary>
         public class ModelPreset
@@ -50,9 +59,11 @@ namespace Logic.System.Config
 
         public string ActiveModelUrl { get; set; } = string.Empty;
 
+        private Logic.Network.DownloadManager _downloadManager;
+
         /// <summary>
         /// Internal structure used exclusively for JSON serialization of the configuration state.
-        /// Integra el seguimiento de la URL de descarga del modelo activo.
+        /// Integra el mapeo de los motores de síntesis y reconocimiento para la persistencia local.
         /// </summary>
         private class ConfigState
         {
@@ -61,26 +72,55 @@ namespace Logic.System.Config
             public string ActiveModelPath { get; set; }
             public string ActiveModelName { get; set; }
             public string ActiveModelUrl { get; set; }
-            
-            // Lo nuevo:
             public bool SetupCompleted { get; set; }
             public bool IsLanConnection { get; set; }
             public string CustomPort { get; set; }
+            public string ActiveSTTEngine { get; set; }
+            public string ActiveSTTModel { get; set; }
+            public string ActiveTTSEngine { get; set; }
+            public string ActiveTTSModel { get; set; }
         }
 
+        /// <summary>
+        /// Inicializa las dependencias del nodo al entrar al árbol de escena.
+        /// Establece las rutas de configuración y recupera la instancia del DownloadManager en memoria.
+        /// </summary>
         public override void _Ready()
         {
             _settingsDirectory = ProjectSettings.GlobalizePath("user://settings");
-            // ¡Cambiado a preferences.json!
             _configFilePath = Path.Combine(_settingsDirectory, "preferences.json"); 
             _presetsFilePath = ProjectSettings.GlobalizePath("user://presets.json");
+
+            _downloadManager = GetNodeOrNull<Logic.Network.DownloadManager>("/root/DownloadManager");
 
             LoadConfiguration();
         }
 
         /// <summary>
+        /// Orquesta la descarga asíncrona de un modelo de IA predefinido utilizando el DownloadManager global.
+        /// </summary>
+        /// <param name="preset">Objeto que contiene los metadatos y enlaces de descarga del modelo.</param>
+        public async Task DownloadModelAsync(ModelPreset preset)
+        {
+            if (_downloadManager == null || preset.DownloadLinks.Count == 0) return;
+
+            string url = preset.DownloadLinks[0];
+            string fileName = Path.GetFileName(new Uri(url).LocalPath);
+            
+            string folder = "user://agi/models";
+
+            GD.Print($"ConfigManager: Iniciando descarga de {preset.Name}...");
+            bool success = await _downloadManager.DownloadFileAsync(url, folder, fileName);
+
+            if (success)
+            {
+                GD.Print($"ConfigManager: {preset.Name} instalado y extraído con éxito.");
+            }
+        }
+
+        /// <summary>
         /// Serializes the current application state to the local configuration file.
-        /// Captura y persiste la URL del modelo activo seleccionado en tiempo de ejecución.
+        /// Captura y persiste las asignaciones de motor y modelo de audio activas.
         /// </summary>
         public void SaveConfiguration()
         {
@@ -97,7 +137,14 @@ namespace Logic.System.Config
                     RemoteHostUrl = RemoteHostUrl,
                     ActiveModelPath = ActiveModelPath,
                     ActiveModelName = ActiveModelName,
-                    ActiveModelUrl = ActiveModelUrl
+                    ActiveModelUrl = ActiveModelUrl,
+                    SetupCompleted = SetupCompleted,
+                    IsLanConnection = IsLanConnection,
+                    CustomPort = CustomPort,
+                    ActiveSTTEngine = ActiveSTTEngine,
+                    ActiveSTTModel = ActiveSTTModel,
+                    ActiveTTSEngine = ActiveTTSEngine,
+                    ActiveTTSModel = ActiveTTSModel
                 };
 
                 JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
@@ -113,7 +160,7 @@ namespace Logic.System.Config
 
         /// <summary>
         /// Reads and deserializes the configuration state from the local file system.
-        /// Restaura en memoria la estructura de configuración incluyendo la URL de descarga del modelo.
+        /// Restaura en memoria la configuración, inyectando las preferencias de audio si están definidas.
         /// </summary>
         public void LoadConfiguration()
         {
@@ -134,6 +181,14 @@ namespace Logic.System.Config
                     ActiveModelPath = state.ActiveModelPath;
                     ActiveModelName = state.ActiveModelName;
                     ActiveModelUrl = state.ActiveModelUrl;
+                    SetupCompleted = state.SetupCompleted;
+                    IsLanConnection = state.IsLanConnection;
+                    CustomPort = state.CustomPort;
+                    
+                    if (!string.IsNullOrEmpty(state.ActiveSTTEngine)) ActiveSTTEngine = state.ActiveSTTEngine;
+                    if (!string.IsNullOrEmpty(state.ActiveSTTModel)) ActiveSTTModel = state.ActiveSTTModel;
+                    if (!string.IsNullOrEmpty(state.ActiveTTSEngine)) ActiveTTSEngine = state.ActiveTTSEngine;
+                    if (!string.IsNullOrEmpty(state.ActiveTTSModel)) ActiveTTSModel = state.ActiveTTSModel;
                 }
             }
             catch (Exception ex)
@@ -191,7 +246,6 @@ namespace Logic.System.Config
 
             try
             {
-                // Se utiliza la calificación explícita del espacio de nombres para aislar la implementación de .NET
                 using global::System.Net.Http.HttpClient client = new global::System.Net.Http.HttpClient();
                 string jsonContent = await client.GetStringAsync(targetUrl);
                 

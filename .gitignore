@@ -1,0 +1,33 @@
+# --- Godot Específico ---
+.godot/
+*.import
+export_presets.cfg
+
+# --- Binarios y Modelos 3D (Si no quieres distribuirlos) ---
+*.blend
+*.fbx
+*.obj
+*.bin
+
+# --- Tu carpeta específica de basura/pruebas ---
+"Asistente General de Interfaz/agi/Scenes/Test/"
+
+# --- Archivos de Sistema (Fedora vs Windows) ---
+.DS_Store
+Thumbs.db
+*.tmp
+desktop.ini
+
+# --- VS Code ---
+.vscode/
+
+# Archivos de diseño pesados
+*.psd
+*.blend
+*.fbx
+
+# Ignorar TODA la carpeta de Kipfel (incluyendo .tscn y modelos)
+agi/Scenes/Test/Kipfel/
+
+# Opcional: Ignorar cualquier .tscn dentro de Test si no quieres nada de ahí
+agi/Scenes/Test/**/*.tscn

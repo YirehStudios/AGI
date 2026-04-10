@@ -22,5 +22,17 @@
       "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-Q4_K_M.gguf"
     ],
     "ExpectedSize": 5680000000
+  },
+  {
+    "Name": "Whisper Base",
+    "Description": "Modelo STT balanceado (Formato GGML para Linux)",
+    "DownloadLinks": ["https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin?download=true"],
+    "ExpectedSize": 147953258
+  },
+  {
+  "Name": "Sherpa Spanish",
+  "Description": "Voz de Claude (México) - Alta calidad (Paquete completo para Linux)",
+  "DownloadLinks": ["https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-es_MX-claude-high.tar.bz2"],
+  "ExpectedSize": 64000000
   }
 ]

@@ -52,6 +52,7 @@ content_margin_left = 0.0
 [sub_resource type="SystemFont" id="SystemFont_regular"]
 font_names = PackedStringArray("Sans-Serif")
 hinting = 2
+subpixel_positioning = 0
 multichannel_signed_distance_field = true
 
 [sub_resource type="Theme" id="Theme_global"]
@@ -181,7 +182,9 @@ corner_radius_bottom_right = 25
 corner_radius_bottom_left = 25
 anti_aliasing_size = 1.5
 
-[node name="ChatbotInterface" type="Panel" unique_id=1530587113 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "UserMessageTemplate", "BotMessageTemplate", "ToolSelector")]
+[sub_resource type="AudioStreamMicrophone" id="AudioStreamMicrophone_jta4j"]
+
+[node name="ChatbotInterface" type="Panel" unique_id=1530587113 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "UserMessageTemplate", "BotMessageTemplate", "ToolSelector", "MicroRecorderPlayer")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -205,6 +208,7 @@ RandomVideo1 = ExtResource("6_jta4j")
 RandomVideo2 = ExtResource("7_amhcu")
 RandomVideo3 = ExtResource("8_675c4")
 RandomVideo4 = ExtResource("9_u6rn7")
+MicroRecorderPlayer = NodePath("Microphone")
 
 [node name="MainContainer" type="HBoxContainer" parent="." unique_id=497214364]
 layout_mode = 1
@@ -374,3 +378,8 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 icon = ExtResource("5_ug3aw")
 icon_alignment = 1
 expand_icon = true
+
+[node name="Microphone" type="AudioStreamPlayer" parent="." unique_id=2055433667]
+stream = SubResource("AudioStreamMicrophone_jta4j")
+autoplay = true
+bus = &"Record"

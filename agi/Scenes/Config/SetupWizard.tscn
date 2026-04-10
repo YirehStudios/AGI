@@ -13,22 +13,6 @@ corner_radius_top_right = 20
 corner_radius_bottom_right = 20
 corner_radius_bottom_left = 20
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_primary_hover"]
-content_margin_left = 30.0
-content_margin_top = 15.0
-content_margin_right = 30.0
-content_margin_bottom = 15.0
-bg_color = Color(0.419608, 0.54902, 0.4, 1)
-corner_radius_top_left = 20
-corner_radius_top_right = 20
-corner_radius_bottom_right = 20
-corner_radius_bottom_left = 20
-shadow_color = Color(0.372549, 0.501961, 0.356863, 0.4)
-shadow_size = 12
-shadow_offset = Vector2(0, 5)
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_primary_normal"]
 content_margin_left = 30.0
 content_margin_top = 15.0
@@ -39,47 +23,6 @@ corner_radius_top_left = 20
 corner_radius_top_right = 20
 corner_radius_bottom_right = 20
 corner_radius_bottom_left = 20
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_primary_pressed"]
-content_margin_left = 30.0
-content_margin_top = 15.0
-content_margin_right = 30.0
-content_margin_bottom = 15.0
-bg_color = Color(0.25098, 0.34902, 0.239216, 1)
-corner_radius_top_left = 20
-corner_radius_top_right = 20
-corner_radius_bottom_right = 20
-corner_radius_bottom_left = 20
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_checkbox"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lineedit_focus"]
-content_margin_left = 15.0
-content_margin_top = 15.0
-content_margin_right = 15.0
-content_margin_bottom = 15.0
-bg_color = Color(1, 1, 1, 1)
-border_width_bottom = 2
-border_color = Color(0.372549, 0.501961, 0.356863, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-shadow_color = Color(0, 0, 0, 0.05)
-shadow_size = 5
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lineedit_normal"]
-content_margin_left = 15.0
-content_margin_top = 15.0
-content_margin_right = 15.0
-content_margin_bottom = 15.0
-bg_color = Color(0.941176, 0.945098, 0.94902, 1)
-border_width_bottom = 2
-border_color = Color(0.75, 0.75, 0.75, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_progress_bg"]
 bg_color = Color(0.882353, 0.882353, 0.839216, 1)
@@ -95,85 +38,19 @@ corner_radius_top_right = 10
 corner_radius_bottom_right = 10
 corner_radius_bottom_left = 10
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_terminal_bg"]
-content_margin_left = 20.0
-content_margin_top = 20.0
-content_margin_right = 20.0
-content_margin_bottom = 20.0
-bg_color = Color(0.14902, 0.156863, 0.168627, 1)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-shadow_color = Color(0, 0, 0, 0.1)
-shadow_size = 5
-shadow_offset = Vector2(0, 2)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_scrollbar_grabber"]
-bg_color = Color(0.7, 0.7, 0.7, 0.5)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_scrollbar_grabber_hover"]
-bg_color = Color(0.6, 0.6, 0.6, 0.8)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_scrollbar_grabber_pressed"]
-bg_color = Color(0.5, 0.5, 0.5, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_scrollbar_bg"]
-
 [sub_resource type="SystemFont" id="SystemFont_regular"]
 font_names = PackedStringArray("Sans-Serif")
-subpixel_positioning = 0
 
 [sub_resource type="Theme" id="Theme_global"]
 default_font = SubResource("SystemFont_regular")
 default_font_size = 16
 Button/colors/font_color = Color(1, 1, 1, 1)
-Button/colors/font_disabled_color = Color(1, 1, 1, 0.5)
-Button/colors/font_hover_color = Color(1, 1, 1, 1)
-Button/colors/font_pressed_color = Color(0.9, 0.9, 0.9, 1)
 Button/styles/disabled = SubResource("StyleBoxFlat_btn_primary_disabled")
-Button/styles/focus = SubResource("StyleBoxEmpty_focus")
-Button/styles/hover = SubResource("StyleBoxFlat_btn_primary_hover")
 Button/styles/normal = SubResource("StyleBoxFlat_btn_primary_normal")
-Button/styles/pressed = SubResource("StyleBoxFlat_btn_primary_pressed")
-CheckBox/colors/font_color = Color(0.3, 0.3, 0.3, 1)
-CheckBox/colors/font_hover_color = Color(0.1, 0.1, 0.1, 1)
-CheckBox/colors/font_pressed_color = Color(0.2, 0.2, 0.2, 1)
-CheckBox/styles/focus = SubResource("StyleBoxEmpty_checkbox")
-CheckBox/styles/hover = SubResource("StyleBoxEmpty_checkbox")
-CheckBox/styles/hover_pressed = SubResource("StyleBoxEmpty_checkbox")
-CheckBox/styles/normal = SubResource("StyleBoxEmpty_checkbox")
-CheckBox/styles/pressed = SubResource("StyleBoxEmpty_checkbox")
-LineEdit/colors/caret_color = Color(0.372549, 0.501961, 0.356863, 1)
-LineEdit/colors/font_color = Color(0.2, 0.2, 0.2, 1)
-LineEdit/colors/font_placeholder_color = Color(0.6, 0.6, 0.6, 1)
-LineEdit/styles/focus = SubResource("StyleBoxFlat_lineedit_focus")
-LineEdit/styles/normal = SubResource("StyleBoxFlat_lineedit_normal")
+Label/colors/font_color = Color(0.2, 0.2, 0.2, 1)
 ProgressBar/styles/background = SubResource("StyleBoxFlat_progress_bg")
 ProgressBar/styles/fill = SubResource("StyleBoxFlat_progress_fill")
 RichTextLabel/colors/default_color = Color(0.2, 0.2, 0.2, 1)
-TextEdit/colors/font_color = Color(0.85, 0.85, 0.85, 1)
-TextEdit/colors/font_readonly_color = Color(0.7, 0.7, 0.7, 1)
-TextEdit/styles/focus = SubResource("StyleBoxEmpty_focus")
-TextEdit/styles/normal = SubResource("StyleBoxFlat_terminal_bg")
-TextEdit/styles/read_only = SubResource("StyleBoxFlat_terminal_bg")
-VScrollBar/styles/grabber = SubResource("StyleBoxFlat_scrollbar_grabber")
-VScrollBar/styles/grabber_highlight = SubResource("StyleBoxFlat_scrollbar_grabber_hover")
-VScrollBar/styles/grabber_pressed = SubResource("StyleBoxFlat_scrollbar_grabber_pressed")
-VScrollBar/styles/scroll = SubResource("StyleBoxEmpty_scrollbar_bg")
-VScrollBar/styles/scroll_focus = SubResource("StyleBoxEmpty_scrollbar_bg")
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_main_bg"]
 bg_color = Color(0.882353, 0.882353, 0.839216, 1)
@@ -192,123 +69,22 @@ shadow_color = Color(0, 0, 0, 0.08)
 shadow_size = 30
 shadow_offset = Vector2(0, 15)
 
-[sub_resource type="Animation" id="Animation_fade_in"]
-resource_name = "fade_in"
-length = 0.6
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath(".:modulate")
-tracks/0/interp = 2
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.6),
-"transitions": PackedFloat32Array(1, 1),
-"update": 0,
-"values": [Color(1, 1, 1, 0), Color(1, 1, 1, 1)]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath(".:position")
-tracks/1/interp = 2
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0, 0.6),
-"transitions": PackedFloat32Array(0.5, 1),
-"update": 0,
-"values": [Vector2(0, 30), Vector2(0, 0)]
-}
-tracks/2/type = "value"
-tracks/2/imported = false
-tracks/2/enabled = true
-tracks/2/path = NodePath(".:scale")
-tracks/2/interp = 2
-tracks/2/loop_wrap = true
-tracks/2/keys = {
-"times": PackedFloat32Array(0, 0.6),
-"transitions": PackedFloat32Array(0.5, 1),
-"update": 0,
-"values": [Vector2(0.95, 0.95), Vector2(1, 1)]
-}
-
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_panel"]
-_data = {
-&"fade_in": SubResource("Animation_fade_in")
-}
-
 [sub_resource type="SystemFont" id="SystemFont_bold"]
 font_names = PackedStringArray("Sans-Serif")
 font_weight = 700
-subpixel_positioning = 0
 
-[sub_resource type="SystemFont" id="SystemFont_mono"]
-font_names = PackedStringArray("Monospace")
-subpixel_positioning = 0
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_terminal_bg"]
+content_margin_left = 20.0
+content_margin_top = 20.0
+content_margin_right = 20.0
+content_margin_bottom = 20.0
+bg_color = Color(0.14902, 0.156863, 0.168627, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_secondary_normal"]
-content_margin_left = 25.0
-content_margin_top = 12.0
-content_margin_right = 25.0
-content_margin_bottom = 12.0
-bg_color = Color(0.901961, 0.905882, 0.913725, 1)
-corner_radius_top_left = 16
-corner_radius_top_right = 16
-corner_radius_bottom_right = 16
-corner_radius_bottom_left = 16
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_secondary_pressed"]
-content_margin_left = 25.0
-content_margin_top = 12.0
-content_margin_right = 25.0
-content_margin_bottom = 12.0
-bg_color = Color(0.8, 0.803922, 0.811765, 1)
-corner_radius_top_left = 16
-corner_radius_top_right = 16
-corner_radius_bottom_right = 16
-corner_radius_bottom_left = 16
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_secondary_hover"]
-content_margin_left = 25.0
-content_margin_top = 12.0
-content_margin_right = 25.0
-content_margin_bottom = 12.0
-bg_color = Color(0.85098, 0.854902, 0.862745, 1)
-corner_radius_top_left = 16
-corner_radius_top_right = 16
-corner_radius_bottom_right = 16
-corner_radius_bottom_left = 16
-shadow_color = Color(0, 0, 0, 0.05)
-shadow_size = 8
-shadow_offset = Vector2(0, 3)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_advanced"]
-content_margin_left = 15.0
-content_margin_top = 10.0
-content_margin_right = 15.0
-content_margin_bottom = 10.0
-bg_color = Color(0, 0, 0, 0)
-border_width_bottom = 1
-border_color = Color(0.372549, 0.501961, 0.356863, 0)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_advanced_hover"]
-content_margin_left = 15.0
-content_margin_top = 10.0
-content_margin_right = 15.0
-content_margin_bottom = 10.0
-bg_color = Color(0.9, 0.9, 0.9, 0.3)
-border_width_bottom = 1
-border_color = Color(0.372549, 0.501961, 0.356863, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-
-[sub_resource type="SystemFont" id="SystemFont_italic"]
-font_names = PackedStringArray("Sans-Serif")
-font_italic = true
-subpixel_positioning = 0
-
-[node name="SetupWizard" type="Control" unique_id=390040604 node_paths=PackedStringArray("PanelWelcome", "PanelDependencies", "PanelModeSelection", "PanelModelSelection", "PanelDownloading", "TerminalLog", "InstallProgress", "BtnComenzar", "BtnServidorRemoto", "BtnLocalHost", "TxtCommandDisplay", "BtnCopyCommand", "LblRestartWarning", "ModelListContainer", "ModelDownloadProgress", "ModelDownloadStatus", "BtnConnect", "TxtRemoteUrlInput", "ChkIsLan", "BtnAdvancedSettings", "AdvancedContainer", "TxtCustomPort")]
-process_mode = 3
+[node name="SetupWizard" type="Control" unique_id=120493504 node_paths=PackedStringArray("PanelWelcome", "PanelDependencies", "PanelModeSelection", "PanelModelSelection", "PanelDownloading", "TerminalLog", "InstallProgress", "BtnComenzar", "BtnServidorRemoto", "BtnLocalHost", "TxtCommandDisplay", "BtnCopyCommand", "LblRestartWarning", "ModelListContainer", "ModelDownloadProgress", "ModelDownloadStatus", "BtnConnect", "TxtRemoteUrlInput", "ChkIsLan", "BtnAdvancedSettings", "AdvancedContainer", "TxtCustomPort", "BtnStartBatchDownload")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -322,25 +98,26 @@ PanelDependencies = NodePath("Background/CenterContainer/PanelDependencies")
 PanelModeSelection = NodePath("Background/CenterContainer/PanelModeSelection")
 PanelModelSelection = NodePath("Background/CenterContainer/PanelModelSelection")
 PanelDownloading = NodePath("Background/CenterContainer/PanelDownloading")
-TerminalLog = NodePath("Background/CenterContainer/PanelDependencies/Layout/TerminalContainer/TerminalLog")
+TerminalLog = NodePath("Background/CenterContainer/PanelDependencies/Layout/TerminalLog")
 InstallProgress = NodePath("Background/CenterContainer/PanelDependencies/Layout/InstallProgress")
 BtnComenzar = NodePath("Background/CenterContainer/PanelWelcome/Layout/BtnComenzar")
-BtnServidorRemoto = NodePath("Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea/BtnConnect")
-BtnLocalHost = NodePath("Background/CenterContainer/PanelModeSelection/Layout/LocalHostArea/BtnLocalHost")
-TxtCommandDisplay = NodePath("Background/CenterContainer/PanelDependencies/Layout/CommandArea/TxtCommandDisplay")
-BtnCopyCommand = NodePath("Background/CenterContainer/PanelDependencies/Layout/CommandArea/BtnCopyCommand")
-LblRestartWarning = NodePath("Background/CenterContainer/PanelDependencies/Layout/CommandArea/LblRestartWarning")
+BtnServidorRemoto = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/BtnConnect")
+BtnLocalHost = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/LocalSide/BtnLocalHost")
+TxtCommandDisplay = NodePath("Background/CenterContainer/PanelDependencies/Layout/TxtCommandDisplay")
+BtnCopyCommand = NodePath("Background/CenterContainer/PanelDependencies/Layout/BtnCopyCommand")
+LblRestartWarning = NodePath("Background/CenterContainer/PanelDependencies/Layout/LblRestartWarning")
 ModelListContainer = NodePath("Background/CenterContainer/PanelModelSelection/Layout/ScrollContainer/ModelListContainer")
 ModelDownloadProgress = NodePath("Background/CenterContainer/PanelDownloading/Layout/ModelDownloadProgress")
 ModelDownloadStatus = NodePath("Background/CenterContainer/PanelDownloading/Layout/ModelDownloadStatus")
-BtnConnect = NodePath("Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea/BtnConnect")
-TxtRemoteUrlInput = NodePath("Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea/TxtRemoteUrlInput")
-ChkIsLan = NodePath("Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea/OptionsLayout/ChkIsLan")
-BtnAdvancedSettings = NodePath("Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea/OptionsLayout/BtnAdvancedSettings")
-AdvancedContainer = NodePath("Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea/AdvancedContainer")
-TxtCustomPort = NodePath("Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea/AdvancedContainer/TxtCustomPort")
+BtnConnect = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/BtnConnect")
+TxtRemoteUrlInput = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/TxtRemoteUrlInput")
+ChkIsLan = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/AdvancedContainer/ChkIsLan")
+BtnAdvancedSettings = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/BtnAdvancedSettings")
+AdvancedContainer = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/AdvancedContainer")
+TxtCustomPort = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/AdvancedContainer/TxtCustomPort")
+BtnStartBatchDownload = NodePath("Background/CenterContainer/PanelModelSelection/Layout/BtnStartBatchDownload")
 
-[node name="Background" type="Panel" parent="." unique_id=485862023]
+[node name="Background" type="PanelContainer" parent="." unique_id=1167415774]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -349,327 +126,205 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_main_bg")
 
-[node name="CenterContainer" type="CenterContainer" parent="Background" unique_id=1956105443]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="CenterContainer" type="CenterContainer" parent="Background" unique_id=284232082]
+layout_mode = 2
 
-[node name="PanelWelcome" type="PanelContainer" parent="Background/CenterContainer" unique_id=1898845654]
+[node name="PanelWelcome" type="PanelContainer" parent="Background/CenterContainer" unique_id=344347513]
 custom_minimum_size = Vector2(600, 400)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel_card")
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="Background/CenterContainer/PanelWelcome" unique_id=1329279989]
-libraries/ = SubResource("AnimationLibrary_panel")
-autoplay = &"fade_in"
-
-[node name="Layout" type="VBoxContainer" parent="Background/CenterContainer/PanelWelcome" unique_id=1838992861]
+[node name="Layout" type="VBoxContainer" parent="Background/CenterContainer/PanelWelcome" unique_id=131947177]
 layout_mode = 2
 theme_override_constants/separation = 30
 alignment = 1
 
-[node name="Title" type="RichTextLabel" parent="Background/CenterContainer/PanelWelcome/Layout" unique_id=1244466652]
-custom_minimum_size = Vector2(0, 50)
+[node name="Title" type="Label" parent="Background/CenterContainer/PanelWelcome/Layout" unique_id=1518548364]
 layout_mode = 2
-theme_override_fonts/normal_font = SubResource("SystemFont_bold")
-theme_override_font_sizes/normal_font_size = 32
-bbcode_enabled = true
-text = "[center]Bienvenido a Tescn[/center]"
-fit_content = true
+theme_override_fonts/font = SubResource("SystemFont_bold")
+theme_override_font_sizes/font_size = 32
+text = "Bienvenido a Tescn"
+horizontal_alignment = 1
 
-[node name="Subtitle" type="RichTextLabel" parent="Background/CenterContainer/PanelWelcome/Layout" unique_id=1304941367]
-custom_minimum_size = Vector2(0, 40)
+[node name="Subtitle" type="Label" parent="Background/CenterContainer/PanelWelcome/Layout" unique_id=2139667359]
 layout_mode = 2
-theme_override_colors/default_color = Color(0.4, 0.4, 0.4, 1)
-theme_override_font_sizes/normal_font_size = 18
-bbcode_enabled = true
-text = "[center]Preparación de entorno inteligente y configuración inicial.[/center]"
-fit_content = true
+theme_override_colors/font_color = Color(0.4, 0.4, 0.4, 1)
+text = "Preparación de entorno inteligente."
+horizontal_alignment = 1
 
-[node name="Spacer" type="Control" parent="Background/CenterContainer/PanelWelcome/Layout" unique_id=1307666630]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 2
-
-[node name="BtnComenzar" type="Button" parent="Background/CenterContainer/PanelWelcome/Layout" unique_id=1835342051]
+[node name="BtnComenzar" type="Button" parent="Background/CenterContainer/PanelWelcome/Layout" unique_id=1235485754]
 custom_minimum_size = Vector2(250, 60)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_fonts/font = SubResource("SystemFont_bold")
-theme_override_font_sizes/font_size = 18
 text = "Comenzar Configuración"
 
-[node name="PanelDependencies" type="PanelContainer" parent="Background/CenterContainer" unique_id=48023325]
+[node name="PanelDependencies" type="PanelContainer" parent="Background/CenterContainer" unique_id=366494329]
 visible = false
 custom_minimum_size = Vector2(800, 600)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel_card")
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="Background/CenterContainer/PanelDependencies" unique_id=2110709698]
-libraries/ = SubResource("AnimationLibrary_panel")
-
-[node name="Layout" type="VBoxContainer" parent="Background/CenterContainer/PanelDependencies" unique_id=672876021]
+[node name="Layout" type="VBoxContainer" parent="Background/CenterContainer/PanelDependencies" unique_id=237846785]
 layout_mode = 2
 theme_override_constants/separation = 20
 
-[node name="Title" type="RichTextLabel" parent="Background/CenterContainer/PanelDependencies/Layout" unique_id=158339215]
-custom_minimum_size = Vector2(0, 40)
+[node name="Title" type="Label" parent="Background/CenterContainer/PanelDependencies/Layout" unique_id=1809239523]
 layout_mode = 2
-theme_override_fonts/normal_font = SubResource("SystemFont_bold")
-theme_override_font_sizes/normal_font_size = 26
-bbcode_enabled = true
-text = "[center]Auditoría de Dependencias[/center]"
-fit_content = true
+theme_override_fonts/font = SubResource("SystemFont_bold")
+theme_override_font_sizes/font_size = 26
+text = "Auditoría de Dependencias"
+horizontal_alignment = 1
 
-[node name="TerminalContainer" type="PanelContainer" parent="Background/CenterContainer/PanelDependencies/Layout" unique_id=2019119271]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_styles/panel = SubResource("StyleBoxEmpty_scrollbar_bg")
-
-[node name="TerminalLog" type="RichTextLabel" parent="Background/CenterContainer/PanelDependencies/Layout/TerminalContainer" unique_id=46628616]
+[node name="TerminalLog" type="RichTextLabel" parent="Background/CenterContainer/PanelDependencies/Layout" unique_id=723997342]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/default_color = Color(0.85, 0.85, 0.85, 1)
-theme_override_fonts/normal_font = SubResource("SystemFont_mono")
-theme_override_font_sizes/normal_font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_terminal_bg")
-bbcode_enabled = true
-text = "> Iniciando análisis del sistema..."
-scroll_following = true
+text = "> Iniciando análisis..."
 
-[node name="CommandArea" type="VBoxContainer" parent="Background/CenterContainer/PanelDependencies/Layout" unique_id=1336026678]
-layout_mode = 2
-theme_override_constants/separation = 15
-
-[node name="TxtCommandDisplay" type="TextEdit" parent="Background/CenterContainer/PanelDependencies/Layout/CommandArea" unique_id=1893962644]
+[node name="TxtCommandDisplay" type="TextEdit" parent="Background/CenterContainer/PanelDependencies/Layout" unique_id=75535923]
 custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
-theme_override_fonts/font = SubResource("SystemFont_mono")
-theme_override_font_sizes/font_size = 14
 editable = false
-wrap_mode = 1
 
-[node name="BtnCopyCommand" type="Button" parent="Background/CenterContainer/PanelDependencies/Layout/CommandArea" unique_id=1230717689]
-custom_minimum_size = Vector2(200, 45)
+[node name="BtnCopyCommand" type="Button" parent="Background/CenterContainer/PanelDependencies/Layout" unique_id=1148764914]
 layout_mode = 2
-size_flags_horizontal = 8
-theme_override_colors/font_color = Color(0.2, 0.2, 0.2, 1)
-theme_override_colors/font_hover_color = Color(0.1, 0.1, 0.1, 1)
-theme_override_fonts/font = SubResource("SystemFont_bold")
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_secondary_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_secondary_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_btn_secondary_hover")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
-text = "📋 Copiar Comando"
+size_flags_horizontal = 4
+text = "Copiar Comando"
 
-[node name="LblRestartWarning" type="RichTextLabel" parent="Background/CenterContainer/PanelDependencies/Layout/CommandArea" unique_id=729256215]
+[node name="LblRestartWarning" type="RichTextLabel" parent="Background/CenterContainer/PanelDependencies/Layout" unique_id=950789552]
 custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
-theme_override_colors/default_color = Color(0.854902, 0.321569, 0.321569, 1)
-theme_override_fonts/normal_font = SubResource("SystemFont_bold")
-bbcode_enabled = true
-fit_content = true
+theme_override_colors/default_color = Color(0.85, 0.32, 0.32, 1)
 
-[node name="InstallProgress" type="ProgressBar" parent="Background/CenterContainer/PanelDependencies/Layout" unique_id=1473389691]
+[node name="InstallProgress" type="ProgressBar" parent="Background/CenterContainer/PanelDependencies/Layout" unique_id=492829264]
 custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
-show_percentage = false
 
-[node name="PanelModeSelection" type="PanelContainer" parent="Background/CenterContainer" unique_id=1363860229]
+[node name="PanelModeSelection" type="PanelContainer" parent="Background/CenterContainer" unique_id=1693987322]
 visible = false
 custom_minimum_size = Vector2(700, 480)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel_card")
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="Background/CenterContainer/PanelModeSelection" unique_id=1251711704]
-libraries/ = SubResource("AnimationLibrary_panel")
-
-[node name="Layout" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection" unique_id=334595871]
+[node name="Layout" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection" unique_id=569732960]
 layout_mode = 2
 theme_override_constants/separation = 30
 alignment = 1
 
-[node name="Title" type="RichTextLabel" parent="Background/CenterContainer/PanelModeSelection/Layout" unique_id=777433359]
-custom_minimum_size = Vector2(0, 45)
+[node name="Title" type="Label" parent="Background/CenterContainer/PanelModeSelection/Layout" unique_id=255411991]
 layout_mode = 2
-theme_override_fonts/normal_font = SubResource("SystemFont_bold")
-theme_override_font_sizes/normal_font_size = 28
-bbcode_enabled = true
-text = "[center]Conexión al Núcleo[/center]"
-fit_content = true
+theme_override_fonts/font = SubResource("SystemFont_bold")
+theme_override_font_sizes/font_size = 28
+text = "Conexión al Núcleo"
+horizontal_alignment = 1
 
-[node name="Subtitle" type="RichTextLabel" parent="Background/CenterContainer/PanelModeSelection/Layout" unique_id=1769566699]
-custom_minimum_size = Vector2(0, 30)
+[node name="HBox" type="HBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout" unique_id=1217320519]
 layout_mode = 2
-theme_override_colors/default_color = Color(0.4, 0.4, 0.4, 1)
-theme_override_font_sizes/normal_font_size = 16
-bbcode_enabled = true
-text = "[center]Ingresa los detalles para conectar con el servidor remoto o LAN.[/center]"
-fit_content = true
+theme_override_constants/separation = 40
 
-[node name="RemoteConfigArea" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout" unique_id=1713837048]
+[node name="LocalSide" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox" unique_id=442123875]
 layout_mode = 2
-theme_override_constants/separation = 20
-
-[node name="TxtRemoteUrlInput" type="LineEdit" parent="Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea" unique_id=231083973]
-custom_minimum_size = Vector2(0, 50)
-layout_mode = 2
-placeholder_text = "Ej: 192.168.1.10 o link remoto"
-
-[node name="OptionsLayout" type="HBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea" unique_id=1346809770]
-layout_mode = 2
-theme_override_constants/separation = 20
+size_flags_horizontal = 3
 alignment = 1
 
-[node name="ChkIsLan" type="CheckBox" parent="Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea/OptionsLayout" unique_id=705322740]
+[node name="BtnLocalHost" type="Button" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/LocalSide" unique_id=2005386788]
 layout_mode = 2
-theme_override_fonts/font = SubResource("SystemFont_regular")
-text = "Es conexión LAN"
+text = "Iniciar Local Host"
 
-[node name="BtnAdvancedSettings" type="Button" parent="Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea/OptionsLayout" unique_id=237005639]
+[node name="RemoteSide" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox" unique_id=1310230149]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.372549, 0.501961, 0.356863, 1)
-theme_override_colors/font_hover_color = Color(0.25098, 0.34902, 0.239216, 1)
-theme_override_fonts/font = SubResource("SystemFont_bold")
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_advanced")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_advanced_hover")
-theme_override_styles/hover = SubResource("StyleBoxFlat_btn_advanced_hover")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
-text = "Configuración Avanzada"
-
-[node name="AdvancedContainer" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea" unique_id=1610297906]
-layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 15
 
-[node name="PortLabel" type="RichTextLabel" parent="Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea/AdvancedContainer" unique_id=1009261377]
-custom_minimum_size = Vector2(0, 25)
+[node name="TxtRemoteUrlInput" type="LineEdit" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide" unique_id=1822061004]
 layout_mode = 2
-theme_override_colors/default_color = Color(0.5, 0.5, 0.5, 1)
-theme_override_font_sizes/normal_font_size = 14
-bbcode_enabled = true
-text = "Puerto personalizado:"
-fit_content = true
+placeholder_text = "IP Servidor"
 
-[node name="TxtCustomPort" type="LineEdit" parent="Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea/AdvancedContainer" unique_id=1002123401]
-custom_minimum_size = Vector2(0, 50)
+[node name="BtnAdvancedSettings" type="Button" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide" unique_id=247052712]
 layout_mode = 2
-text = "8080"
+text = "Opciones Avanzadas"
+
+[node name="AdvancedContainer" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide" unique_id=1837030879]
+layout_mode = 2
+
+[node name="ChkIsLan" type="CheckBox" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/AdvancedContainer" unique_id=940285534]
+layout_mode = 2
+text = "Es LAN"
+
+[node name="TxtCustomPort" type="LineEdit" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/AdvancedContainer" unique_id=1704599212]
+layout_mode = 2
 placeholder_text = "Puerto"
 
-[node name="BtnConnect" type="Button" parent="Background/CenterContainer/PanelModeSelection/Layout/RemoteConfigArea" unique_id=1935856763]
-custom_minimum_size = Vector2(250, 60)
+[node name="BtnConnect" type="Button" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide" unique_id=224865071]
 layout_mode = 2
-size_flags_horizontal = 4
-theme_override_fonts/font = SubResource("SystemFont_bold")
-theme_override_font_sizes/font_size = 18
-text = "Conectar"
+text = "Conectar Remoto"
 
-[node name="Divider" type="HSeparator" parent="Background/CenterContainer/PanelModeSelection/Layout" unique_id=373390332]
-layout_mode = 2
-theme_override_constants/separation = 20
-
-[node name="LocalHostArea" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout" unique_id=487227642]
-layout_mode = 2
-alignment = 1
-
-[node name="LocalHostSubtitle" type="RichTextLabel" parent="Background/CenterContainer/PanelModeSelection/Layout/LocalHostArea" unique_id=700522469]
-custom_minimum_size = Vector2(0, 30)
-layout_mode = 2
-theme_override_colors/default_color = Color(0.5, 0.5, 0.5, 1)
-theme_override_font_sizes/normal_font_size = 14
-bbcode_enabled = true
-text = "[center]¿Ejecutando en esta máquina?[/center]"
-fit_content = true
-
-[node name="BtnLocalHost" type="Button" parent="Background/CenterContainer/PanelModeSelection/Layout/LocalHostArea" unique_id=1049762919]
-custom_minimum_size = Vector2(200, 50)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_colors/font_color = Color(0.3, 0.3, 0.3, 1)
-theme_override_fonts/font = SubResource("SystemFont_bold")
-theme_override_font_sizes/font_size = 16
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_secondary_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_secondary_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_btn_secondary_hover")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
-text = "💻 Iniciar Local Host"
-
-[node name="PanelModelSelection" type="PanelContainer" parent="Background/CenterContainer" unique_id=344441999]
+[node name="PanelModelSelection" type="PanelContainer" parent="Background/CenterContainer" unique_id=1514115279]
 visible = false
 custom_minimum_size = Vector2(800, 600)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel_card")
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="Background/CenterContainer/PanelModelSelection" unique_id=605606871]
-libraries/ = SubResource("AnimationLibrary_panel")
-
-[node name="Layout" type="VBoxContainer" parent="Background/CenterContainer/PanelModelSelection" unique_id=76603176]
+[node name="Layout" type="VBoxContainer" parent="Background/CenterContainer/PanelModelSelection" unique_id=2051444956]
 layout_mode = 2
 theme_override_constants/separation = 25
 
-[node name="Title" type="RichTextLabel" parent="Background/CenterContainer/PanelModelSelection/Layout" unique_id=657607764]
-custom_minimum_size = Vector2(0, 40)
+[node name="Title" type="Label" parent="Background/CenterContainer/PanelModelSelection/Layout" unique_id=531377441]
 layout_mode = 2
-theme_override_fonts/normal_font = SubResource("SystemFont_bold")
-theme_override_font_sizes/normal_font_size = 26
-bbcode_enabled = true
-text = "[center]Selección de Modelo de Lenguaje[/center]"
-fit_content = true
+theme_override_fonts/font = SubResource("SystemFont_bold")
+theme_override_font_sizes/font_size = 26
+text = "Configuración de Inteligencia"
+horizontal_alignment = 1
 
-[node name="Subtitle" type="RichTextLabel" parent="Background/CenterContainer/PanelModelSelection/Layout" unique_id=931369138]
-custom_minimum_size = Vector2(0, 30)
+[node name="Subtitle" type="Label" parent="Background/CenterContainer/PanelModelSelection/Layout" unique_id=48860731]
 layout_mode = 2
-theme_override_colors/default_color = Color(0.4, 0.4, 0.4, 1)
-bbcode_enabled = true
-text = "[center]Selecciona un modelo preconfigurado para descargar o enlazar.[/center]"
-fit_content = true
+theme_override_colors/font_color = Color(0.4, 0.4, 0.4, 1)
+text = "Selecciona 1 Modelo Base (LLM), 1 Modelo de Escucha (STT) y 1 de Voz (TTS)"
+horizontal_alignment = 1
 
-[node name="ScrollContainer" type="ScrollContainer" parent="Background/CenterContainer/PanelModelSelection/Layout" unique_id=1840815222]
+[node name="ScrollContainer" type="ScrollContainer" parent="Background/CenterContainer/PanelModelSelection/Layout" unique_id=1849190899]
 layout_mode = 2
 size_flags_vertical = 3
-horizontal_scroll_mode = 0
 
-[node name="ModelListContainer" type="VBoxContainer" parent="Background/CenterContainer/PanelModelSelection/Layout/ScrollContainer" unique_id=134997517]
+[node name="ModelListContainer" type="VBoxContainer" parent="Background/CenterContainer/PanelModelSelection/Layout/ScrollContainer" unique_id=1156336347]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_constants/separation = 20
+theme_override_constants/separation = 15
 
-[node name="PanelDownloading" type="PanelContainer" parent="Background/CenterContainer" unique_id=992298673]
+[node name="BtnStartBatchDownload" type="Button" parent="Background/CenterContainer/PanelModelSelection/Layout" unique_id=2049936478]
+custom_minimum_size = Vector2(300, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_fonts/font = SubResource("SystemFont_bold")
+text = "Iniciar Descarga por Lotes"
+
+[node name="PanelDownloading" type="PanelContainer" parent="Background/CenterContainer" unique_id=1654014997]
 visible = false
 custom_minimum_size = Vector2(650, 350)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel_card")
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="Background/CenterContainer/PanelDownloading" unique_id=1080826936]
-libraries/ = SubResource("AnimationLibrary_panel")
-
-[node name="Layout" type="VBoxContainer" parent="Background/CenterContainer/PanelDownloading" unique_id=823484763]
+[node name="Layout" type="VBoxContainer" parent="Background/CenterContainer/PanelDownloading" unique_id=352351093]
 layout_mode = 2
 theme_override_constants/separation = 35
 alignment = 1
 
-[node name="Title" type="RichTextLabel" parent="Background/CenterContainer/PanelDownloading/Layout" unique_id=1082648318]
+[node name="Title" type="Label" parent="Background/CenterContainer/PanelDownloading/Layout" unique_id=2016011361]
+layout_mode = 2
+theme_override_fonts/font = SubResource("SystemFont_bold")
+theme_override_font_sizes/font_size = 24
+text = "Preparando Componentes"
+horizontal_alignment = 1
+
+[node name="ModelDownloadStatus" type="RichTextLabel" parent="Background/CenterContainer/PanelDownloading/Layout" unique_id=376470092]
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
-theme_override_fonts/normal_font = SubResource("SystemFont_bold")
-theme_override_font_sizes/normal_font_size = 24
 bbcode_enabled = true
-text = "[center]Preparando Componentes[/center]"
-fit_content = true
+text = "[center]Iniciando proceso...[/center]"
 
-[node name="ModelDownloadStatus" type="RichTextLabel" parent="Background/CenterContainer/PanelDownloading/Layout" unique_id=651772073]
-custom_minimum_size = Vector2(0, 40)
-layout_mode = 2
-theme_override_colors/default_color = Color(0.3, 0.3, 0.3, 1)
-theme_override_fonts/normal_font = SubResource("SystemFont_italic")
-bbcode_enabled = true
-text = "[center]Iniciando proceso de descarga...[/center]"
-fit_content = true
-
-[node name="ModelDownloadProgress" type="ProgressBar" parent="Background/CenterContainer/PanelDownloading/Layout" unique_id=1021982816]
+[node name="ModelDownloadProgress" type="ProgressBar" parent="Background/CenterContainer/PanelDownloading/Layout" unique_id=1265028820]
 custom_minimum_size = Vector2(400, 20)
 layout_mode = 2
 size_flags_horizontal = 4

@@ -24,6 +24,12 @@ namespace Logic.UI
         [Export] public VideoStream RandomVideo2;
         [Export] public VideoStream RandomVideo3;
         [Export] public VideoStream RandomVideo4;
+        [Export] public AudioStreamPlayer MicroRecorderPlayer; 
+
+        private AudioEffectRecord _recorder;
+        private float _silenceTimer = 0.0f;
+        private const float SilenceThreshold = 0.05f;
+        private bool _isRecording = false;
         
         private HBoxContainer _currentBotMessageNode;
         private bool _isLiveModeEnabled = false;
@@ -34,6 +40,11 @@ namespace Logic.UI
         private string _fullMessageBuffer = string.Empty;
         private Random _randomGenerator = new Random();
 
+        /// <summary>
+        /// Configura los delegados de la interfaz de usuario e inicializa las suscripciones a las señales de red y procesamiento 
+        /// en el momento en que el nodo se acopla al árbol de escena, incluyendo la escucha de la finalización del STT
+        /// y la configuración del bus nativo de grabación.
+        /// </summary>
         public override void _Ready()
         {
             if (TextInputField == null) return;
@@ -43,6 +54,12 @@ namespace Logic.UI
             
             if (UserMessageTemplate != null) UserMessageTemplate.Visible = false;
             if (BotMessageTemplate != null) BotMessageTemplate.Visible = false;
+
+            int recordBusIndex = AudioServer.GetBusIndex("Record");
+            if (recordBusIndex != -1)
+            {
+                _recorder = (AudioEffectRecord)AudioServer.GetBusEffect(recordBusIndex, 0);
+            }
 
             Node networkManager = GetNodeOrNull("/root/NetworkManager");
             if (networkManager != null)
@@ -54,6 +71,99 @@ namespace Logic.UI
             if (chatManager != null)
             {
                 chatManager.Connect("MessageReady", new Callable(this, MethodName.OnMessageReady));
+            }
+
+            Node backendLauncher = GetNodeOrNull("/root/BackendLauncher");
+            if (backendLauncher != null)
+            {
+                backendLauncher.Connect("STTCompleted", new Callable(this, MethodName.OnSTTCompleted));
+            }
+        }
+
+        /// <summary>
+        /// Monitoriza asíncronamente el bus de grabación de audio para evaluar los umbrales de sonido.
+        /// Desencadena el registro y el envío del segmento de audio tras superar la tolerancia de silencio.
+        /// </summary>
+        public override void _Process(double delta)
+        {
+            if (!_isLiveModeEnabled || _recorder == null) return;
+
+            int recordBusIndex = AudioServer.GetBusIndex("Record");
+            float currentDb = AudioServer.GetBusPeakVolumeLeftDb(recordBusIndex, 0);
+            float linearVolume = Mathf.DbToLinear(currentDb);
+
+            if (linearVolume > SilenceThreshold)
+            {
+                if (!_isRecording) StartRecording();
+                _silenceTimer = 0.0f; 
+            }
+            else if (_isRecording)
+            {
+                _silenceTimer += (float)delta;
+                if (_silenceTimer >= 3.0f) 
+                {
+                    StopAndSendRecording();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Habilita el estado de captura activa sobre el bus asignado al efecto de grabación.
+        /// </summary>
+        private void StartRecording()
+        {
+            _isRecording = true;
+            _recorder.SetRecordingActive(true);
+            GD.Print("ChatBot: Detectada voz, grabando...");
+        }
+
+        /// <summary>
+        /// Finaliza la captura del segmento actual de voz, lo serializa en un archivo binario WAV dentro 
+        /// de la partición de usuario y cede el procesamiento a la canalización STT en segundo plano.
+        /// </summary>
+        private void StopAndSendRecording()
+        {
+            _isRecording = false;
+            _recorder.SetRecordingActive(false);
+            AudioStreamWav recording = _recorder.GetRecording();
+            
+            if (recording != null)
+            {
+                string path = ProjectSettings.GlobalizePath("user://audio/chat_input.wav");
+                recording.SaveToWav(path);
+                
+                Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
+                if (backend != null) backend.ProcessSpeechToText(path);
+            }
+            _silenceTimer = 0.0f;
+        }
+
+        /// <summary>
+        /// Captura la señal emitida al finalizar la transcripción de audio, validando la cadena resultante 
+        /// y derivándola al flujo principal de procesamiento de mensajes del chatbot.
+        /// </summary>
+        /// <param name="recognizedText">Cadena de texto generada por el motor STT.</param>
+        private void OnSTTCompleted(string recognizedText)
+        {
+            if (string.IsNullOrWhiteSpace(recognizedText)) return;
+            
+            GD.Print($"LiveMode: Escuché: {recognizedText}");
+            _ = ProcessMessage(recognizedText);
+        }
+
+        /// <summary>
+        /// Delega la síntesis de una cadena de texto al motor de audio subyacente. 
+        /// Inyecta la instrucción asíncrona hacia el proceso en contenedor.
+        /// </summary>
+        /// <param name="textToSynthesize">Cadena que requiere conversión a flujo de audio.</param>
+        private void DispatchSherpaSpeech(string textToSynthesize)
+        {
+            if (string.IsNullOrWhiteSpace(textToSynthesize)) return;
+            
+            Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
+            if (backend != null) 
+            {
+                backend.GenerateTextToSpeech(textToSynthesize);
             }
         }
 
@@ -166,6 +276,7 @@ namespace Logic.UI
                 {
                     videoPlayer.Stream = chosenVideo;
                 }
+                
 
                 aspectContainer.AddChild(videoPlayer);
                 videoWrapper.AddChild(aspectContainer);
@@ -311,6 +422,11 @@ namespace Logic.UI
             TextInputField.GrabFocus();
         }
 
+        /// <summary>
+        /// Procesa el flujo de texto entrante del LLM en tiempo real.
+        /// Garantiza la separación de canales: actualiza la UI visualmente de forma incondicional,
+        /// pero delega la síntesis de voz (TTS) única y exclusivamente si el contexto es interactivo (LiveMode).
+        /// </summary>
         private void OnTokenReceived(string token)
         {
             if (_currentBotMessageNode == null) return;
@@ -331,17 +447,14 @@ namespace Logic.UI
 
             if (token.Contains(".") || token.Contains("!") || token.Contains("?"))
             {
-                if (_isLiveModeEnabled) DispatchSherpaSpeech(_ttsBuffer.Trim());
+                // Evaluación de contexto estricta: El bot permanece mudo en chat regular.
+                if (_isLiveModeEnabled) 
+                {
+                    DispatchSherpaSpeech(_ttsBuffer.Trim());
+                }
+                
                 _ttsBuffer = string.Empty;
             }
-        }
-
-        private void DispatchSherpaSpeech(string textToSynthesize)
-        {
-            if (string.IsNullOrWhiteSpace(textToSynthesize)) return;
-            
-            Logic.Backend.BackendLauncher backendLauncher = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
-            if (backendLauncher != null) backendLauncher.StartSherpaTTS(textToSynthesize);
         }
 
         private async void ScrollToBottom()

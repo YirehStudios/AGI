@@ -1,26 +1,20 @@
 [gd_scene format=3 uid="uid://bx5yq2jklxap"]
 
-
 [ext_resource type="Script" uid="uid://cqlqgupb2vwje" path="res://Script/Cs/LivemodeMain.cs" id="1_script"]
-
 
 [sub_resource type="SystemFont" id="SystemFont_regular"]
 font_names = PackedStringArray("Sans-Serif")
 subpixel_positioning = 0
 
-
 [sub_resource type="Theme" id="Theme_global"]
 default_font = SubResource("SystemFont_regular")
 default_font_size = 15
 
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_main_bg"]
 bg_color = Color(0.882, 0.882, 0.839, 1)
 
-
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_panel_wrapper"]
 content_margin_left = 0.0
-
 
 [sub_resource type="Shader" id="Shader_chatgpt_blob"]
 code = "shader_type canvas_item;
@@ -53,17 +47,14 @@ void fragment() {
    COLOR = vec4(1.0, 1.0, 1.0, alpha);
 }"
 
-
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_chatgpt_blob"]
 shader = SubResource("Shader_chatgpt_blob")
 shader_parameter/state = 0.0
-
 
 [sub_resource type="SystemFont" id="SystemFont_bold"]
 font_names = PackedStringArray("Sans-Serif")
 font_weight = 700
 subpixel_positioning = 0
-
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fab_bg"]
 bg_color = Color(0.373, 0.502, 0.357, 1)
@@ -74,7 +65,6 @@ corner_radius_bottom_left = 100
 shadow_color = Color(0.373, 0.502, 0.357, 0.2)
 shadow_size = 10
 
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fab_pressed"]
 bg_color = Color(0.25, 0.35, 0.24, 1)
 corner_radius_top_left = 100
@@ -82,10 +72,8 @@ corner_radius_top_right = 100
 corner_radius_bottom_right = 100
 corner_radius_bottom_left = 100
 
-
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_line_edit"]
 content_margin_left = 0.0
-
 
 [sub_resource type="Animation" id="Animation_idle"]
 resource_name = "idle"
@@ -105,7 +93,6 @@ tracks/0/keys = {
 "values": [0.0]
 }
 
-
 [sub_resource type="Animation" id="Animation_speak"]
 resource_name = "speak"
 length = 2.0
@@ -124,7 +111,6 @@ tracks/0/keys = {
 "values": [1.0]
 }
 
-
 [sub_resource type="Animation" id="Animation_transition"]
 resource_name = "transition"
 length = 1.2
@@ -142,7 +128,6 @@ tracks/0/keys = {
 "values": [0.0, 1.0]
 }
 
-
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_waves"]
 _data = {
 &"idle": SubResource("Animation_idle"),
@@ -150,8 +135,11 @@ _data = {
 &"transition": SubResource("Animation_transition")
 }
 
+[sub_resource type="AudioStreamMicrophone" id="AudioStreamMicrophone_k6qk6"]
 
-[node name="LiveModeInterface" type="Panel" node_paths=PackedStringArray("WaveVisualizer", "WaveAnimationPlayer")]
+[sub_resource type="AudioStreamWAV" id="AudioStreamWAV_k6qk6"]
+
+[node name="LiveModeInterface" type="Panel" unique_id=140527907 node_paths=PackedStringArray("WaveVisualizer", "WaveAnimationPlayer", "AIVoicePlayer", "MicroRecorderPlayer")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -162,9 +150,10 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_main_bg")
 script = ExtResource("1_script")
 WaveVisualizer = NodePath("MainContainer/LiveAreaContainer/CenterArea/WaveVisualizer")
 WaveAnimationPlayer = NodePath("WaveAnimationPlayer")
+AIVoicePlayer = NodePath("AIVoiceStream")
+MicroRecorderPlayer = NodePath("Microphone")
 
-
-[node name="MainContainer" type="HBoxContainer" parent="."]
+[node name="MainContainer" type="HBoxContainer" parent="." unique_id=1363021348]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -173,20 +162,17 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-
-[node name="LiveAreaContainer" type="VBoxContainer" parent="MainContainer"]
+[node name="LiveAreaContainer" type="VBoxContainer" parent="MainContainer" unique_id=1032666910]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 0
 
-
-[node name="CenterArea" type="Panel" parent="MainContainer/LiveAreaContainer"]
+[node name="CenterArea" type="Panel" parent="MainContainer/LiveAreaContainer" unique_id=1594809293]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = SubResource("StyleBoxEmpty_panel_wrapper")
 
-
-[node name="WaveVisualizer" type="ColorRect" parent="MainContainer/LiveAreaContainer/CenterArea"]
+[node name="WaveVisualizer" type="ColorRect" parent="MainContainer/LiveAreaContainer/CenterArea" unique_id=1353382466]
 material = SubResource("ShaderMaterial_chatgpt_blob")
 layout_mode = 1
 anchors_preset = 8
@@ -201,8 +187,7 @@ offset_bottom = 300.0
 grow_horizontal = 2
 grow_vertical = 2
 
-
-[node name="BottomControls" type="VBoxContainer" parent="MainContainer/LiveAreaContainer/CenterArea"]
+[node name="BottomControls" type="VBoxContainer" parent="MainContainer/LiveAreaContainer/CenterArea" unique_id=2124525154]
 layout_mode = 1
 anchors_preset = 7
 anchor_left = 0.5
@@ -218,8 +203,7 @@ grow_vertical = 0
 theme_override_constants/separation = 20
 alignment = 1
 
-
-[node name="StatusText" type="RichTextLabel" parent="MainContainer/LiveAreaContainer/CenterArea/BottomControls"]
+[node name="StatusText" type="RichTextLabel" parent="MainContainer/LiveAreaContainer/CenterArea/BottomControls" unique_id=927908672]
 layout_mode = 2
 theme_override_colors/default_color = Color(0.4, 0.4, 0.4, 1)
 theme_override_font_sizes/normal_font_size = 14
@@ -227,13 +211,11 @@ bbcode_enabled = true
 text = "[center]Tap to cancel[/center]"
 fit_content = true
 
-
-[node name="CenterButtonLayout" type="HBoxContainer" parent="MainContainer/LiveAreaContainer/CenterArea/BottomControls"]
+[node name="CenterButtonLayout" type="HBoxContainer" parent="MainContainer/LiveAreaContainer/CenterArea/BottomControls" unique_id=429733414]
 layout_mode = 2
 alignment = 1
 
-
-[node name="FloatingActionButton" type="Button" parent="MainContainer/LiveAreaContainer/CenterArea/BottomControls/CenterButtonLayout"]
+[node name="FloatingActionButton" type="Button" parent="MainContainer/LiveAreaContainer/CenterArea/BottomControls/CenterButtonLayout" unique_id=947743705]
 custom_minimum_size = Vector2(60, 60)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
@@ -249,7 +231,16 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_fab_pressed")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = "X"
 
-
-[node name="WaveAnimationPlayer" type="AnimationPlayer" parent="."]
+[node name="WaveAnimationPlayer" type="AnimationPlayer" parent="." unique_id=690994155]
 libraries/ = SubResource("AnimationLibrary_waves")
 autoplay = &"idle"
+
+[node name="Microphone" type="AudioStreamPlayer" parent="." unique_id=1019788780]
+stream = SubResource("AudioStreamMicrophone_k6qk6")
+autoplay = true
+bus = &"Record"
+
+[node name="AIVoiceStream" type="AudioStreamPlayer" parent="." unique_id=1061261565]
+stream = SubResource("AudioStreamWAV_k6qk6")
+autoplay = true
+bus = &"Voice"
