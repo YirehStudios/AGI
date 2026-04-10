@@ -7,12 +7,6 @@ using System.Diagnostics;
 
 namespace Logic.Network
 {
-    /// <summary>
-    /// Gestiona la adquisición de recursos externos y la extracción de paquetes comprimidos.
-    /// Emplea un modelo de arquitectura híbrida, asegurando que las transferencias de red se ejecuten en 
-    /// subprocesos dedicados para emitir eventos de progreso, mientras delega las verificaciones de sistema 
-    /// y las extracciones al hilo principal mediante OS.Execute para prevenir interbloqueos en el motor de Godot.
-    /// </summary>
     public partial class DownloadManager : Node
     {
         [Signal]
@@ -21,10 +15,6 @@ namespace Logic.Network
         [Signal]
         public delegate void DownloadCompletedEventHandler(string fileName, bool success);
 
-        /// <summary>
-        /// Evalúa en el hilo principal la disponibilidad del ejecutable aria2c invocando al sistema operativo.
-        /// </summary>
-        /// <returns>Verdadero si el binario existe y es accesible en la ruta del sistema.</returns>
         private bool CheckAria2Availability()
         {
             Godot.Collections.Array output = new Godot.Collections.Array();
@@ -32,17 +22,9 @@ namespace Logic.Network
             return exitCode == 0;
         }
 
-        /// <summary>
-        /// Coordina el ciclo de vida de una descarga externa de forma asíncrona.
-        /// Separa el análisis del entorno (hilo principal), la transferencia de bytes (subproceso)
-        /// y la descompresión de datos (hilo principal) para mantener fluidez gráfica (60 FPS).
-        /// </summary>
-        /// <param name="url">Ubicación de red absoluta del recurso objetivo.</param>
-        /// <param name="destinationFolder">Directorio virtual interno destino (e.g. "user://models").</param>
-        /// <param name="fileName">Nombre de archivo forzado para la estandarización local.</param>
         public async Task<bool> DownloadFileAsync(string url, string destinationFolder, string fileName)
         {
-            // Paso 1: Inicialización en el Hilo Principal
+            // Paso 1: Inicialización
             url = url.Trim();
             bool hasAria2 = CheckAria2Availability();
             string globalDestination = ProjectSettings.GlobalizePath(destinationFolder);
@@ -54,9 +36,10 @@ namespace Logic.Network
 
             string filePath = Path.Combine(globalDestination, fileName);
 
-            // Paso 2: Ejecución de Transferencia en Subproceso
-            bool downloadSuccess = await Task.Run(async () =>
+            // Paso 2 y 3: TODO EL PROCESO PESADO (Descarga y Extracción) EN EL SUBPROCESO
+            bool finalSuccess = await Task.Run(async () =>
             {
+                bool downloadSuccess = false;
                 try
                 {
                     if (hasAria2)
@@ -92,14 +75,13 @@ namespace Logic.Network
                                 Match match = Regex.Match(e.Data, @"\((\d+)%\)");
                                 if (match.Success && float.TryParse(match.Groups[1].Value, out float percentage))
                                 {
-                                    // Verificación de seguridad nativa de Godot antes de despachar al hilo principal
                                     if (Godot.GodotObject.IsInstanceValid(this) && !this.IsQueuedForDeletion())
                                     {
                                         try 
                                         {
                                             CallDeferred(Godot.GodotObject.MethodName.EmitSignal, SignalName.DownloadProgress, fileName, percentage);
                                         }
-                                        catch (ObjectDisposedException) { /* Ignorar eventos huérfanos */ }
+                                        catch (ObjectDisposedException) { }
                                     }
                                 }
                             }
@@ -110,7 +92,7 @@ namespace Logic.Network
                         process.BeginErrorReadLine();
                         process.WaitForExit();
 
-                        return (process.ExitCode == 0);
+                        downloadSuccess = (process.ExitCode == 0);
                     }
                     else
                     {
@@ -145,76 +127,84 @@ namespace Logic.Network
                             }
                         }
 
-                        return true;
+                        downloadSuccess = true;
                     }
                 }
                 catch (Exception ex)
                 {
                     GD.PrintErr($"DownloadManager: Error en transferencia de {fileName}. Excepción: {ex.Message}");
-                    return false;
-                }
-            });
-
-            // Paso 3: Extracción de Paquetes Segura en Hilo Principal
-            if (downloadSuccess)
-            {
-                try
-                {
-                    string expectedExtractedName = fileName.Replace(".tar.gz", "").Replace(".zip", "").Replace(".tar.bz2", "");
-                    string expectedExtractedPath = Path.Combine(globalDestination, expectedExtractedName);
-
-                    if (fileName.EndsWith(".tar.gz"))
-                    {
-                        GD.Print($"DownloadManager: Extrayendo paquete tar.gz {fileName}...");
-                        Godot.Collections.Array tarOutput = new Godot.Collections.Array();
-                        int tarExitCode = OS.Execute("tar", new string[] { "-xzf", filePath, "-C", globalDestination }, tarOutput, true);
-                        if (tarExitCode != 0) throw new Exception("La extracción vía tar falló.");
-                    }
-                    else if (fileName.EndsWith(".tar.bz2"))
-                    {
-                        GD.Print($"DownloadManager: Extrayendo paquete tar.bz2 {fileName}...");
-                        Godot.Collections.Array tarOutput = new Godot.Collections.Array();
-                        int tarExitCode = OS.Execute("tar", new string[] { "-xjf", filePath, "-C", globalDestination }, tarOutput, true);
-                        if (tarExitCode != 0) throw new Exception("La extracción de bz2 vía tar falló.");
-                    }
-                    else if (fileName.EndsWith(".zip"))
-                    {
-                        GD.Print($"DownloadManager: Extrayendo archivo zip {fileName}...");
-                        Godot.Collections.Array zipOutput = new Godot.Collections.Array();
-                        int zipExitCode = OS.Execute("unzip", new string[] { "-o", filePath, "-d", globalDestination }, zipOutput, true);
-                        if (zipExitCode != 0) throw new Exception("La extracción vía unzip falló.");
-                    }
-
-                    if (fileName.EndsWith(".tar.gz") || fileName.EndsWith(".zip") || fileName.EndsWith(".tar.bz2"))
-                    {
-                        if (!File.Exists(expectedExtractedPath) && !Directory.Exists(expectedExtractedPath))
-                        {
-                            GD.PrintErr($"DownloadManager: Validación fallida. No se detectó la estructura extraída.");
-                            downloadSuccess = false;
-                        }
-                        else
-                        {
-                            GD.Print("DownloadManager: Validación exitosa post-extracción.");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    GD.PrintErr($"DownloadManager: Error crítico en extracción de {fileName}. Excepción: {ex.Message}");
                     downloadSuccess = false;
                 }
-            }
 
-            // Paso 4: Finalización y Notificación
+                // Paso 3: EXTRACCIÓN (AHORA EN EL SUBPROCESO PARA NO CONGELAR LA UI)
+                if (downloadSuccess)
+                {
+                    try
+                    {
+                        string expectedExtractedName = fileName.Replace(".tar.gz", "").Replace(".zip", "").Replace(".tar.bz2", "");
+                        string expectedExtractedPath = Path.Combine(globalDestination, expectedExtractedName);
+
+                        if (fileName.EndsWith(".tar.gz") || fileName.EndsWith(".tar.bz2") || fileName.EndsWith(".zip"))
+                        {
+                            // Avisamos a la interfaz que estamos extrayendo
+                            CallDeferred(Godot.GodotObject.MethodName.EmitSignal, SignalName.DownloadProgress, fileName + " (Extrayendo...)", 99f);
+
+                            using Process extractProcess = new Process();
+                            extractProcess.StartInfo.UseShellExecute = false;
+                            extractProcess.StartInfo.CreateNoWindow = true;
+
+                            if (fileName.EndsWith(".tar.gz"))
+                            {
+                                extractProcess.StartInfo.FileName = "tar";
+                                extractProcess.StartInfo.Arguments = $"-xzf \"{filePath}\" -C \"{globalDestination}\"";
+                            }
+                            else if (fileName.EndsWith(".tar.bz2"))
+                            {
+                                extractProcess.StartInfo.FileName = "tar";
+                                extractProcess.StartInfo.Arguments = $"-xjf \"{filePath}\" -C \"{globalDestination}\"";
+                            }
+                            else if (fileName.EndsWith(".zip"))
+                            {
+                                extractProcess.StartInfo.FileName = "unzip";
+                                extractProcess.StartInfo.Arguments = $"-o \"{filePath}\" -d \"{globalDestination}\"";
+                            }
+
+                            extractProcess.Start();
+                            extractProcess.WaitForExit();
+
+                            if (extractProcess.ExitCode != 0) throw new Exception("El proceso de extracción falló en el sistema.");
+
+                            if (!File.Exists(expectedExtractedPath) && !Directory.Exists(expectedExtractedPath))
+                            {
+                                GD.PrintErr($"DownloadManager: Validación fallida. No se detectó la estructura extraída.");
+                                downloadSuccess = false;
+                            }
+                            else
+                            {
+                                GD.Print("DownloadManager: Validación exitosa post-extracción.");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        GD.PrintErr($"DownloadManager: Error crítico en extracción de {fileName}. Excepción: {ex.Message}");
+                        downloadSuccess = false;
+                    }
+                }
+                
+                return downloadSuccess;
+            });
+
+            // Paso 4: Finalización y Notificación de vuelta al hilo principal
             if (Godot.GodotObject.IsInstanceValid(this) && !this.IsQueuedForDeletion())
             {
                 try
                 {
-                    CallDeferred(MethodName.EmitSignal, SignalName.DownloadCompleted, fileName, downloadSuccess);
+                    CallDeferred(MethodName.EmitSignal, SignalName.DownloadCompleted, fileName, finalSuccess);
                 }
                 catch (ObjectDisposedException) { }
             }
-            return downloadSuccess;
+            return finalSuccess;
         }
     }
 }

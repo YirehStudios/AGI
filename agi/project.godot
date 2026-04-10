@@ -20,6 +20,11 @@ boot_splash/stretch_mode=0
 boot_splash/image="uid://dxui8em8fu8w3"
 config/icon="uid://dxui8em8fu8w3"
 
+[audio]
+
+buses/default_bus_layout="uid://b8m7idityqok1"
+driver/enable_input=true
+
 [autoload]
 
 NetworkManager="*uid://dd0kvqdfb8yt5"

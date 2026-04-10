@@ -110,12 +110,20 @@ namespace Logic.UI
             }
         }
 
+        /// <summary>
+        /// Delega la síntesis de una cadena de texto al motor de audio subyacente.
+        /// Emplea el método modular actualizado GenerateTextToSpeech en el BackendLauncher.
+        /// </summary>
+        /// <param name="textToSynthesize">Cadena que requiere conversión a flujo de audio.</param>
         private void DispatchSherpaSpeech(string textToSynthesize)
         {
             if (string.IsNullOrWhiteSpace(textToSynthesize)) return;
-           
-            Logic.Backend.BackendLauncher backendLauncher = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
-            if (backendLauncher != null) backendLauncher.StartSherpaTTS(textToSynthesize);
+            
+            Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
+            if (backend != null) 
+            {
+                backend.GenerateTextToSpeech(textToSynthesize);
+            }
         }
 
         private async void ScrollToBottom()

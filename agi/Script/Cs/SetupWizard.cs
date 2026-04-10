@@ -4,311 +4,397 @@ using System.Collections.Generic;
 using Logic.System.Config;
 using Logic.System.Drivers;
 using Logic.Network;
+using System.Threading.Tasks;
 
 namespace Logic.Utils
 {
-	/// <summary>
-	/// Orchestrates the initial application setup through a State Machine approach,
-	/// managing UI transitions, dependency installations, and configuration binding.
-	/// </summary>
-	public partial class SetupWizard : Control
-	{
-		public enum WizardState
-		{
-			Welcome,
-			Dependencies,
-			ModeSelection,
-			ModelSelection,
-			Downloading,
-			StartingServer // <--- NUEVO ESTADO
-		}
+    /// <summary>
+    /// Orchestrates the initial application setup through a State Machine approach.
+    /// Manages UI transitions, dependency installations, and configuration binding.
+    /// </summary>
+    public partial class SetupWizard : Control
+    {
+        public enum WizardState
+        {
+            Welcome,
+            Dependencies,
+            ModeSelection,
+            ModelSelection,
+            Downloading,
+            StartingServer
+        }
 
-		[Export] public Control PanelWelcome;
-		[Export] public Control PanelDependencies;
-		[Export] public Control PanelModeSelection;
-		[Export] public Control PanelModelSelection;
-		[Export] public Control PanelDownloading;
+        [Export] public Control PanelWelcome;
+        [Export] public Control PanelDependencies;
+        [Export] public Control PanelModeSelection;
+        [Export] public Control PanelModelSelection;
+        [Export] public Control PanelDownloading;
 
-		[Export] public RichTextLabel TerminalLog;
-		[Export] public ProgressBar InstallProgress;
-		[Export] public Button BtnComenzar;
-		[Export] public Button BtnServidorRemoto;
-		[Export] public Button BtnLocalHost;
+        [Export] public RichTextLabel TerminalLog;
+        [Export] public ProgressBar InstallProgress;
+        [Export] public Button BtnComenzar;
+        [Export] public Button BtnServidorRemoto;
+        [Export] public Button BtnLocalHost;
         [Export] public TextEdit TxtCommandDisplay;
-		[Export] public Button BtnCopyCommand;
-		[Export] public RichTextLabel LblRestartWarning;
+        [Export] public Button BtnCopyCommand;
+        [Export] public RichTextLabel LblRestartWarning;
         [Export] public VBoxContainer ModelListContainer;
-		
-		[Export] public string MainChatScenePath = "res://Scenes/IAScene/MainApp.tscn";
+
+        [Export] public string MainChatScenePath = "res://Scenes/IAScene/MainApp.tscn";
         [Export] public ProgressBar ModelDownloadProgress;
-		[Export] public RichTextLabel ModelDownloadStatus;
-		[Export] public Button BtnConnect;
-		[Export] public LineEdit TxtRemoteUrlInput;
-		[Export] public CheckBox ChkIsLan;
-		[Export] public Button BtnAdvancedSettings;
-		[Export] public VBoxContainer AdvancedContainer;
-		[Export] public LineEdit TxtCustomPort;
-		private DownloadManager _downloadManager;
+        [Export] public RichTextLabel ModelDownloadStatus;
+        [Export] public Button BtnConnect;
+        [Export] public LineEdit TxtRemoteUrlInput;
+        [Export] public CheckBox ChkIsLan;
+        [Export] public Button BtnAdvancedSettings;
+        [Export] public VBoxContainer AdvancedContainer;
+        [Export] public LineEdit TxtCustomPort;
 
-		private WizardState _currentState;
-		private DependencyInstaller _dependencyInstaller;
-		private ConfigManager _configManager;
+        private ConfigManager.ModelPreset _selectedLLM;
+        private ConfigManager.ModelPreset _selectedSTT;
+        private ConfigManager.ModelPreset _selectedTTS;
 
-		/// <summary>
-		/// Inicializa los administradores secundarios y enlaza los eventos de la interfaz de usuario.
-		/// Suscribe el manejador local a los eventos de progreso en tiempo real emitidos por el DownloadManager.
-		/// </summary>
-		public override void _Ready()
-		{
-			_configManager = GetNode<ConfigManager>("/root/ConfigManager");
-			
-			_dependencyInstaller = new DependencyInstaller();
-			AddChild(_dependencyInstaller);
+        [Export] public Button BtnStartBatchDownload;
 
-			_downloadManager = new DownloadManager();
-			AddChild(_downloadManager);
+        private DownloadManager _downloadManager;
+        private WizardState _currentState;
+        private DependencyInstaller _dependencyInstaller;
+        private ConfigManager _configManager;
 
-			_downloadManager.DownloadCompleted += OnModelDownloadCompleted;
-			_downloadManager.DownloadProgress += OnModelDownloadProgress;
+        /// <summary>
+        /// Initializes the core managers and child nodes, and binds the UI signals to their respective handlers.
+        /// Evaluates the underlying platform to determine the initial routing logic.
+        /// </summary>
+        public override void _Ready()
+        {
+            _configManager = GetNode<ConfigManager>("/root/ConfigManager");
 
-			if (BtnComenzar != null)
-			{
-				BtnComenzar.Pressed += () => SwitchState(WizardState.Dependencies);
-			}
+            _dependencyInstaller = new DependencyInstaller();
+            AddChild(_dependencyInstaller);
 
-			if (AdvancedContainer != null) 
-			{
-				AdvancedContainer.Visible = false;
-			}
+            _downloadManager = new DownloadManager();
+            AddChild(_downloadManager);
 
-			if (BtnAdvancedSettings != null)
-			{
-				BtnAdvancedSettings.Pressed += () => 
-				{
-					if (AdvancedContainer != null)
-						AdvancedContainer.Visible = !AdvancedContainer.Visible;
-				};
-			}
+            // Subscribes local handlers to the real-time progress events emitted by DownloadManager.
+            _downloadManager.DownloadCompleted += OnModelDownloadCompleted;
+            _downloadManager.DownloadProgress += OnModelDownloadProgress;
 
-			if (BtnConnect != null)
-			{
-				BtnConnect.Pressed += () => 
-				{
-					string urlIngresada = TxtRemoteUrlInput != null ? TxtRemoteUrlInput.Text.Trim() : "";
-					string puerto = TxtCustomPort != null && !string.IsNullOrWhiteSpace(TxtCustomPort.Text) ? TxtCustomPort.Text.Trim() : "8080";
-					bool isLan = ChkIsLan != null && ChkIsLan.ButtonPressed;
+            if (BtnComenzar != null)
+            {
+                BtnComenzar.Pressed += () => SwitchState(WizardState.Dependencies);
+            }
 
-					if (string.IsNullOrWhiteSpace(urlIngresada))
-					{
-						urlIngresada = "192.168.1.100"; // Fallback por defecto si el usuario no pone nada
-					}
+            if (AdvancedContainer != null)
+            {
+                AdvancedContainer.Visible = false;
+            }
 
-					// Validación de calidad de vida
-					if (!urlIngresada.StartsWith("http")) 
-						urlIngresada = "http://" + urlIngresada;
+            if (BtnAdvancedSettings != null)
+            {
+                BtnAdvancedSettings.Pressed += () =>
+                {
+                    if (AdvancedContainer != null)
+                        AdvancedContainer.Visible = !AdvancedContainer.Visible;
+                };
+            }
 
-					ConfirmRemoteConnection(urlIngresada, isLan, puerto);
-				};
-			}
+            if (BtnConnect != null)
+            {
+                BtnConnect.Pressed += () =>
+                {
+                    // Extracts and sanitizes string values from the text inputs.
+                    string urlIngresada = TxtRemoteUrlInput != null ? TxtRemoteUrlInput.Text.Trim() : "";
+                    string puerto = TxtCustomPort != null && !string.IsNullOrWhiteSpace(TxtCustomPort.Text) ? TxtCustomPort.Text.Trim() : "8080";
+                    bool isLan = ChkIsLan != null && ChkIsLan.ButtonPressed;
 
-			if (BtnLocalHost != null)
-			{
-				BtnLocalHost.Pressed += SelectLocalMode;
-			}
+                    // Assigns a default local IP address fallback if the parsed string is empty.
+                    if (string.IsNullOrWhiteSpace(urlIngresada))
+                    {
+                        urlIngresada = "192.168.1.100";
+                    }
 
-			if (BtnCopyCommand != null)
-			{
-				BtnCopyCommand.Pressed += OnCopyCommandPressed;
-			}
+                    // Validates that the user input contains a protocol schema, appending http:// if missing.
+                    if (!urlIngresada.StartsWith("http"))
+                        urlIngresada = "http://" + urlIngresada;
 
-		
-			// 1. ¿Arranque rápido? Si ya está configurado, nos saltamos la UI
-			if (_configManager.SetupCompleted)
-			{
-				FastBootSequence();
-				return; 
-			}
+                    ConfirmRemoteConnection(urlIngresada, isLan, puerto);
+                };
+            }
 
-			// 2. Detección de plataforma
-			string osName = OS.GetName();
-			bool isMobile = osName == "Android" || osName == "iOS";
+            if (BtnLocalHost != null)
+            {
+                BtnLocalHost.Pressed += SelectLocalMode;
+            }
 
-			if (isMobile)
-			{
-				// Si es celular, Ocultamos el botón de localhost porque no puede hostear Docker
-				if (BtnLocalHost != null) BtnLocalHost.Visible = false;
-				
-				// Saltamos directo a pedir la IP (Modo Selección)
-				SwitchState(WizardState.ModeSelection);
-			}
-			else
-			{
-				// Es PC por primera vez, mostramos la bienvenida normal
-				SwitchState(WizardState.Welcome);
-			}
-		}
+            if (BtnCopyCommand != null)
+            {
+                BtnCopyCommand.Pressed += OnCopyCommandPressed;
+            }
 
-		private async void FastBootSequence()
-		{
-			PanelWelcome.Visible = false;
-			
-			if (_configManager.CurrentMode == ConfigManager.AppMode.LocalHost)
-			{
-				// Si es PC y hostea local, encendemos el servidor de Llama
-				StartLlamaServer();
-			}
-			else if (_configManager.CurrentMode == ConfigManager.AppMode.RemoteUI)
-			{
-				// Si es Celular o PC Cliente, verificamos que el host siga vivo
-				Logic.Network.NetworkManager network = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
-				network.PerformHandshake();
-				
-				var signalResult = await ToSignal(network, Logic.Network.NetworkManager.SignalName.HandshakeCompleted);
-				bool success = (bool)signalResult[0];
+            if (BtnStartBatchDownload != null)
+            {
+                BtnStartBatchDownload.Disabled = true;
+                BtnStartBatchDownload.Pressed += StartModelDownload;
+            }
 
-				if (success)
-				{
-					TransitionToMainScene();
-				}
-				else
-				{
-					// El servidor remoto está apagado, mostramos la UI de configuración otra vez
-					_configManager.SetupCompleted = false; 
-					_configManager.SaveConfiguration();
-					
-					SwitchState(WizardState.ModeSelection);
-					if (ModelDownloadStatus != null) 
-						ModelDownloadStatus.Text = "Se perdió la conexión con el servidor guardado. Configura uno nuevo.";
-				}
-			}
-		}
+            // Evaluates the configuration flag. Bypasses the initial UI setup if the environment is already configured.
+            if (_configManager.SetupCompleted)
+            {
+                FastBootSequence();
+                return;
+            }
 
-		/// <summary>
-		/// Ejecuta la lógica asíncrona de inicialización de estado.
-		/// Invoca las operaciones delegadas según el ciclo de vida de la configuración de inicio,
-		/// anexando la invocación del administrador de descargas.
-		/// </summary>
-		/// <param name="state">El estado de la máquina que está siendo procesado.</param>
-		private async void HandleStateInitialization(WizardState state)
+            string osName = OS.GetName();
+            bool isMobile = osName == "Android" || osName == "iOS";
+
+            // Evaluates the operating system to conditionally render the LocalHost button and route the initial state.
+            if (isMobile)
+            {
+                if (BtnLocalHost != null) BtnLocalHost.Visible = false;
+                SwitchState(WizardState.ModeSelection);
+            }
+            else
+            {
+                SwitchState(WizardState.Welcome);
+            }
+        }
+
+        /// <summary>
+        /// Bypasses the setup UI if the configuration is already completed.
+        /// Triggers the local server instantiation or performs a remote handshake based on the saved application mode.
+        /// </summary>
+        private async void FastBootSequence()
+        {
+            PanelWelcome.Visible = false;
+
+            if (_configManager.CurrentMode == ConfigManager.AppMode.LocalHost)
+            {
+                StartLlamaServer();
+            }
+            else if (_configManager.CurrentMode == ConfigManager.AppMode.RemoteUI)
+            {
+                Logic.Network.NetworkManager network = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
+                network.PerformHandshake();
+
+                var signalResult = await ToSignal(network, Logic.Network.NetworkManager.SignalName.HandshakeCompleted);
+                bool success = (bool)signalResult[0];
+
+                if (success)
+                {
+                    TransitionToMainScene();
+                }
+                else
+                {
+                    // Resets the configuration completion flag and routes back to the mode selection state upon connection failure.
+                    _configManager.SetupCompleted = false;
+                    _configManager.SaveConfiguration();
+
+                    SwitchState(WizardState.ModeSelection);
+                    if (ModelDownloadStatus != null)
+                        ModelDownloadStatus.Text = "Se perdió la conexión con el servidor guardado. Configura uno nuevo.";
+                }
+            }
+        }
+
+        /// <summary>
+        /// Executes asynchronous state initialization logic based on the provided WizardState.
+        /// Evaluates dependencies and conditionally formats UI strings based on the evaluation result.
+        /// </summary>
+        /// <param name="state">The state of the machine being processed.</param>
+        private async void HandleStateInitialization(WizardState state)
 		{
 			switch (state)
 			{
 				case WizardState.Dependencies:
-					var result = await _dependencyInstaller.AuditSystemDependenciesAsync();
-					
-					if (result.HasDocker)
+					// Agregamos un tiempo límite (Timeout) de 4 segundos.
+					// Si la terminal (OS.Execute) se queda esperando una contraseña o se traba,
+					// no congelará el programa y saltará directo a la selección de modo.
+					var auditTask = _dependencyInstaller.AuditSystemDependenciesAsync();
+					var timeoutTask = Task.Delay(4000);
+
+					if (await Task.WhenAny(auditTask, timeoutTask) == auditTask)
 					{
-						SwitchState(WizardState.ModeSelection);
+						var result = auditTask.Result;
+						if (result.HasDocker)
+						{
+							SwitchState(WizardState.ModeSelection);
+						}
+						else
+						{
+							if (PanelDependencies != null) PanelDependencies.Visible = true;
+							
+							if (TxtCommandDisplay != null)
+							{
+								string displayText = result.RequiredCommand;
+								if (displayText.Contains("aria2"))
+								{
+									displayText = "# Sugerencia: Se ha incluido aria2 en el comando para descargas rápidas.\n" + displayText;
+								}
+								TxtCommandDisplay.Text = displayText;
+							}
+
+							if (LblRestartWarning != null)
+							{
+								LblRestartWarning.Text = "[center]Por favor, ejecuta este comando en tu terminal, luego REINICIA esta aplicación.[/center]";
+							}
+						}
 					}
 					else
 					{
-						if (PanelDependencies != null) PanelDependencies.Visible = true;
-						
-						if (TxtCommandDisplay != null) 
-						{
-							string displayText = result.RequiredCommand;
-							if (displayText.Contains("aria2"))
-							{
-								displayText = "# Sugerencia: Se ha incluido aria2 en el comando para habilitar descargas de mayor velocidad.\n" + displayText;
-							}
-							TxtCommandDisplay.Text = displayText;
-						}
-
-						if (LblRestartWarning != null)
-						{
-							LblRestartWarning.Text = "[center]Por favor, ejecuta este comando en tu terminal, luego REINICIA esta aplicación.[/center]";
-						}
+						// Timeout alcanzado: La terminal se congeló en segundo plano.
+						// Como mencionas que ya tienes todo, forzamos el paso al siguiente panel.
+						GD.Print("SetupWizard: La auditoría se atascó. Forzando salto a ModeSelection...");
+						SwitchState(WizardState.ModeSelection);
 					}
 					break;
-					
+
 				case WizardState.ModelSelection:
 					PopulateModelPresets();
 					break;
 
 				case WizardState.Downloading:
-					StartModelDownload();
+					// ¡AQUÍ ESTABA EL ERROR DEL CRASH (Stack Overflow)!
+					// Eliminamos StartModelDownload() de aquí.
+					// SwitchState solo debe cambiar lo visual, no debe disparar lógicas en bucle.
 					break;
 			}
 		}
 
         /// <summary>
-		/// Registra el modelo seleccionado, vincula su URL de origen en la configuración persistente 
-		/// e inicia la transición hacia el estado de red.
-		/// </summary>
-		/// <param name="preset">El objeto de configuración del modelo seleccionado por el usuario.</param>
-		private void OnModelSelected(ConfigManager.ModelPreset preset)
-        {
-            _configManager.ActiveModelName = preset.Name;
-            if (preset.DownloadLinks != null && preset.DownloadLinks.Count > 0)
-            {
-                _configManager.ActiveModelUrl = preset.DownloadLinks[0];
-            }
+        /// Classifies the selected model into LLM, STT, or TTS internal properties based on object nomenclature.
+        /// Unlocks the batch download operation once all semantic dependencies are assigned.
+        /// </summary>
+        /// <param name="preset">The configuration object of the selected model.</param>
+        private void OnModelSelected(ConfigManager.ModelPreset preset, Button clickedButton)
+		{
+			// Retroalimentación visual
+			clickedButton.Text = "¡Seleccionado!";
+			clickedButton.Disabled = true;
 
-            string safeFileName = preset.Name.Replace(" ", "_") + ".gguf";
-            string globalPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
-            _configManager.ActiveModelPath = globalPath;
-            _configManager.SaveConfiguration();
+			if (preset.Name.Contains("Whisper"))
+			{
+				_selectedSTT = preset;
+			}
+			else if (preset.Name.Contains("Sherpa"))
+			{
+				_selectedTTS = preset;
+			}
+			else
+			{
+				_selectedLLM = preset;
+			}
 
-            // Si ya existe, nos saltamos la descarga y encendemos el servidor
-            if (global::System.IO.File.Exists(globalPath))
-            {
-                StartLlamaServer();
-            }
-            else
-            {
-                SwitchState(WizardState.Downloading);
-            }
-        }
+			if (_selectedLLM != null && _selectedSTT != null && _selectedTTS != null)
+			{
+				if (BtnStartBatchDownload != null)
+				{
+					BtnStartBatchDownload.Disabled = false;
+					BtnStartBatchDownload.Text = "Todo listo. Iniciar Sistema";
+				}
+			}
+		}
 
-		/// <summary>
-		/// Prepara el entorno del sistema de archivos, establece la retroalimentación visual 
-		/// y delega la ejecución asíncrona de obtención del binario al DownloadManager.
-		/// Garantiza la estandarización nominal del archivo en el sistema operativo local.
-		/// </summary>
-		/// <summary>
-		/// Prepara el entorno del sistema de archivos, establece la retroalimentación visual 
-		/// y delega la ejecución asíncrona de obtención del binario al DownloadManager.
-		/// Garantiza la estandarización nominal del archivo en el sistema operativo local.
+        /// <summary>
+		/// Orchestrates the asynchronous and sequential retrieval of selected model binaries.
+		/// Assigns persistent file paths based on the required engine extension, modifies the global configuration,
+		/// and delegates the container engine startup upon successful traversal of the list.
 		/// </summary>
 		private async void StartModelDownload()
 		{
-			if (ModelDownloadStatus != null)
+			// ESTO ERA LO QUE FALTABA: Obligar a la interfaz a mostrar el panel de descarga
+			SwitchState(WizardState.Downloading);
+
+			List<ConfigManager.ModelPreset> presetsToDownload = new List<ConfigManager.ModelPreset> { _selectedLLM, _selectedSTT, _selectedTTS };
+
+			foreach (ConfigManager.ModelPreset preset in presetsToDownload)
 			{
-				ModelDownloadStatus.Text = "Iniciando descarga del modelo...";
+				if (preset == null) continue;
+
+				string safeFileName = preset.Name.Replace(" ", "_");
+				if (preset.Name.Contains("Whisper")) safeFileName += ".bin";
+				else if (preset.Name.Contains("Sherpa")) safeFileName += ".tar.bz2";
+				else safeFileName += ".gguf";
+
+				if (!preset.Name.Contains("Whisper") && !preset.Name.Contains("Sherpa"))
+				{
+					_configManager.ActiveModelName = preset.Name;
+					_configManager.ActiveModelPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
+				}
+
+				_configManager.ActiveModelUrl = preset.DownloadLinks[0];
+				if (preset.Name.Contains("Whisper")) _configManager.ActiveSTTModel = safeFileName;
+				if (preset.Name.Contains("Sherpa")) _configManager.ActiveTTSModel = safeFileName.Replace(".tar.bz2", "");
+				_configManager.SaveConfiguration();
+
+				// VALIDACIÓN: Ver si el archivo ya existe para no descargarlo a lo tonto
+				string globalPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
+				if (global::System.IO.File.Exists(globalPath))
+				{
+					GD.Print($"SetupWizard: El archivo {safeFileName} ya existe. Omitiendo descarga.");
+					if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]El archivo {preset.Name} ya existe en el sistema. Omitiendo...[/center]";
+					await ToSignal(GetTree().CreateTimer(1.5), SceneTreeTimer.SignalName.Timeout); // Pequeña pausa para que el usuario lea
+					continue; // Salta a la siguiente descarga
+				}
+
+				if (ModelDownloadStatus != null)
+				{
+					ModelDownloadStatus.Text = $"[center]Descargando: {preset.Name}...[/center]";
+				}
+
+				bool success = await _downloadManager.DownloadFileAsync(preset.DownloadLinks[0], "user://models", safeFileName);
+
+				if (!success)
+				{
+					GD.PrintErr($"SetupWizard: Fallo en descarga de {preset.Name}");
+					if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center][color=red]Error descargando {preset.Name}.[/color][/center]";
+					return;
+				}
 			}
 
-			if (ModelDownloadProgress != null)
-			{
-				ModelDownloadProgress.Value = 0;
-			}
-
-			string safeFileName = _configManager.ActiveModelName.Replace(" ", "_") + ".gguf";
-			
-			_configManager.ActiveModelPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
-			_configManager.SaveConfiguration();
-
-			await _downloadManager.DownloadFileAsync(_configManager.ActiveModelUrl, "user://models", safeFileName);
+			StartLlamaServer();
 		}
 
-		private void StartLlamaServer()
+        /// <summary>
+        /// Evaluates the network transfer boolean result for an individual model mapping.
+        /// Updates the UI text and resets or maximizes the visual progress bar based on the boolean flag.
+        /// </summary>
+        /// <param name="fileName">The string identifier of the processed file.</param>
+        /// <param name="success">The final integrity validation flag post-download.</param>
+        private void OnModelDownloadCompleted(string fileName, bool success)
         {
-            SwitchState(WizardState.StartingServer); 
-            
-            if (ModelDownloadStatus != null) 
+            if (success)
+            {
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"Descarga validada: {fileName}. Aguardando en cola...";
+                if (ModelDownloadProgress != null) ModelDownloadProgress.Value = ModelDownloadProgress.MaxValue;
+            }
+            else
+            {
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"Divergencia de red o de sistema de archivos procesando {fileName}.";
+                if (ModelDownloadProgress != null) ModelDownloadProgress.Value = 0;
+            }
+        }
+
+        /// <summary>
+        /// Transitions the internal UI state and subscribes to the BackendLauncher singleton events.
+        /// Instantiates the monitoring phase for the Docker container and the Llama server instances.
+        /// </summary>
+        private void StartLlamaServer()
+        {
+            SwitchState(WizardState.StartingServer);
+
+            if (ModelDownloadStatus != null)
                 ModelDownloadStatus.Text = "Iniciando Preparativos de IA...";
             
-            // ¡La barra arranca en 0% porque aún no está listo!
-            if (ModelDownloadProgress != null) 
+            if (ModelDownloadProgress != null)
                 ModelDownloadProgress.Value = 0;
 
             Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
             if (backend != null)
             {
-                // Nos suscribimos a los eventos
                 backend.BackendReady += OnBackendReady;
                 backend.ConnectionLost += OnBackendError;
-                backend.BuildLogReceived += OnBuildLogReceived; // ¡Escuchamos a Docker!
-                
+                backend.BuildLogReceived += OnBuildLogReceived;
+
                 backend.StartBackend();
             }
             else
@@ -317,24 +403,30 @@ namespace Logic.Utils
             }
         }
 
-		private void OnBuildLogReceived(string logMessage)
+        /// <summary>
+        /// Processes the raw terminal string output originating from the container initialization.
+        /// Truncates the text array to fit the UI constraints and interpolates the progress bar visually.
+        /// </summary>
+        /// <param name="logMessage">The unformatted string received from the standard output.</param>
+        private void OnBuildLogReceived(string logMessage)
         {
             if (ModelDownloadStatus != null)
             {
-                // Mostramos lo que Docker está haciendo en la UI. 
-                // Recortamos el texto si es muy largo para que no rompa tu diseño.
                 string cleanMsg = logMessage.Length > 85 ? logMessage.Substring(0, 85) + "..." : logMessage;
                 ModelDownloadStatus.Text = "> " + cleanMsg;
             }
-            
-            // Un pequeño truco visual: movemos la barra un poco para que el usuario sepa que está vivo
+
             if (ModelDownloadProgress != null && ModelDownloadProgress.Value < 95)
             {
-                ModelDownloadProgress.Value += 0.1f; 
+                ModelDownloadProgress.Value += 0.1f;
             }
         }
 
-		private void OnBackendReady()
+        /// <summary>
+        /// Executes upon receiving the server ready signal. Unsubscribes from backend events, 
+        /// maximizes the progress variable, and routes to the main application scene.
+        /// </summary>
+        private void OnBackendReady()
         {
             Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
             if (backend != null)
@@ -344,12 +436,15 @@ namespace Logic.Utils
                 backend.BuildLogReceived -= OnBuildLogReceived;
             }
 
-            // ¡AHORA SÍ ES 100%!
             if (ModelDownloadProgress != null) ModelDownloadProgress.Value = 100;
 
             TransitionToMainScene();
         }
 
+        /// <summary>
+        /// Executes upon receiving a server failure signal. Unsubscribes from connection events,
+        /// applies a red-tint font override, and resets the progress visual tracker.
+        /// </summary>
         private void OnBackendError()
         {
             Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
@@ -359,180 +454,166 @@ namespace Logic.Utils
                 backend.ConnectionLost -= OnBackendError;
             }
 
-            // El servidor explotó, bloqueamos al usuario y ponemos la barra en 0
-            if (ModelDownloadStatus != null) 
+            if (ModelDownloadStatus != null)
             {
                 ModelDownloadStatus.Text = "Error crítico al iniciar Docker o Llama Server.\nRevisa la consola o asegúrate de que Docker esté corriendo.";
-                ModelDownloadStatus.AddThemeColorOverride("font_color", new Color(1, 0, 0)); // Texto Rojo
+                ModelDownloadStatus.AddThemeColorOverride("font_color", new Color(1, 0, 0));
             }
-            if (ModelDownloadProgress != null) 
+            if (ModelDownloadProgress != null)
             {
-                ModelDownloadProgress.Value = 0; 
+                ModelDownloadProgress.Value = 0;
             }
         }
 
-		/// <summary>
-		/// Manejador suscrito al evento de actualización de progreso del DownloadManager.
-		/// Refleja de forma interpolada la transferencia de bytes sobre los componentes de interfaz de usuario.
-		/// </summary>
-		/// <param name="fileName">Identificador físico del archivo en tránsito.</param>
-		/// <param name="percentage">Fracción procesada respecto a la longitud de contenido total reportada (0 - 100).</param>
-		private void OnModelDownloadProgress(string fileName, float percentage)
+        /// <summary>
+        /// Subscriber method reflecting byte transfer progression via linear assignment 
+        /// over the UI elements based on parameters emitted by the underlying network thread.
+        /// </summary>
+        /// <param name="fileName">The string identifier of the file in transit.</param>
+        /// <param name="percentage">The calculated float fraction of the total file size.</param>
+        private void OnModelDownloadProgress(string fileName, float percentage)
+        {
+            if (ModelDownloadProgress != null)
+            {
+                ModelDownloadProgress.Value = percentage;
+            }
+
+            if (ModelDownloadStatus != null)
+            {
+                ModelDownloadStatus.Text = $"Descargando {fileName}... {percentage:F1}%";
+            }
+        }
+
+        /// <summary>
+        /// Transfers the bash command generated by the dependency resolver into the OS clipboard 
+        /// via the DisplayServer interface. Yields a scene tree timeout to toggle the UI state temporarily.
+        /// </summary>
+        private async void OnCopyCommandPressed()
+        {
+            if (TxtCommandDisplay != null && !string.IsNullOrEmpty(TxtCommandDisplay.Text))
+            {
+                DisplayServer.ClipboardSet(TxtCommandDisplay.Text);
+                GD.Print("SetupWizard: Comando bash copiado al portapapeles de forma exitosa.");
+
+                if (BtnCopyCommand != null)
+                {
+                    string originalText = BtnCopyCommand.Text;
+                    BtnCopyCommand.Text = "¡Copiado!";
+
+                    // Yields the thread context until the SceneTree timer emits its timeout signal.
+                    await ToSignal(GetTree().CreateTimer(2.0), SceneTreeTimer.SignalName.Timeout);
+
+                    BtnCopyCommand.Text = originalText;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Overwrites the internal enumerator property tracking the state and evaluates 
+        /// boolean assignments for the UI panel visibilities based on the requested target state.
+        /// </summary>
+        /// <param name="newState">The target state structure to enforce across the UI.</param>
+        public void SwitchState(WizardState state)
 		{
-			if (ModelDownloadProgress != null)
+			// 1. Ocultamos todos los paneles primero
+			if (PanelWelcome != null) PanelWelcome.Visible = false;
+			if (PanelDependencies != null) PanelDependencies.Visible = false;
+			if (PanelModeSelection != null) PanelModeSelection.Visible = false;
+			if (PanelModelSelection != null) PanelModelSelection.Visible = false;
+			if (PanelDownloading != null) PanelDownloading.Visible = false;
+
+			// 2. Mostramos solo el panel que nos interesa
+			switch (state)
 			{
-				ModelDownloadProgress.Value = percentage;
+				case WizardState.Welcome:
+					if (PanelWelcome != null) PanelWelcome.Visible = true;
+					break;
+				case WizardState.Dependencies:
+					if (PanelDependencies != null) PanelDependencies.Visible = true;
+					break;
+				case WizardState.ModeSelection:
+					if (PanelModeSelection != null) PanelModeSelection.Visible = true;
+					break;
+				case WizardState.ModelSelection:
+					if (PanelModelSelection != null) PanelModelSelection.Visible = true;
+					break;
+				case WizardState.Downloading:
+					if (PanelDownloading != null) PanelDownloading.Visible = true;
+					break;
 			}
 
-			if (ModelDownloadStatus != null)
-			{
-				ModelDownloadStatus.Text = $"Descargando {fileName}... {percentage:F1}%";
-			}
+			// 3. ¡EL ESLABÓN PERDIDO! Disparar la lógica del estado actual
+			HandleStateInitialization(state);
 		}
 
-		/// <summary>
-		/// Manejador de eventos que evalúa el resultado de la transferencia binaria, realizando la transición
-		/// de escena en caso de éxito o restaurando la interfaz de forma explícita ante un fallo de integridad o red.
-		/// </summary>
-		/// <param name="fileName">Identificador del archivo procesado.</param>
-		/// <param name="success">Bandera de confirmación de integridad pos-descarga.</param>
-		private void OnModelDownloadCompleted(string fileName, bool success)
+        /// <summary>
+        /// Yields execution for a single engine process frame to ensure node parameters are fully drawn,
+        /// then assigns the vertical scrollbar offset to its respective maximum constraint limit.
+        /// </summary>
+        private async void ScrollToBottom()
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+            if (TerminalLog != null)
+            {
+                var scrollBar = TerminalLog.GetVScrollBar();
+                if (scrollBar != null)
+                {
+                    scrollBar.Value = scrollBar.MaxValue;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Evaluates the outcome boolean of the installation script subprocess.
+        /// Transitions the internal state index or appends standard error output formatting depending on the result.
+        /// </summary>
+        /// <param name="success">The parsed process exit code validation flag.</param>
+        private void OnInstallationCompleted(bool success)
         {
             if (success)
             {
-                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "Descarga completada. Preparando servidor Llama...";
-                if (ModelDownloadProgress != null) ModelDownloadProgress.Value = ModelDownloadProgress.MaxValue;
-                
-                // ¡AQUÍ ESTÁ LA MAGIA! En vez de saltar al chat, encendemos el motor.
-                StartLlamaServer(); 
+                SwitchState(WizardState.ModeSelection);
             }
             else
             {
-                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "Error en la descarga. Por favor, reinicia la aplicación.";
-                if (ModelDownloadProgress != null) ModelDownloadProgress.Value = 0;
+                if (TerminalLog != null)
+                {
+                    TerminalLog.AppendText("\n[SYSTEM] Installation failed. Please review the logs above.\n");
+                }
             }
         }
 
-		/// <summary>
-		/// Transfiere el comando bash generado al portapapeles del servidor gráfico (DisplayServer).
-		/// Intercala un temporizador no bloqueante en el árbol de escenas para proveer retroalimentación
-		/// visual efímera en el botón de copia, restaurando su estado original posteriormente.
-		/// </summary>
-		private async void OnCopyCommandPressed()
-		{
-			if (TxtCommandDisplay != null && !string.IsNullOrEmpty(TxtCommandDisplay.Text))
-			{
-				DisplayServer.ClipboardSet(TxtCommandDisplay.Text);
-				GD.Print("SetupWizard: Comando bash copiado al portapapeles de forma exitosa.");
+        /// <summary>
+        /// Overwrites the application mode enum to RemoteUI in the ConfigManager, assigns the string URL, 
+        /// triggers a file persistence operation, and transitions the active scene.
+        /// </summary>
+        /// <param name="hostUrl">The serialized string representing the target IP and port.</param>
+        public void SelectRemoteMode(string hostUrl)
+        {
+            _configManager.CurrentMode = ConfigManager.AppMode.RemoteUI;
+            _configManager.RemoteHostUrl = hostUrl;
+            _configManager.SaveConfiguration();
 
-				if (BtnCopyCommand != null)
-				{
-					string originalText = BtnCopyCommand.Text;
-					BtnCopyCommand.Text = "¡Copiado!";
-					
-					// Retardo asíncrono atado al ciclo de ejecución de Godot
-					await ToSignal(GetTree().CreateTimer(2.0), SceneTreeTimer.SignalName.Timeout);
-					
-					BtnCopyCommand.Text = originalText;
-				}
-			}
-		}
+            TransitionToMainScene();
+        }
 
-		/// <summary>
-		/// Transitions the internal state and updates the visibility of the corresponding UI panels.
-		/// </summary>
-		/// <param name="newState">The target state to transition into.</param>
-		public void SwitchState(WizardState newState)
-		{
-			_currentState = newState;
+        /// <summary>
+        /// Sets the internal application mode property to LocalHost and invokes the state transition 
+        /// method to render the model selection user interface.
+        /// </summary>
+        public void SelectLocalMode()
+        {
+            _configManager.CurrentMode = ConfigManager.AppMode.LocalHost;
+            SwitchState(WizardState.ModelSelection);
+        }
 
-			if (PanelWelcome != null) PanelWelcome.Visible = (newState == WizardState.Welcome);
-			if (PanelDependencies != null) PanelDependencies.Visible = (newState == WizardState.Dependencies);
-			if (PanelModeSelection != null) PanelModeSelection.Visible = (newState == WizardState.ModeSelection);
-			if (PanelModelSelection != null) PanelModelSelection.Visible = (newState == WizardState.ModelSelection);
-			
-            // Reutilizamos la misma pantalla visual para ambos estados
-			if (PanelDownloading != null) PanelDownloading.Visible = (newState == WizardState.Downloading || newState == WizardState.StartingServer);
-
-			HandleStateInitialization(newState);
-		}
-
-		/// <summary>
-		/// Executes specific logic required when entering a new state.
-		/// </summary>
-		/// <param name="state">The state being initialized.</param>
-
-		/// <summary>
-		/// Appends real-time output from the dependency installation process to the UI log
-		/// and automatically scrolls to the latest entry.
-		/// </summary>
-		/// <param name="logLine">The raw terminal output string.</param>
-
-		private async void ScrollToBottom()
-		{
-			await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-			
-			if (TerminalLog != null)
-			{
-				var scrollBar = TerminalLog.GetVScrollBar();
-				if (scrollBar != null)
-				{
-					scrollBar.Value = scrollBar.MaxValue;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Evaluates the outcome of the installation sequence and determines the next state transition.
-		/// </summary>
-		/// <param name="success">Indicates whether the installation process exited gracefully.</param>
-		private void OnInstallationCompleted(bool success)
-		{
-			if (success)
-			{
-				SwitchState(WizardState.ModeSelection);
-			}
-			else
-			{
-				if (TerminalLog != null)
-				{
-					TerminalLog.AppendText("\n[SYSTEM] Installation failed. Please review the logs above.\n");
-				}
-			}
-		}
-
-		/// <summary>
-		/// Triggers the transition to the remote configuration flow.
-		/// Connect this method to the 'Remote Mode' Button's Pressed signal.
-		/// </summary>
-		public void SelectRemoteMode(string hostUrl)
-		{
-			_configManager.CurrentMode = ConfigManager.AppMode.RemoteUI;
-			_configManager.RemoteHostUrl = hostUrl;
-			_configManager.SaveConfiguration();
-			
-			TransitionToMainScene();
-		}
-
-		/// <summary>
-		/// Triggers the transition to the local configuration flow.
-		/// Connect this method to the 'Local Mode' Button's Pressed signal.
-		/// </summary>
-		public void SelectLocalMode()
-		{
-			_configManager.CurrentMode = ConfigManager.AppMode.LocalHost;
-			SwitchState(WizardState.ModelSelection);
-		}
-
-		/// <summary>
-		/// Retrieves pre-configured models from the ConfigManager to populate the UI.
-		/// </summary>
-		/// <summary>
-		/// Limpia el contenedor de nodos de forma iterativa y espera la resolución de la tarea asíncrona 
-		/// de obtención de datos del ConfigManager. Posteriormente instancia dinámicamente los contenedores 
-		/// y controles gráficos de la lista de modelos.
-		/// </summary>
-		private async void PopulateModelPresets()
+        /// <summary>
+        /// Iteratively invokes QueueFree on all child nodes within the list container. Awaits an asynchronous 
+        /// fetch request pointing to the configuration preset array, then dynamically instantiates 
+        /// PanelContainers and Control UI elements for each parsed JSON mapping.
+        /// </summary>
+        private async void PopulateModelPresets()
 		{
 			if (ModelListContainer != null)
 			{
@@ -543,130 +624,115 @@ namespace Logic.Utils
 			}
 
 			List<ConfigManager.ModelPreset> presets = await _configManager.GetOrDownloadPresetsAsync();
-			
-			if (presets == null || presets.Count == 0)
+
+			if (presets == null || presets.Count == 0) return;
+
+			// Creamos un estilo de tarjeta claro y limpio desde C#
+			StyleBoxFlat cardStyle = new StyleBoxFlat
 			{
-				Label noModelsLabel = new Label
-				{
-					Text = "No se encontraron modelos. Verifica tu conexión a internet o el archivo presets.json."
-				};
-				
-				if (ModelListContainer != null)
-				{
-					ModelListContainer.AddChild(noModelsLabel);
-				}
-				
-				GD.PrintErr("SetupWizard: La operación asíncrona retornó una lista de presets vacía o nula.");
-				return;
-			}
+				BgColor = new Color(1, 1, 1, 1),
+				BorderColor = new Color(0.85f, 0.85f, 0.85f, 1),
+				BorderWidthBottom = 1, BorderWidthTop = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
+				CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8, CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
+				ContentMarginLeft = 20, ContentMarginTop = 20, ContentMarginRight = 20, ContentMarginBottom = 20
+			};
 
 			foreach (ConfigManager.ModelPreset preset in presets)
 			{
 				PanelContainer cardPanel = new PanelContainer();
+				cardPanel.AddThemeStyleboxOverride("panel", cardStyle);
+
 				HBoxContainer cardLayout = new HBoxContainer();
-				VBoxContainer textContainer = new VBoxContainer();
-				
-				textContainer.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+				VBoxContainer textContainer = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
 
-				Label nameLabel = new Label
-				{
-					Text = preset.Name
-				};
+				Label nameLabel = new Label { Text = preset.Name };
+				// LÍNEA CORREGIDA: Se eliminó la búsqueda de la fuente inexistente que causaba el Crash.
+				nameLabel.AddThemeColorOverride("font_color", new Color(0.1f, 0.1f, 0.1f, 1));
 
-				Label descLabel = new Label
-				{
-					Text = preset.Description
-				};
+				Label descLabel = new Label { Text = preset.Description };
+				descLabel.AddThemeColorOverride("font_color", new Color(0.4f, 0.4f, 0.4f, 1));
 
-				Button actionButton = new Button
-				{
-					Text = "Descargar / Seleccionar"
-				};
+				Button actionButton = new Button { Text = "Seleccionar" };
 
-				actionButton.Pressed += () => OnModelSelected(preset);
+				// Pasamos el botón mismo al evento para poder cambiarle el texto al hacer clic
+				actionButton.Pressed += () => OnModelSelected(preset, actionButton);
 
 				textContainer.AddChild(nameLabel);
 				textContainer.AddChild(descLabel);
-				
 				cardLayout.AddChild(textContainer);
 				cardLayout.AddChild(actionButton);
-				
 				cardPanel.AddChild(cardLayout);
-				
-				if (ModelListContainer != null)
-				{
-					ModelListContainer.AddChild(cardPanel);
-				}
-			}
-			
-			GD.Print($"SetupWizard: Población asíncrona finalizada. Se renderizaron {presets.Count} presets en la interfaz.");
-		}
 
-		/// <summary>
-		/// Validates the selected model's integrity before allowing application progression.
-		/// </summary>
-		/// <param name="expectedSize">The required byte size for validation.</param>
-		public void ConfirmModelSelection(long expectedSize)
-		{
-			var validationResult = _configManager.ValidateModelIntegrity(expectedSize);
-
-			if (!validationResult.IsValid)
-			{
-				GD.PrintErr($"SetupWizard: Validation Error - {validationResult.ErrorMessage}");
-				
-				// Expected Implementation:
-				// Show an error dialog to the user requesting a re-download or path correction.
-				// Optionally transition to WizardState.Downloading if a download is initiated.
-				return;
-			}
-
-			_configManager.SaveConfiguration();
-			TransitionToMainScene();
-		}
-
-		/// <summary>
-		/// Finalizes the setup sequence and swaps the active scene.
-		/// </summary>
-		private void TransitionToMainScene()
-		{
-			GetTree().ChangeSceneToFile(MainChatScenePath);
-		}
-		// Llama a esta función cuando el usuario presione el botón de "Conectar" en tu UI de LAN/Link
-		public async void ConfirmRemoteConnection(string baseUrl, bool isLan, string port)
-		{
-			if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "Verificando conexión con el servidor...";
-			
-			// Guardamos temporalmente para que NetworkManager sepa a dónde llamar
-			_configManager.CurrentMode = ConfigManager.AppMode.RemoteUI;
-			_configManager.RemoteHostUrl = $"{baseUrl}:{port}";
-			
-			Logic.Network.NetworkManager network = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
-			
-			if (network != null)
-			{
-				// Escuchamos la respuesta del servidor
-				network.PerformHandshake();
-				
-				// Esperamos la señal asíncrona
-				var signalResult = await ToSignal(network, Logic.Network.NetworkManager.SignalName.HandshakeCompleted);
-				bool success = (bool)signalResult[0];
-
-				if (success)
-				{
-					// ¡Todo perfecto! Guardamos preferencias y pasamos al chat
-					_configManager.SetupCompleted = true;
-					_configManager.IsLanConnection = isLan;
-					_configManager.CustomPort = port;
-					_configManager.SaveConfiguration();
-					
-					TransitionToMainScene();
-				}
-				else
-				{
-					if (ModelDownloadStatus != null) 
-						ModelDownloadStatus.Text = "Error: No se pudo conectar al servidor. Verifica la IP y el puerto.";
-				}
+				if (ModelListContainer != null) ModelListContainer.AddChild(cardPanel);
 			}
 		}
-	}
+
+        /// <summary>
+        /// Validates the disk size constraint of the allocated binary asset through the ConfigManager's internal evaluation function.
+        /// Persists configuration states mapped to the scene transitions upon validating the file.
+        /// </summary>
+        /// <param name="expectedSize">The numerical constraint defining the integrity check byte limit.</param>
+        public void ConfirmModelSelection(long expectedSize)
+        {
+            var validationResult = _configManager.ValidateModelIntegrity(expectedSize);
+
+            if (!validationResult.IsValid)
+            {
+                GD.PrintErr($"SetupWizard: Validation Error - {validationResult.ErrorMessage}");
+                return;
+            }
+
+            _configManager.SaveConfiguration();
+            TransitionToMainScene();
+        }
+
+        /// <summary>
+        /// Interacts directly with the active Godot SceneTree API to request an unmanaged scene swap 
+        /// utilizing the defined persistent system path.
+        /// </summary>
+        private void TransitionToMainScene()
+        {
+            GetTree().ChangeSceneToFile(MainChatScenePath);
+        }
+
+        /// <summary>
+        /// Instructs the NetworkManager to dispatch an asynchronous HTTP handshake sequence to the defined remote interface.
+        /// Awaits the Signal resolution natively and persists variables prior to scene traversal logic on HTTP 200/Success.
+        /// </summary>
+        /// <param name="baseUrl">The sanitized string sequence representing the IPv4 or domain routing.</param>
+        /// <param name="isLan">A boolean validation identifier determining internal or external structural endpoints.</param>
+        /// <param name="port">The concatenated system port targeting the remote API daemon process.</param>
+        public async void ConfirmRemoteConnection(string baseUrl, bool isLan, string port)
+        {
+            if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "Verificando conexión con el servidor...";
+
+            _configManager.CurrentMode = ConfigManager.AppMode.RemoteUI;
+            _configManager.RemoteHostUrl = $"{baseUrl}:{port}";
+
+            Logic.Network.NetworkManager network = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
+
+            if (network != null)
+            {
+                network.PerformHandshake();
+
+                var signalResult = await ToSignal(network, Logic.Network.NetworkManager.SignalName.HandshakeCompleted);
+                bool success = (bool)signalResult[0];
+
+                if (success)
+                {
+                    _configManager.SetupCompleted = true;
+                    _configManager.IsLanConnection = isLan;
+                    _configManager.CustomPort = port;
+                    _configManager.SaveConfiguration();
+
+                    TransitionToMainScene();
+                }
+                else
+                {
+                    if (ModelDownloadStatus != null)
+                        ModelDownloadStatus.Text = "Error: No se pudo conectar al servidor. Verifica la IP y el puerto.";
+                }
+            }
+        }
+    }
 }
