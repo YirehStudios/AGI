@@ -1,0 +1,51 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="AGI"
+run/main_scene="uid://duf7dvpij16me"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="agi"
+config/features=PackedStringArray("4.6", "C#", "Forward Plus")
+boot_splash/bg_color=Color(1, 1, 1, 1)
+boot_splash/stretch_mode=0
+boot_splash/image="uid://dxui8em8fu8w3"
+config/icon="uid://dxui8em8fu8w3"
+
+[autoload]
+
+NetworkManager="*uid://dd0kvqdfb8yt5"
+ChatManager="*uid://dkwmatdh8pqge"
+BackendLauncher="*uid://d2ggr6q7smtv6"
+ConfigManager="*uid://r3isoxio4wpf"
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/mode=2
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[dotnet]
+
+project/assembly_name="AGI"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+rendering_device/driver.windows="d3d12"
+textures/vram_compression/import_etc2_astc=true
+lights_and_shadows/use_physical_light_units=true
+viewport/hdr_2d=true

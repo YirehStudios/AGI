@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://m2fwyq0v655v"]
+
+[ext_resource type="PackedScene" uid="uid://dbu6gascba6pe" path="res://Scenes/Test/Scene/kipfel.tscn" id="1_0oggk"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_caoo8"]
+
+[sub_resource type="Sky" id="Sky_0oggk"]
+sky_material = SubResource("ProceduralSkyMaterial_caoo8")
+
+[sub_resource type="Environment" id="Environment_bx7mt"]
+background_mode = 2
+sky = SubResource("Sky_0oggk")
+ambient_light_color = Color(1, 1, 1, 1)
+ambient_light_energy = 2.5
+glow_enabled = true
+
+[sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_hfeav"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_0oggk"]
+size = Vector3(61.8694, 1.506012, 78.87683)
+
+[node name="Node3D" type="Node3D" unique_id=676113451]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=262894634]
+environment = SubResource("Environment_bx7mt")
+camera_attributes = SubResource("CameraAttributesPractical_hfeav")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=412546678]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.18984678, 0.5451211, 3.4267056)
+fov = 41.3
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1056515601]
+transform = Transform3D(1, 0, 0, 0, 0.9512828, -0.30831975, 0, 0.30831975, 0.9512828, 0, 6.7411585, 0)
+shadow_enabled = true
+
+[node name="Area3D" type="StaticBody3D" parent="." unique_id=1100249413]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.59398866, 1.6321168)
+collision_layer = 3
+collision_mask = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D" unique_id=1722297701]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.428261, -0.8864577, -17.288147)
+shape = SubResource("BoxShape3D_0oggk")
+
+[node name="Kipfel" parent="." unique_id=1718872066 node_paths=PackedStringArray("CamaraNodo") instance=ExtResource("1_0oggk")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.13411206, 0.057102144, -0.010687113)
+CamaraNodo = NodePath("../Camera3D")
