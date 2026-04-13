@@ -7,24 +7,49 @@ public partial class LivemodeMain : Panel
     [Export] public AnimationPlayer WaveAnimationPlayer;
     [Export] public AudioStreamPlayer AIVoicePlayer;
     [Export] public AudioStreamPlayer MicroRecorderPlayer;
+    [Export] public string RecordBusName = "Record";
+    [Export] public string VoiceBusName = "Voice";
   
     private ShaderMaterial _wavesMaterial;
   
     public float TargetVoiceLevel = 0.0f;
     private float _currentVoiceLevel = 0.0f;
 
+    private bool _isRecording = false;
+    // MÁQUINA DE ESTADOS ESTRICTA
+    public enum LiveState { Idle, Listening, ProcessingSTT, ThinkingLLM, SpeakingTTS }
+    private LiveState _currentState = LiveState.Idle;
+    
+    // Variables de control de audio
     private AudioEffectRecord _recorder;
     private float _silenceTimer = 0.0f;
-    private const float SilenceThreshold = 0.05f;
-    private bool _isRecording = false;
+    private const float SilenceThreshold = 0.02f;
+    private const float MaxSilenceDuration = 1.5f; // Reducido de 3.0s a 1.5s para mayor fluidez
+    private float _recordingStartTime = 0.0f;
 
-    /// <summary>
-    /// Inicializa las referencias de la interfaz y configura los buses de audio para la captura del micrófono.
-    /// Establece la conexión del botón de cierre y suscribe el delegado para la recepción de audio del motor TTS.
-    /// </summary>
     public override void _Ready()
     {
+        GD.Print("[FLAG] LiveMode: Iniciando hardware...");
         
+        // Retrieves the designated audio bus index and applies a programmatic mute to block physical output while preserving raw capture capability.
+        int recordBusIndex = AudioServer.GetBusIndex(RecordBusName);
+        if (recordBusIndex != -1)
+        {
+            AudioServer.SetBusMute(recordBusIndex, true); 
+            _recorder = (AudioEffectRecord)AudioServer.GetBusEffect(recordBusIndex, 0);
+        }
+        
+        // Overrides current microphone stream configuration to force continuous capture enablement independently of editor state.
+        if (MicroRecorderPlayer != null)
+        {
+            MicroRecorderPlayer.Stream = new AudioStreamMicrophone();
+            MicroRecorderPlayer.Bus = RecordBusName;
+            MicroRecorderPlayer.Autoplay = true;
+            MicroRecorderPlayer.Play(); 
+            GD.Print("[FLAG] MIC: Bus silenciado para evitar eco, pero capturando datos crudos.");
+        }
+        
+        // Casts and caches the shader material dependency for real-time visual property updates.
         if (WaveVisualizer != null)
         {
             _wavesMaterial = WaveVisualizer.Material as ShaderMaterial;
@@ -35,22 +60,14 @@ public partial class LivemodeMain : Panel
             GD.PrintErr("LivemodeMain: WaveAnimationPlayer is not assigned in the Inspector.");
         }
 
-        int recordBusIndex = AudioServer.GetBusIndex("Record");
-        _recorder = (AudioEffectRecord)AudioServer.GetBusEffect(recordBusIndex, 0);
-
-        Button closeBtn = GetNodeOrNull<Button>("MainContainer/LiveAreaContainer/CenterArea/BottomControls/CenterButtonLayout/FloatingActionButton");
-        if (closeBtn != null)
-        {
-            closeBtn.Pressed += OnCloseButtonPressed;
-        }
-
+        // Establishes event subscription between the backend layer and the local UI for TTS audio playback handling.
         Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
         if (backend != null)
         {
             backend.Connect("TTSCompleted", new Callable(this, MethodName.OnAIResponseReady));
         }
 
-        // Aseguramos que la carpeta exista antes de que cualquier grabación intente guardarse
+        // Validates and constructs the local user directory structure required for volatile audio processing operations.
         string audioDir = ProjectSettings.GlobalizePath("user://audio");
         if (!global::System.IO.Directory.Exists(audioDir))
         {
@@ -59,12 +76,6 @@ public partial class LivemodeMain : Panel
         }
     }
 
-    /// <summary>
-    /// Receptor del delegado emitido por el BackendLauncher.
-    /// Inyecta los datos binarios del archivo de audio directamente en la memoria para reconstruir 
-    /// el stream en tiempo real y emitirlo a través del reproductor asignado.
-    /// </summary>
-    /// <param name="audioPath">Ruta absoluta del archivo WAV generado por el motor de síntesis.</param>
     private void OnAIResponseReady(string audioPath)
     {
         if (AIVoicePlayer == null || !global::System.IO.File.Exists(audioPath)) return;
@@ -88,55 +99,50 @@ public partial class LivemodeMain : Panel
         }
     }
 
-    /// <summary>
-    /// Procesa de forma continua la amplitud de las señales de audio (micrófono local o respuesta del modelo) 
-    /// para actualizar la interfaz gráfica visual. Gestiona simultáneamente la lógica VAD para la captura.
-    /// </summary>
     public override void _Process(double delta)
     {
-        
+        // 1. Lógica visual: Siempre actualizamos el nivel de voz de la IA si está hablando
         if (AIVoicePlayer != null && AIVoicePlayer.Playing)
         {
-            
-            int voiceBusIndex = AudioServer.GetBusIndex(AIVoicePlayer.Bus);
+            UpdateStatus(LiveState.SpeakingTTS);
+            int voiceBusIndex = AudioServer.GetBusIndex(VoiceBusName);
             float aiDb = AudioServer.GetBusPeakVolumeLeftDb(voiceBusIndex, 0);
             TargetVoiceLevel = Mathf.DbToLinear(aiDb) * 5.0f;
         }
         else
         {
-           int recordBusIndex = AudioServer.GetBusIndex("Record");
-            if (recordBusIndex == -1) {
-                GD.PrintErr("LiveMode: ¡ERROR! No existe el bus 'Record'");
-                return;
+            // Si la IA ya no habla, pero nuestro estado seguía en SpeakingTTS, lo liberamos
+            if (_currentState == LiveState.SpeakingTTS)
+            {
+                UpdateStatus(LiveState.Idle);
             }
+        }
 
+        // 2. VAD: Solo escuchamos al usuario si estamos libres
+        if (_currentState == LiveState.Idle || _currentState == LiveState.Listening)
+        {
+            int recordBusIndex = AudioServer.GetBusIndex(RecordBusName);
             float currentDb = AudioServer.GetBusPeakVolumeLeftDb(recordBusIndex, 0);
             float linearVolume = Mathf.DbToLinear(currentDb);
 
-            // ESTO DEBE APARECER EN TU CONSOLA CADA FRAME
-            // Si ves "0.0000", Godot no tiene acceso al hardware del micro.
-            GD.Print($"[AUDIO DEBUG] Nivel: {linearVolume:F4} | Grabando: {_isRecording}");
-            
-            TargetVoiceLevel = linearVolume * 5.0f; // Mueve las ondas según tu voz 
+            TargetVoiceLevel = linearVolume * 5.0f;
 
-            if (linearVolume > SilenceThreshold) // Si detecta ruido (habla)... 
+            if (linearVolume > SilenceThreshold)
             {
-                if (!_isRecording)
-                {
-                    StartRecording(); // Empieza a grabar el archivo .wav 
-                }
-                _silenceTimer = 0.0f; // Resetea el tiempo de silencio 
+                if (_currentState == LiveState.Idle) StartRecording();
+                _silenceTimer = 0.0f; // Reinicia el temporizador de silencio
             }
-            else if (_isRecording) // Si hay silencio... 
+            else if (_currentState == LiveState.Listening)
             {
                 _silenceTimer += (float)delta;
-                if (_silenceTimer >= 3.0f) // Y pasan 3 segundos... 
+                if (_silenceTimer >= MaxSilenceDuration) 
                 {
-                    StopAndSendRecording(); // Guarda el .wav y lo manda a Whisper 
+                    StopAndSendRecording();
                 }
             }
         }
 
+        // 3. Renderizado Visual (Igual que antes)
         if (_wavesMaterial != null)
         {
             _currentVoiceLevel = Mathf.Lerp(_currentVoiceLevel, TargetVoiceLevel, (float)delta * 12.0f);
@@ -146,70 +152,60 @@ public partial class LivemodeMain : Panel
         if (WaveAnimationPlayer != null)
         {
             if (TargetVoiceLevel > 0.1f && WaveAnimationPlayer.CurrentAnimation != "speak")
-            {
                 WaveAnimationPlayer.Play("speak");
-            }
             else if (TargetVoiceLevel <= 0.1f && WaveAnimationPlayer.CurrentAnimation != "idle")
-            {
                 WaveAnimationPlayer.Play("idle");
-            }
         }
     }
 
-    /// <summary>
-    /// Activa el bus de grabación de Godot y actualiza el estado interno para registrar la entrada de audio.
-    /// </summary>
     private void StartRecording()
     {
-        _isRecording = true;
+        _recordingStartTime = (float)Time.GetTicksMsec() / 1000.0f;
+        _silenceTimer = 0.0f; 
         _recorder.SetRecordingActive(true);
-        GD.Print("LiveMode: Grabando voz...");
+        UpdateStatus(LiveState.Listening);
+        GD.Print("[FLAG] VAD: Voz detectada. Iniciando captura.");
     }
 
-    /// <summary>
-    /// Detiene la grabación actual, extrae el flujo de audio en formato WAV, lo persiste en el sistema de archivos local 
-    /// y delega el archivo resultante al motor de transcripción (STT).
-    /// </summary>
     private void StopAndSendRecording()
     {
-        _isRecording = false;
         _recorder.SetRecordingActive(false);
-        AudioStreamWav recording = _recorder.GetRecording();
         
-        if (recording != null)
+        float duration = ((float)Time.GetTicksMsec() / 1000.0f) - _recordingStartTime;
+        string fileName = "user_input.wav"; 
+        string path = ProjectSettings.GlobalizePath($"user://audio/{fileName}");
+
+        if (duration < 1.0f) // Filtro ajustado a 1 segundo
         {
-            string path = ProjectSettings.GlobalizePath("user://audio/user_input.wav");
-            recording.SaveToWav(path);
-            
-            Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
-            if (backend != null) 
+            GD.Print($"[FLAG] VAD: Audio descartado (muy corto).");
+            if (global::System.IO.File.Exists(path)) global::System.IO.File.Delete(path);
+            UpdateStatus(LiveState.Idle);
+            return;
+        }
+
+        AudioStreamWav recording = _recorder.GetRecording();
+        if (recording != null && recording.Data.Length > 0)
+        {
+            Error err = recording.SaveToWav(path);
+            if (err == Error.Ok)
             {
-                backend.ProcessSpeechToText(path);
+                GD.Print($"[FLAG] AUDIO: Archivo guardado. Enviando a STT...");
+                UpdateStatus(LiveState.ProcessingSTT); // BLOQUEAMOS EL MICRÓFONO AQUÍ
+                GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher")?.ProcessSpeechToText(path);
             }
         }
-        _silenceTimer = 0.0f;
     }
 
-    /// <summary>
-    /// Intercepta la acción de cierre para restaurar el estado de la aplicación principal y transicionar
-    /// de vuelta a la escena de chat estándar.
-    /// </summary>
-    private void OnCloseButtonPressed()
+    private void UpdateStatus(LiveState nextStatus)
     {
-        Logic.UI.MainApp mainApp = GetNodeOrNull<Logic.UI.MainApp>("/root/MainApp");
-        if (mainApp != null)
-        {
-            Button chatHeaderBtn = mainApp.GetNodeOrNull<Button>("MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout/ChatBotModeButton");
-          
-            if (chatHeaderBtn != null)
-            {
-                chatHeaderBtn.ButtonPressed = true;
-                chatHeaderBtn.EmitSignal(Button.SignalName.Pressed);
-            }
-            else
-            {
-                mainApp.LoadMode(mainApp.ChatbotScene);
-            }
-        }
+        if (_currentState == nextStatus) return;
+        _currentState = nextStatus;
+        GD.Print($"[ANNIE_STATUS] {nextStatus.ToString()}"); 
+    }
+    public override void _ExitTree()
+    {
+        GD.Print("[FLAG] SISTEMA: Liberando hardware de audio.");
+        if (MicroRecorderPlayer != null) MicroRecorderPlayer.Stop();
+        if (_recorder != null) _recorder.SetRecordingActive(false);
     }
 }

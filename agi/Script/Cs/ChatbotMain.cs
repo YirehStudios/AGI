@@ -55,12 +55,6 @@ namespace Logic.UI
             if (UserMessageTemplate != null) UserMessageTemplate.Visible = false;
             if (BotMessageTemplate != null) BotMessageTemplate.Visible = false;
 
-            int recordBusIndex = AudioServer.GetBusIndex("Record");
-            if (recordBusIndex != -1)
-            {
-                _recorder = (AudioEffectRecord)AudioServer.GetBusEffect(recordBusIndex, 0);
-            }
-
             Node networkManager = GetNodeOrNull("/root/NetworkManager");
             if (networkManager != null)
             {
@@ -146,8 +140,7 @@ namespace Logic.UI
         private void OnSTTCompleted(string recognizedText)
         {
             if (string.IsNullOrWhiteSpace(recognizedText)) return;
-            
-            GD.Print($"LiveMode: Escuché: {recognizedText}");
+            GD.Print("[FLOW] Iniciando cadena de respuesta LLM...");
             _ = ProcessMessage(recognizedText);
         }
 
@@ -158,13 +151,9 @@ namespace Logic.UI
         /// <param name="textToSynthesize">Cadena que requiere conversión a flujo de audio.</param>
         private void DispatchSherpaSpeech(string textToSynthesize)
         {
-            if (string.IsNullOrWhiteSpace(textToSynthesize)) return;
-            
-            Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
-            if (backend != null) 
-            {
-                backend.GenerateTextToSpeech(textToSynthesize);
-            }
+            GD.Print($"[TTS] Solicitando síntesis de voz: {textToSynthesize.Substr(0, 20)}...");
+            var backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
+            backend?.GenerateTextToSpeech(textToSynthesize);
         }
 
         private void OnSendPressed()

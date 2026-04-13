@@ -3,7 +3,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
-using Logic.Utils;
+using SysPath = System.IO.Path;
 
 namespace Logic.Backend
 {
@@ -12,6 +12,7 @@ namespace Logic.Backend
     /// </summary>
     public partial class BackendLauncher : Node
     {
+        
         [Signal]
         public delegate void ConnectionLostEventHandler();
 
@@ -21,105 +22,129 @@ namespace Logic.Backend
         [Signal]
         public delegate void BuildLogReceivedEventHandler(string logMessage);
 
-        /// <summary>
-        /// Señal emitida tras la culminación de la transcripción de audio a texto, retornando la cadena procesada.
-        /// </summary>
         [Signal]
         public delegate void STTCompletedEventHandler(string recognizedText);
 
-        /// <summary>
-        /// Señal emitida tras la culminación de la síntesis de texto a voz, indicando la ruta del archivo de salida.
-        /// </summary>
         [Signal]
         public delegate void TTSCompletedEventHandler(string audioFilePath);
+        [Export] public int LlamaPort = 8080;
+        [Export] public int WhisperPort = 8081;
+        private Process _llamaProcess;
+        private Process _whisperProcess;
 
         private Process _backendProcess;
         private bool _isRunning = false;
         private int _retryCount = 0;
         private const int MaxRetries = 3;
 
+        private Logic.System.Config.ConfigManager _configManager;
+
+        public override void _Ready()
+        {
+            _configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+        }
+
         public void StartBackend()
         {
-            // Resuelve las dependencias de configuración en el hilo principal.
+            _retryCount = 0;
+            
             Logic.System.Config.ConfigManager configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
             string safeFileName = "default.gguf";
-            int userGpuPreference = -1;
 
             if (configManager != null)
             {
                 if (!string.IsNullOrEmpty(configManager.ActiveModelName))
                     safeFileName = configManager.ActiveModelName.Replace(" ", "_") + ".gguf";
-                userGpuPreference = configManager.SelectedGpuIndex; 
             }
             
-            // Asignación de rutas absolutas del sistema de archivos virtual antes de la delegación del subproceso.
             string modelsDir = ProjectSettings.GlobalizePath("user://models"); 
             string audioDir = ProjectSettings.GlobalizePath("user://audio"); 
-            string adapterName = Godot.RenderingServer.GetVideoAdapterName().ToLower();
-            
-            GD.Print($"BackendLauncher: GPU detectada por el motor: {adapterName}");
 
-            string hardwareBridge = "";
-            string llamaDeviceEnv = "";
-
-            // Configuración de los puentes lógicos de aceleración por hardware.
-            if (adapterName.Contains("nvidia") || adapterName.Contains("tesla") || adapterName.Contains("geforce") || adapterName.Contains("rtx") || adapterName.Contains("quadro"))
-            {
-                hardwareBridge = "--runtime=nvidia --gpus all --privileged -e NVIDIA_DRIVER_CAPABILITIES=all -e NVIDIA_VISIBLE_DEVICES=all"; 
-                llamaDeviceEnv = $"-e CUDA_VISIBLE_DEVICES={(userGpuPreference >= 0 ? userGpuPreference : 0)}";
-            }
-            else if (adapterName.Contains("amd") || adapterName.Contains("radeon"))
-            {
-                hardwareBridge = "--device /dev/kfd --device /dev/dri"; 
-                llamaDeviceEnv = $"-e GGML_VK_VISIBLE_DEVICES={(userGpuPreference >= 0 ? userGpuPreference : 0)}";
-            }
-            else 
-            {
-                hardwareBridge = "--device /dev/dri"; 
-                llamaDeviceEnv = $"-e GGML_VK_VISIBLE_DEVICES={(userGpuPreference >= 0 ? userGpuPreference : 0)}";
-            }
-
+            // Allocates the execution to a background task context to prevent UI thread blockages.
             Task.Run(async () => 
             {
-                bool imageReady = await EnsureDockerImageExistsAsync();
-                if (imageReady)
-                {
-                    // Garantiza la existencia del directorio local para prevenir la asignación de permisos root por parte del demonio de Docker al crear el volumen.
-                    global::System.IO.Directory.CreateDirectory(audioDir);
-                    await ManageBackendLifecycle(modelsDir, audioDir, safeFileName, hardwareBridge, llamaDeviceEnv);
-                }
-                else
-                {
-                    GD.PrintErr("BackendLauncher: Error crítico. No se pudo construir la imagen Docker.");
-                    CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
-                }
+                global::System.IO.Directory.CreateDirectory(audioDir);
+                await ManageBackendLifecycle(modelsDir, safeFileName);
             });
         }
 
         public void ProcessSpeechToText(string audioFilePath)
         {
-            // Resuelve las dependencias de configuración mediante el Singleton raíz del árbol de Godot.
-            Logic.System.Config.ConfigManager configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
-            string sttModel = configManager?.ActiveSTTModel ?? "base.bin";
-            
-            // Aisla el nombre del archivo a través del espacio de nombres global de .NET para eludir la colisión léxica con Logic.System.
-            string audioFileName = global::System.IO.Path.GetFileName(audioFilePath);
-            
-            // Estructura la invocación asíncrona sobre la sesión activa de Docker sin instanciar contenedores adicionales.
-            string command = $"exec agi-llama-server whisper-cli -m /app/models/{sttModel} -f /app/audio/{audioFileName} --output-txt";
+            GD.Print($"[FLAG] STT: Enviando {Path.GetFileName(audioFilePath)} vía HTTP...");
 
-            ExecuteInstantCommand(command, "Whisper", audioFilePath);
+            // Offloads the synchronous network blocking request onto an asynchronous task thread.
+            Task.Run(async () => 
+            {
+                try
+                {
+                    // Instantiates connection client and initializes payload structure for multipart forms.
+                    using var client = new global::System.Net.Http.HttpClient();
+                    using var form = new global::System.Net.Http.MultipartFormDataContent();
+                    
+                    // Reads binary constraints of the file system wav and enforces the strictly typed MIME parameter.
+                    byte[] audioBytes = global::System.IO.File.ReadAllBytes(audioFilePath);
+                    var audioContent = new global::System.Net.Http.ByteArrayContent(audioBytes);
+                    audioContent.Headers.ContentType = global::System.Net.Http.Headers.MediaTypeHeaderValue.Parse("audio/wav");
+                    
+                    form.Add(audioContent, "file", global::System.IO.Path.GetFileName(audioFilePath));
+                    
+                    // Dispatches payload to the local HTTP Whisper endpoint handling inference natively.
+                    var response = await client.PostAsync("http://127.0.0.1:8081/inference", form);
+                    response.EnsureSuccessStatusCode();
+                    
+                    string jsonResponse = await response.Content.ReadAsStringAsync();
+                    
+                    // Executes JSON string parsing to extract and isolate the strictly text-formatted response.
+                    using var doc = global::System.Text.Json.JsonDocument.Parse(jsonResponse);
+                    if (doc.RootElement.TryGetProperty("text", out global::System.Text.Json.JsonElement textElement))
+                    {
+                        string recognizedText = textElement.GetString().Trim();
+                        GD.Print($"[FLAG] STT SUCCESS: {recognizedText}");
+                        CallDeferred(MethodName.EmitSignal, SignalName.STTCompleted, recognizedText);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    GD.PrintErr($"[FLAG] STT ERROR: Falló la petición HTTP a Whisper. {ex.Message}");
+                }
+            });
+        }
+
+        private void ExecuteInstantCommand(string args, string engineName, string targetFilePath, Action<int> onFinished = null)
+        {
+            Task.Run(() => {
+                ProcessStartInfo info = new ProcessStartInfo {
+                    FileName = "docker",
+                    Arguments = args,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using Process p = Process.Start(info);
+                p.WaitForExit();
+                
+                onFinished?.Invoke(p.ExitCode); // Avisamos si terminó bien
+
+                if (p.ExitCode != 0) {
+                    GD.PrintErr($"[FLAG] ERROR: {engineName} falló con código {p.ExitCode}");
+                    return;
+                }
+
+                if (engineName == "Whisper") {
+                    string txtPath = targetFilePath + ".txt";
+                    if (global::System.IO.File.Exists(txtPath)) {
+                        string text = global::System.IO.File.ReadAllText(txtPath).Trim();
+                        CallDeferred(MethodName.EmitSignal, SignalName.STTCompleted, text);
+                    }
+                }
+            });
         }
 
         public void GenerateTextToSpeech(string textToSynthesize)
         {
-            // Resuelve las dependencias de configuración mediante el Singleton raíz del árbol de Godot.
-            Logic.System.Config.ConfigManager configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
-            string modelFolder = configManager?.ActiveTTSModel ?? "vits-piper-es_MX-claude-high";
+            string modelFolder = _configManager?.ActiveTTSModel ?? "vits-piper-es_MX-claude-high";
             string modelName = modelFolder.Replace("vits-piper-", "");
             string outputFileName = "temp_voice.wav";
 
-            // Ensambla la cadena de ejecución nativa direccionando los argumentos al motor Sherpa dentro del contenedor Llama existente.
             string command = $"exec agi-llama-server sherpa-onnx-offline-tts " +
                             $"--vits-model=\"/app/models/{modelFolder}/{modelName}.onnx\" " +
                             $"--vits-tokens=\"/app/models/{modelFolder}/tokens.txt\" " +
@@ -129,50 +154,9 @@ namespace Logic.Backend
             ExecuteInstantCommand(command, "Sherpa", outputFileName);
         }
 
-        private void ExecuteInstantCommand(string args, string engineName, string targetFilePath)
-        {
-            // Deriva la ejecución del subproceso al ThreadPool de C# para no interrumpir el ciclo de procesamiento de la interfaz de usuario.
-            Task.Run(() => 
-            {
-                ProcessStartInfo info = new ProcessStartInfo 
-                {
-                    FileName = "docker",
-                    Arguments = args,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-                
-                using Process p = Process.Start(info);
-                p.WaitForExit();
-                GD.Print($"BackendLauncher: {engineName} finalizado con código {p.ExitCode}");
-                
-                // Evalúa el código de salida estándar del sistema operativo para confirmar el éxito de la operación.
-                if (p.ExitCode == 0) 
-                {
-                    if (engineName == "Whisper")
-                    {
-                        string txtPath = targetFilePath + ".txt";
-                        // Valida la existencia del archivo de salida empleando la referencia global del sistema de E/S.
-                        if (global::System.IO.File.Exists(txtPath)) 
-                        {
-                            // Lee el flujo de texto completo y emite la señal delegando el retorno al hilo principal.
-                            string text = global::System.IO.File.ReadAllText(txtPath);
-                            CallDeferred(MethodName.EmitSignal, SignalName.STTCompleted, text);
-                        }
-                    }
-                    else if (engineName == "Sherpa")
-                    {
-                        string outputDir = ProjectSettings.GlobalizePath("user://audio");
-                        // Concatena las rutas absolutas operando sobre el identificador global de la directiva System.IO.
-                        string finalPath = global::System.IO.Path.Combine(outputDir, targetFilePath);
-                        CallDeferred(MethodName.EmitSignal, SignalName.TTSCompleted, finalPath);
-                    }
-                }
-            });
-        }
-
         private async Task<bool> EnsureDockerImageExistsAsync()
         {
+            // Resolves the internal application file system constraints and initializes the directory structure.
             string serverDir = ProjectSettings.GlobalizePath("user://server");
             global::System.IO.Directory.CreateDirectory(serverDir);
             
@@ -180,6 +164,7 @@ namespace Logic.Backend
             string sourceResPath = "res://Script/Cs/System/Drivers/Dockerfile";
             string fileContent = "";
 
+            // Attempts to fetch the Dockerfile definitions from local Godot mapped resources.
             using (var file = Godot.FileAccess.Open(sourceResPath, Godot.FileAccess.ModeFlags.Read))
             {
                 if (file != null) 
@@ -193,6 +178,7 @@ namespace Logic.Backend
                 }
             }
 
+            // Executes an external web request to retrieve fallback Dockerfile definitions if the local asset is unavailable.
             if (string.IsNullOrEmpty(fileContent))
             {
                 try
@@ -213,8 +199,17 @@ namespace Logic.Backend
 
             global::System.IO.File.WriteAllText(dockerfilePath, fileContent);
 
-            var output = new Godot.Collections.Array();
-            int inspectCode = Godot.OS.Execute("docker", new string[] { "image", "inspect", "yirehstudios/agi-backend:latest" }, output, true);
+            // Instantiates an asynchronous standard process to query the local Docker engine regarding the image integrity,
+            // bypassing the Godot OS.Execute call to prevent rendering thread deadlocks.
+            ProcessStartInfo inspectInfo = new ProcessStartInfo {
+                FileName = "docker",
+                Arguments = "image inspect yirehstudios/agi-backend:latest",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using Process inspectProcess = Process.Start(inspectInfo);
+            inspectProcess.WaitForExit();
+            int inspectCode = inspectProcess.ExitCode;
 
             if (inspectCode == 0)
             {
@@ -225,6 +220,7 @@ namespace Logic.Backend
             GD.Print("BackendLauncher: Iniciando construcción en segundo plano...");
             CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, "Descargando entorno y compilando (Esto tomará varios minutos)...");
 
+            // Allocates an independent subprocess mapping stdout/stderr streams to track the container build sequence incrementally.
             ProcessStartInfo buildInfo = new ProcessStartInfo
             {
                 FileName = "docker",
@@ -259,100 +255,93 @@ namespace Logic.Backend
             return buildProcess.ExitCode == 0;
         }
 
-        /// <summary>
-        /// Configures and orchestrates the llama-server execution within a hardware-aware Docker container.
-        /// </summary>
-        private async Task ManageBackendLifecycle(string modelsDir, string audioDir, string safeFileName, string hardwareBridge, string llamaDeviceEnv)
-{
-    try
-    {
-        // Purga preventiva de instancias residuales o bloqueadas del contenedor objetivo.
-        Process.Start(new ProcessStartInfo { FileName = "docker", Arguments = "rm -f agi-llama-server", CreateNoWindow = true, UseShellExecute = false })?.WaitForExit();
-
-        int threadCount = Math.Max(1, global::System.Environment.ProcessorCount / 2);
-        string modelDockerPath = $"/app/models/{safeFileName}";
-
-        // Construcción del comando run integrando el montaje de los volúmenes de modelos y audio en la estructura del contenedor persistente.
-        string dockerCmd = $"docker run --name agi-llama-server --rm {hardwareBridge} {llamaDeviceEnv} -v '{modelsDir}:/app/models' -v '{audioDir}:/app/audio' -p 8080:8080 yirehstudios/agi-backend:latest llama-server --host 0.0.0.0 --model '{modelDockerPath}' --port 8080 --ctx-size 4096 --threads {threadCount} --n-gpu-layers 99 --temp 0.7 --repeat-penalty 1.15";
-
-        ProcessStartInfo startInfo = new ProcessStartInfo
+        private async Task ManageBackendLifecycle(string modelsDir, string safeFileName)
         {
-            FileName = "sh", 
-            Arguments = $"-c \"{dockerCmd}\"", 
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        _backendProcess = new Process { StartInfo = startInfo };
-
-        _backendProcess.OutputDataReceived += (sender, e) => 
-        { 
-            if (!string.IsNullOrEmpty(e.Data)) 
+            try
             {
-                GD.Print($"[Docker Llama] {e.Data}");
-                CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, e.Data); 
-            }
-        };
-                        
-        _backendProcess.ErrorDataReceived += (sender, e) => 
-        { 
-            if (!string.IsNullOrEmpty(e.Data)) 
-            {
-                GD.Print($"[Docker Llama ERROR] {e.Data}");
-                CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, e.Data);
+                int threadCount = Math.Max(1, global::System.Environment.ProcessorCount / 2);
+                string modelLlamaPath = global::System.IO.Path.Combine(modelsDir, safeFileName);
                 
-                // Evaluación de secuencias clave para determinar la inicialización exitosa del servidor.
-                if (e.Data.Contains("server is listening on") || e.Data.Contains("HTTP server listening"))
+                string sttModel = _configManager?.ActiveSTTModel ?? "Whisper_Base.bin"; 
+                string modelWhisperPath = global::System.IO.Path.Combine(modelsDir, sttModel);
+
+                string binDir = ProjectSettings.GlobalizePath("user://bin");
+                string llamaBinPath = global::System.IO.Path.Combine(binDir, "llama-server");
+                string whisperBinPath = global::System.IO.Path.Combine(binDir, "whisper-server");
+
+                // Instantiates the ProcessStartInfo strictly configuring standard stream redirection and suppressing window creation for Whisper.
+                ProcessStartInfo whisperInfo = new ProcessStartInfo
                 {
-                    GD.Print("BackendLauncher: Llama Server cargado en memoria exitosamente.");
-                    CallDeferred(MethodName.EmitSignal, SignalName.BackendReady);
-                }
+                    FileName = whisperBinPath,
+                    Arguments = $"-m \"{modelWhisperPath}\" --host 127.0.0.1 --port {WhisperPort}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                // Instantiates the ProcessStartInfo strictly configuring standard stream redirection and suppressing window creation for Llama.
+                ProcessStartInfo llamaInfo = new ProcessStartInfo
+                {
+                    FileName = llamaBinPath,
+                    Arguments = $"--model \"{modelLlamaPath}\" --host 127.0.0.1 --port {LlamaPort} --ctx-size 4096 --threads {threadCount} --n-gpu-layers 99 --temp 0.7 --repeat-penalty 1.15",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                _whisperProcess = new Process { StartInfo = whisperInfo, EnableRaisingEvents = true };
+                _llamaProcess = new Process { StartInfo = llamaInfo, EnableRaisingEvents = true };
+
+                // Subscribes local delegates to capture the asynchronous standard output streams for console replication.
+                _whisperProcess.OutputDataReceived += (sender, e) => { if (!string.IsNullOrEmpty(e.Data)) CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Whisper] {e.Data}"); };
+                _whisperProcess.ErrorDataReceived += (sender, e) => { if (!string.IsNullOrEmpty(e.Data)) CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Whisper ERR] {e.Data}"); };
+                _whisperProcess.Exited += OnProcessExited;
+
+                _llamaProcess.OutputDataReceived += (sender, e) => { if (!string.IsNullOrEmpty(e.Data)) CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Llama] {e.Data}"); };
+                
+                // Evaluates the standard error output of the Llama process to detect the network binding success string.
+                _llamaProcess.ErrorDataReceived += (sender, e) => 
+                { 
+                    if (!string.IsNullOrEmpty(e.Data)) 
+                    {
+                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Llama ERR] {e.Data}");
+                        
+                        if (e.Data.Contains("server is listening on") || e.Data.Contains("HTTP server listening"))
+                        {
+                            GD.Print("BackendLauncher: Llama Server nativo cargado en memoria exitosamente.");
+                            CallDeferred(MethodName.EmitSignal, SignalName.BackendReady);
+                        }
+                    }
+                };
+                _llamaProcess.Exited += OnProcessExited;
+
+                _whisperProcess.Start();
+                _whisperProcess.BeginOutputReadLine();
+                _whisperProcess.BeginErrorReadLine();
+
+                _llamaProcess.Start();
+                _llamaProcess.BeginOutputReadLine();
+                _llamaProcess.BeginErrorReadLine();
+
+                _isRunning = true;
+
+                GD.Print($"BackendLauncher: Nativos iniciados. Llama PID: {_llamaProcess.Id}, Whisper PID: {_whisperProcess.Id}");
+                
+                await MonitorProcessHealth();
             }
-        };
-
-        _backendProcess.EnableRaisingEvents = true;
-        _backendProcess.Exited += OnProcessExited;
-        _backendProcess.Start();
-        _backendProcess.BeginOutputReadLine();
-        _backendProcess.BeginErrorReadLine();
-        _isRunning = true;
-        _retryCount = 0;
-
-        GD.Print($"BackendLauncher: Docker Llama-server process started [ID: {_backendProcess.Id}]");
-        
-        await MonitorProcessHealth();
-    }
-    catch (Exception ex)
-    {
-        GD.PrintErr($"BackendLauncher: Failed to start backend process. {ex.Message}");
-        HandleCrash();
-    }
-    }
-
-        /// <summary>
-        /// Ejecuta procesos a nivel del sistema operativo para abstraer la instanciación de Docker y su ciclo de vida.
-        /// Inyecta un callback para manejar el estado post-ejecución en el hilo pertinente.
-        /// </summary>
-        /// <param name="args">Argumentos del proceso inyectados al binario de Docker.</param>
-        /// <param name="onFinished">Acción invocada una vez que el proceso concluye de manera síncrona dentro del subproceso.</param>
-        private void ExecuteDockerCommand(string args, Action<int> onFinished)
-        {
-            ProcessStartInfo info = new ProcessStartInfo {
-                FileName = "docker",
-                Arguments = args,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using Process p = Process.Start(info);
-            p.WaitForExit();
-            onFinished?.Invoke(p.ExitCode);
+            catch (Exception ex)
+            {
+                GD.PrintErr($"BackendLauncher: Fallo al arrancar los binarios nativos. {ex.Message}");
+                HandleCrash();
+            }
         }
 
         private async Task MonitorProcessHealth()
         {
-            while (_isRunning && _backendProcess != null && !_backendProcess.HasExited)
+            // Continuously evaluates the active status of the instantiated system process references.
+            while (_isRunning && _llamaProcess != null && !_llamaProcess.HasExited && _whisperProcess != null && !_whisperProcess.HasExited)
             {
                 await Task.Delay(5000);
             }
@@ -360,17 +349,19 @@ namespace Logic.Backend
 
         private void OnProcessExited(object sender, EventArgs e)
         {
+            // Acts as the primary callback for process termination exceptions, enforcing lifecycle state resets.
             _isRunning = false;
-            GD.PrintErr("BackendLauncher: Process exited unexpectedly.");
+            GD.PrintErr("BackendLauncher: Uno de los procesos nativos se detuvo de forma inesperada.");
             HandleCrash();
         }
 
         private void HandleCrash()
         {
+            // Implements a recursive attempt pattern bound by the defined maximum retry constraint.
             if (_retryCount < MaxRetries)
             {
                 _retryCount++;
-                GD.Print($"BackendLauncher: Attempting revival ({_retryCount}/{MaxRetries})...");
+                GD.Print($"BackendLauncher: Intentando revivir motores ({_retryCount}/{MaxRetries})...");
                 CallDeferred(MethodName.StartBackend); 
             }
             else
@@ -381,15 +372,27 @@ namespace Logic.Backend
         
         public override void _ExitTree()
         {
-            GD.Print("BackendLauncher: Alt+F4 detectado o cerrando app. ¡Asesinando contenedores Zombis!");
+            // Enforces memory hygiene by forcefully terminating active child process execution trees upon application closure.
+            GD.Print("BackendLauncher: Limpieza de procesos nativos (Evitando Zombis).");
             _isRunning = false;
             
-            var output = new Godot.Collections.Array();
-            OS.Execute("docker", new string[] { "rm", "-f", "agi-llama-server" }, output, true);
-            
-            if (_backendProcess != null && !_backendProcess.HasExited)
+            try
             {
-                _backendProcess.Kill();
+                if (_llamaProcess != null && !_llamaProcess.HasExited)
+                {
+                    _llamaProcess.Kill();
+                    _llamaProcess.Dispose();
+                }
+                
+                if (_whisperProcess != null && !_whisperProcess.HasExited)
+                {
+                    _whisperProcess.Kill();
+                    _whisperProcess.Dispose();
+                }
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"BackendLauncher: Error durante la limpieza de procesos: {ex.Message}");
             }
         }
     }
