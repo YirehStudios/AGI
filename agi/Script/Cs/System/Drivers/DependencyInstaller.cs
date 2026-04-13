@@ -11,92 +11,58 @@ namespace Logic.System.Drivers
     /// </summary>
     public partial class DependencyInstaller : Node
     {
-        public async Task<(bool HasDocker, string RequiredCommand)> AuditSystemDependenciesAsync()
+        // Archivo: DependencyInstaller.cs
+
+    public async Task<(bool IsReady, string RequiredCommand)> AuditSystemDependenciesAsync()
+    {
+        // Executes system checks asynchronously to prevent blocking the main rendering thread.
+        return await Task.Run(() =>
         {
-            // 1. Detectamos si hay una GPU NVIDIA de forma segura en el hilo principal
-            string adapterName = Godot.RenderingServer.GetVideoAdapterName().ToLower();
-            bool hasNvidiaGpu = adapterName.Contains("nvidia");
+            // Evaluates the presence of required system binaries for networking and Vulkan rendering acceleration.
+            bool hasAria2 = CheckCommandExists("aria2c");
+            bool hasVulkan = CheckCommandExists("vulkaninfo");
 
-            return await Task.Run(() =>
+            bool needsAria2 = !hasAria2;
+            bool needsVulkan = !hasVulkan;
+
+            // Bypasses the installation script generation if all dependencies are already satisfied.
+            if (!needsAria2 && !needsVulkan)
             {
-                // 2. Auditamos qué le falta a la computadora
-                bool hasDocker = CheckCommandExists("docker");
-                bool hasAria2 = CheckCommandExists("aria2c");
-                bool hasNvidiaCtk = CheckCommandExists("nvidia-ctk");
+                return (true, string.Empty);
+            }
 
-                bool needsDocker = !hasDocker;
-                bool needsAria2 = !hasAria2;
-                bool needsNvidiaCtk = hasNvidiaGpu && !hasNvidiaCtk; // Solo lo pide si hay NVIDIA
+            // Initializes the dynamic bash script string containing the required package manager invocations.
+            string scriptPath = ProjectSettings.GlobalizePath("user://instalar_dependencias.sh");
+            string scriptContent = "#!/bin/bash\nset -e\n\n";
+            scriptContent += "echo '============================================'\n";
+            scriptContent += "echo '  Instalador Automático de AGI (Fedora/Linux)'\n";
+            scriptContent += "echo '============================================'\n\n";
 
-                // Si la PC ya está lista, le damos luz verde de inmediato
-                if (!needsDocker && !needsAria2 && !needsNvidiaCtk)
-                {
-                    return (true, string.Empty);
-                }
+            bool hasApt = CheckCommandExists("apt-get");
+            bool hasDnf = CheckCommandExists("dnf");
+            bool hasPacman = CheckCommandExists("pacman");
 
-                // 3. GENERADOR DE SCRIPT AUTOMÁTICO (Infraestructura como Código)
-                string scriptPath = ProjectSettings.GlobalizePath("user://instalar_dependencias.sh");
-                string scriptContent = "#!/bin/bash\nset -e\n\n";
-                scriptContent += "echo '============================================'\n";
-                scriptContent += "echo '  Instalador Automático de AGI (Godot)'\n";
-                scriptContent += "echo '============================================'\n\n";
+            if (needsAria2 || needsVulkan)
+            {
+                scriptContent += "echo '-> Instalando dependencias de red y aceleración Vulkan...'\n";
+                if (hasApt) scriptContent += $"sudo apt-get update && sudo apt-get install -y {(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "mesa-vulkan-drivers vulkan-tools " : "")}\n";
+                else if (hasDnf) scriptContent += $"sudo dnf install -y {(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "mesa-vulkan-drivers vulkan-tools " : "")}\n";
+                else if (hasPacman) scriptContent += $"sudo pacman -S --noconfirm {(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "vulkan-radeon vulkan-intel vulkan-tools " : "")}\n";
+                scriptContent += "\n";
+            }
 
-                bool hasApt = CheckCommandExists("apt-get");
-                bool hasDnf = CheckCommandExists("dnf");
-                bool hasPacman = CheckCommandExists("pacman");
+            scriptContent += "echo '============================================'\n";
+            scriptContent += "echo '¡Todo listo! Cierra esta terminal y reinicia tu app.'\n";
 
-                if (needsDocker || needsAria2)
-                {
-                    scriptContent += "echo '-> Instalando Docker y Aria2c...'\n";
-                    if (hasApt) scriptContent += $"sudo apt-get update && sudo apt-get install -y {(needsDocker ? "docker.io " : "")}{(needsAria2 ? "aria2" : "")}\n";
-                    else if (hasDnf) scriptContent += $"sudo dnf install -y {(needsDocker ? "docker " : "")}{(needsAria2 ? "aria2" : "")}\n";
-                    else if (hasPacman) scriptContent += $"sudo pacman -S --noconfirm {(needsDocker ? "docker " : "")}{(needsAria2 ? "aria2" : "")}\n";
-                    else scriptContent += "curl -fsSL https://get.docker.com | sudo sh\n";
-                    scriptContent += "\n";
-                }
+            // Persists the generated script to the user directory and assigns executable permissions.
+            global::System.IO.File.WriteAllText(scriptPath, scriptContent);
+            OS.Execute("chmod", new string[] { "+x", scriptPath }, new Godot.Collections.Array(), true);
 
-                if (needsNvidiaCtk)
-                {
-                    scriptContent += "echo '-> Configurando NVIDIA Container Toolkit (Puente GPU)...'\n";
-                    if (hasApt)
-                    {
-                        scriptContent += "curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg\n";
-                        scriptContent += "curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list > /dev/null\n";
-                        scriptContent += "sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit\n";
-                    }
-                    else if (hasDnf)
-                    {
-                        scriptContent += "curl -s -L https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo | sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo > /dev/null\n";
-                        scriptContent += "sudo dnf install -y nvidia-container-toolkit\n";
-                    }
-                    scriptContent += "sudo nvidia-ctk runtime configure --runtime=docker\n";
-                    scriptContent += "\n";
-                }
-
-                if (needsDocker || needsNvidiaCtk)
-                {
-                    scriptContent += "echo '-> Reiniciando servicios y aplicando permisos...'\n";
-                    scriptContent += "sudo systemctl enable --now docker\n";
-                    scriptContent += "sudo systemctl restart docker\n";
-                    scriptContent += "sudo usermod -aG docker $USER\n";
-                    scriptContent += "\n";
-                }
-
-                scriptContent += "echo '============================================'\n";
-                scriptContent += "echo '¡Todo listo! Cierra esta terminal y reinicia tu app.'\n";
-
-                // Escribimos el script en el disco duro
-                global::System.IO.File.WriteAllText(scriptPath, scriptContent);
-                
-                // Le damos permisos de ejecución en Linux
-                OS.Execute("chmod", new string[] { "+x", scriptPath }, new Godot.Collections.Array(), true);
-
-                // 4. Devolvemos UNA SOLA línea limpia para la interfaz gráfica del usuario
-                string finalCommand = $"bash \"{scriptPath}\"";
-                
-                return (false, finalCommand);
-            });
-        }
+            string finalCommand = $"bash \"{scriptPath}\"";
+            
+            return (false, finalCommand);
+        });
+    }
 
         private bool CheckCommandExists(string command)
         {

@@ -49,6 +49,8 @@ namespace Logic.Utils
         [Export] public Button BtnAdvancedSettings;
         [Export] public VBoxContainer AdvancedContainer;
         [Export] public LineEdit TxtCustomPort;
+        [Export] private string LlamaServerUrl = "https://github.com/ggml-org/llama.cpp/releases/download/b8770/llama-b8770-bin-ubuntu-vulkan-x64.tar.gz";
+        [Export] private string WhisperServerUrl = "";
 
         private ConfigManager.ModelPreset _selectedLLM;
         private ConfigManager.ModelPreset _selectedSTT;
@@ -196,69 +198,59 @@ namespace Logic.Utils
             }
         }
 
-        /// <summary>
-        /// Executes asynchronous state initialization logic based on the provided WizardState.
-        /// Evaluates dependencies and conditionally formats UI strings based on the evaluation result.
-        /// </summary>
-        /// <param name="state">The state of the machine being processed.</param>
         private async void HandleStateInitialization(WizardState state)
-		{
-			switch (state)
-			{
-				case WizardState.Dependencies:
-					// Agregamos un tiempo límite (Timeout) de 4 segundos.
-					// Si la terminal (OS.Execute) se queda esperando una contraseña o se traba,
-					// no congelará el programa y saltará directo a la selección de modo.
-					var auditTask = _dependencyInstaller.AuditSystemDependenciesAsync();
-					var timeoutTask = Task.Delay(4000);
+        {
+            switch (state)
+            {
+                case WizardState.Dependencies:
+                    // Implements a timed execution context to prevent UI freezing during dependency verification.
+                    var auditTask = _dependencyInstaller.AuditSystemDependenciesAsync();
+                    var timeoutTask = Task.Delay(4000);
 
-					if (await Task.WhenAny(auditTask, timeoutTask) == auditTask)
-					{
-						var result = auditTask.Result;
-						if (result.HasDocker)
-						{
-							SwitchState(WizardState.ModeSelection);
-						}
-						else
-						{
-							if (PanelDependencies != null) PanelDependencies.Visible = true;
-							
-							if (TxtCommandDisplay != null)
-							{
-								string displayText = result.RequiredCommand;
-								if (displayText.Contains("aria2"))
-								{
-									displayText = "# Sugerencia: Se ha incluido aria2 en el comando para descargas rápidas.\n" + displayText;
-								}
-								TxtCommandDisplay.Text = displayText;
-							}
+                    if (await Task.WhenAny(auditTask, timeoutTask) == auditTask)
+                    {
+                        var result = auditTask.Result;
+                        // Evaluates the boolean flag to determine if the local environment meets the operational baseline.
+                        if (result.IsReady)
+                        {
+                            SwitchState(WizardState.ModeSelection);
+                        }
+                        else
+                        {
+                            if (PanelDependencies != null) PanelDependencies.Visible = true;
+                            
+                            if (TxtCommandDisplay != null)
+                            {
+                                string displayText = result.RequiredCommand;
+                                if (displayText.Contains("aria2"))
+                                {
+                                    displayText = "# Sugerencia: Se ha incluido aria2 en el comando para descargas rápidas.\n" + displayText;
+                                }
+                                TxtCommandDisplay.Text = displayText;
+                            }
 
-							if (LblRestartWarning != null)
-							{
-								LblRestartWarning.Text = "[center]Por favor, ejecuta este comando en tu terminal, luego REINICIA esta aplicación.[/center]";
-							}
-						}
-					}
-					else
-					{
-						// Timeout alcanzado: La terminal se congeló en segundo plano.
-						// Como mencionas que ya tienes todo, forzamos el paso al siguiente panel.
-						GD.Print("SetupWizard: La auditoría se atascó. Forzando salto a ModeSelection...");
-						SwitchState(WizardState.ModeSelection);
-					}
-					break;
+                            if (LblRestartWarning != null)
+                            {
+                                LblRestartWarning.Text = "[center]Por favor, ejecuta este comando en tu terminal, luego REINICIA esta aplicación.[/center]";
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Forces the state transition if the shell execution halts indefinitely.
+                        GD.Print("SetupWizard: La auditoría se atascó. Forzando salto a ModeSelection...");
+                        SwitchState(WizardState.ModeSelection);
+                    }
+                    break;
 
-				case WizardState.ModelSelection:
-					PopulateModelPresets();
-					break;
+                case WizardState.ModelSelection:
+                    PopulateModelPresets();
+                    break;
 
-				case WizardState.Downloading:
-					// ¡AQUÍ ESTABA EL ERROR DEL CRASH (Stack Overflow)!
-					// Eliminamos StartModelDownload() de aquí.
-					// SwitchState solo debe cambiar lo visual, no debe disparar lógicas en bucle.
-					break;
-			}
-		}
+                case WizardState.Downloading:
+                    break;
+            }
+        }
 
         /// <summary>
         /// Classifies the selected model into LLM, STT, or TTS internal properties based on object nomenclature.
@@ -300,59 +292,77 @@ namespace Logic.Utils
 		/// and delegates the container engine startup upon successful traversal of the list.
 		/// </summary>
 		private async void StartModelDownload()
-		{
-			// ESTO ERA LO QUE FALTABA: Obligar a la interfaz a mostrar el panel de descarga
-			SwitchState(WizardState.Downloading);
+        {
+            // Enforces the transition to the downloading visual state.
+            SwitchState(WizardState.Downloading);
 
-			List<ConfigManager.ModelPreset> presetsToDownload = new List<ConfigManager.ModelPreset> { _selectedLLM, _selectedSTT, _selectedTTS };
+            // Initializes the core application binaries mapping.
+            string binDir = ProjectSettings.GlobalizePath("user://bin");
+            global::System.IO.Directory.CreateDirectory(binDir);
 
-			foreach (ConfigManager.ModelPreset preset in presetsToDownload)
-			{
-				if (preset == null) continue;
+            if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando motores nativos (Llama/Whisper)...[/center]";
 
-				string safeFileName = preset.Name.Replace(" ", "_");
-				if (preset.Name.Contains("Whisper")) safeFileName += ".bin";
-				else if (preset.Name.Contains("Sherpa")) safeFileName += ".tar.bz2";
-				else safeFileName += ".gguf";
+            // Dispatches the asynchronous requests for the precompiled server engines.
+            await _downloadManager.DownloadFileAsync(LlamaServerUrl, "user://bin", "llama-server.tar.gz");
+            await _downloadManager.DownloadFileAsync(WhisperServerUrl, "user://bin", "whisper-server.tar.gz");
 
-				if (!preset.Name.Contains("Whisper") && !preset.Name.Contains("Sherpa"))
-				{
-					_configManager.ActiveModelName = preset.Name;
-					_configManager.ActiveModelPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
-				}
+            // Applies strict Unix executable permissions to the downloaded binaries to prevent OS access restrictions.
+            string llamaBinPath = ProjectSettings.GlobalizePath("user://bin/llama-server");
+            string whisperBinPath = ProjectSettings.GlobalizePath("user://bin/whisper-server");
+            OS.Execute("chmod", new string[] { "+x", llamaBinPath }, new Godot.Collections.Array(), true);
+            OS.Execute("chmod", new string[] { "+x", whisperBinPath }, new Godot.Collections.Array(), true);
 
-				_configManager.ActiveModelUrl = preset.DownloadLinks[0];
-				if (preset.Name.Contains("Whisper")) _configManager.ActiveSTTModel = safeFileName;
-				if (preset.Name.Contains("Sherpa")) _configManager.ActiveTTSModel = safeFileName.Replace(".tar.bz2", "");
-				_configManager.SaveConfiguration();
+            // Evaluates the user-selected configuration preset models and iterates their respective network fetches.
+            List<ConfigManager.ModelPreset> presetsToDownload = new List<ConfigManager.ModelPreset> { _selectedLLM, _selectedSTT, _selectedTTS };
 
-				// VALIDACIÓN: Ver si el archivo ya existe para no descargarlo a lo tonto
-				string globalPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
-				if (global::System.IO.File.Exists(globalPath))
-				{
-					GD.Print($"SetupWizard: El archivo {safeFileName} ya existe. Omitiendo descarga.");
-					if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]El archivo {preset.Name} ya existe en el sistema. Omitiendo...[/center]";
-					await ToSignal(GetTree().CreateTimer(1.5), SceneTreeTimer.SignalName.Timeout); // Pequeña pausa para que el usuario lea
-					continue; // Salta a la siguiente descarga
-				}
+            foreach (ConfigManager.ModelPreset preset in presetsToDownload)
+            {
+                if (preset == null) continue;
 
-				if (ModelDownloadStatus != null)
-				{
-					ModelDownloadStatus.Text = $"[center]Descargando: {preset.Name}...[/center]";
-				}
+                string safeFileName = preset.Name.Replace(" ", "_");
+                if (preset.Name.Contains("Whisper")) safeFileName += ".bin";
+                else if (preset.Name.Contains("Sherpa")) safeFileName += ".tar.bz2";
+                else safeFileName += ".gguf";
 
-				bool success = await _downloadManager.DownloadFileAsync(preset.DownloadLinks[0], "user://models", safeFileName);
+                if (!preset.Name.Contains("Whisper") && !preset.Name.Contains("Sherpa"))
+                {
+                    _configManager.ActiveModelName = preset.Name;
+                    _configManager.ActiveModelPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
+                }
 
-				if (!success)
-				{
-					GD.PrintErr($"SetupWizard: Fallo en descarga de {preset.Name}");
-					if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center][color=red]Error descargando {preset.Name}.[/color][/center]";
-					return;
-				}
-			}
+                _configManager.ActiveModelUrl = preset.DownloadLinks[0];
+                if (preset.Name.Contains("Whisper")) _configManager.ActiveSTTModel = safeFileName;
+                if (preset.Name.Contains("Sherpa")) _configManager.ActiveTTSModel = safeFileName.Replace(".tar.bz2", "");
+                _configManager.SaveConfiguration();
 
-			StartLlamaServer();
-		}
+                // Evaluates local storage for the requested asset to bypass redundant network utilization.
+                string globalPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
+                if (global::System.IO.File.Exists(globalPath))
+                {
+                    GD.Print($"SetupWizard: El archivo {safeFileName} ya existe. Omitiendo descarga.");
+                    if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]El archivo {preset.Name} ya existe en el sistema. Omitiendo...[/center]";
+                    await ToSignal(GetTree().CreateTimer(1.5), SceneTreeTimer.SignalName.Timeout); 
+                    continue; 
+                }
+
+                if (ModelDownloadStatus != null)
+                {
+                    ModelDownloadStatus.Text = $"[center]Descargando: {preset.Name}...[/center]";
+                }
+
+                bool success = await _downloadManager.DownloadFileAsync(preset.DownloadLinks[0], "user://models", safeFileName);
+
+                if (!success)
+                {
+                    GD.PrintErr($"SetupWizard: Fallo en descarga de {preset.Name}");
+                    if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center][color=red]Error descargando {preset.Name}.[/color][/center]";
+                    return;
+                }
+            }
+
+            // Delegates the execution flow to the backend instantiation sequence upon successful traversal.
+            StartLlamaServer();
+        }
 
         /// <summary>
         /// Evaluates the network transfer boolean result for an individual model mapping.
@@ -514,37 +524,38 @@ namespace Logic.Utils
         /// </summary>
         /// <param name="newState">The target state structure to enforce across the UI.</param>
         public void SwitchState(WizardState state)
-		{
-			// 1. Ocultamos todos los paneles primero
-			if (PanelWelcome != null) PanelWelcome.Visible = false;
-			if (PanelDependencies != null) PanelDependencies.Visible = false;
-			if (PanelModeSelection != null) PanelModeSelection.Visible = false;
-			if (PanelModelSelection != null) PanelModelSelection.Visible = false;
-			if (PanelDownloading != null) PanelDownloading.Visible = false;
+        {
+            // Resets the visibility state of all primary interface panels to ensure a clean rendering context.
+            if (PanelWelcome != null) PanelWelcome.Visible = false;
+            if (PanelDependencies != null) PanelDependencies.Visible = false;
+            if (PanelModeSelection != null) PanelModeSelection.Visible = false;
+            if (PanelModelSelection != null) PanelModelSelection.Visible = false;
+            if (PanelDownloading != null) PanelDownloading.Visible = false;
 
-			// 2. Mostramos solo el panel que nos interesa
-			switch (state)
-			{
-				case WizardState.Welcome:
-					if (PanelWelcome != null) PanelWelcome.Visible = true;
-					break;
-				case WizardState.Dependencies:
-					if (PanelDependencies != null) PanelDependencies.Visible = true;
-					break;
-				case WizardState.ModeSelection:
-					if (PanelModeSelection != null) PanelModeSelection.Visible = true;
-					break;
-				case WizardState.ModelSelection:
-					if (PanelModelSelection != null) PanelModelSelection.Visible = true;
-					break;
-				case WizardState.Downloading:
-					if (PanelDownloading != null) PanelDownloading.Visible = true;
-					break;
-			}
+            // Evaluates the requested enumerator state to conditionally map the visibility boolean of the corresponding target UI component.
+            switch (state)
+            {
+                case WizardState.Welcome:
+                    if (PanelWelcome != null) PanelWelcome.Visible = true;
+                    break;
+                case WizardState.Dependencies:
+                    if (PanelDependencies != null) PanelDependencies.Visible = true;
+                    break;
+                case WizardState.ModeSelection:
+                    if (PanelModeSelection != null) PanelModeSelection.Visible = true;
+                    break;
+                case WizardState.ModelSelection:
+                    if (PanelModelSelection != null) PanelModelSelection.Visible = true;
+                    break;
+                case WizardState.Downloading:
+                case WizardState.StartingServer:
+                    if (PanelDownloading != null) PanelDownloading.Visible = true;
+                    break;
+            }
 
-			// 3. ¡EL ESLABÓN PERDIDO! Disparar la lógica del estado actual
-			HandleStateInitialization(state);
-		}
+            // Dispatches the internal workflow initialization bindings for the activated logical state.
+            HandleStateInitialization(state);
+        }
 
         /// <summary>
         /// Yields execution for a single engine process frame to ensure node parameters are fully drawn,

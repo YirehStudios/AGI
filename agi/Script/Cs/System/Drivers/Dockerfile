@@ -2,9 +2,20 @@ FROM nvidia/cuda:12.2.2-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 1. Dependencias y Vulkan SDK
+# 1. Dependencias y Vulkan SDK (Incluyendo ffmpeg)
 RUN apt-get update && apt-get install -y \
-    wget gnupg2 software-properties-common tar unzip bzip2 libgomp1 build-essential git cmake mesa-vulkan-drivers && \
+    ffmpeg \
+    wget \
+    gnupg2 \
+    software-properties-common \
+    tar \
+    unzip \
+    bzip2 \
+    libgomp1 \
+    build-essential \
+    git \
+    cmake \
+    mesa-vulkan-drivers && \
     wget -qO /etc/apt/trusted.gpg.d/lunarg.asc https://packages.lunarg.com/lunarg-signing-key-pub.asc && \
     wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list http://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list && \
     apt-get update && apt-get install -y vulkan-sdk && \
@@ -30,6 +41,7 @@ RUN git clone -b v1.7.4 https://github.com/ggerganov/whisper.cpp.git && \
     cmake -B build -DWHISPER_CUDA=ON -DWHISPER_BUILD_EXAMPLES=ON && \
     cmake --build build -j $(nproc) --config Release && \
     cp build/bin/main /usr/local/bin/whisper-cli && \
+    cp build/bin/server /usr/local/bin/whisper-server && \
     cd .. && rm -rf whisper.cpp
 
 # 4. SHERPA-ONNX
@@ -40,3 +52,4 @@ RUN wget https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.28/sherpa
 
 RUN ldconfig
 EXPOSE 8080
+EXPOSE 8081
