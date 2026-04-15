@@ -20,4 +20,7 @@ desktop.ini
 agi/Scenes/Test/
 agi/Scenes/Test/Kipfel/
 agi/Scenes/Test/**/*.tscn
+=======
+.godot/
 /android/
+>>>>>>> 8afa76c5c5a0f8f7afad78a30a345091115300a5

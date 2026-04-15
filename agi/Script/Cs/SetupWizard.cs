@@ -50,7 +50,7 @@ namespace Logic.Utils
         [Export] public VBoxContainer AdvancedContainer;
         [Export] public LineEdit TxtCustomPort;
         [Export] private string LlamaServerUrl = "https://github.com/ggml-org/llama.cpp/releases/download/b8770/llama-b8770-bin-ubuntu-vulkan-x64.tar.gz";
-        [Export] private string WhisperServerUrl = "";
+        [Export] private string WhisperServerUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/refs/heads/main/whisper-server-vulkan-linux/whisper-server-vulkan-linux.tar.gz";
 
         private ConfigManager.ModelPreset _selectedLLM;
         private ConfigManager.ModelPreset _selectedSTT;
@@ -291,7 +291,7 @@ namespace Logic.Utils
 		/// Assigns persistent file paths based on the required engine extension, modifies the global configuration,
 		/// and delegates the container engine startup upon successful traversal of the list.
 		/// </summary>
-		private async void StartModelDownload()
+        private async void StartModelDownload()
         {
             // Enforces the transition to the downloading visual state.
             SwitchState(WizardState.Downloading);
@@ -307,7 +307,8 @@ namespace Logic.Utils
             await _downloadManager.DownloadFileAsync(WhisperServerUrl, "user://bin", "whisper-server.tar.gz");
 
             // Applies strict Unix executable permissions to the downloaded binaries to prevent OS access restrictions.
-            string llamaBinPath = ProjectSettings.GlobalizePath("user://bin/llama-server");
+            // Integrates the specific subfolder path for the Llama binary extraction structure.
+            string llamaBinPath = ProjectSettings.GlobalizePath("user://bin/llama-b8770/llama-server");
             string whisperBinPath = ProjectSettings.GlobalizePath("user://bin/whisper-server");
             OS.Execute("chmod", new string[] { "+x", llamaBinPath }, new Godot.Collections.Array(), true);
             OS.Execute("chmod", new string[] { "+x", whisperBinPath }, new Godot.Collections.Array(), true);
