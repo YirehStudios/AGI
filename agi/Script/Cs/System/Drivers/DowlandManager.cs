@@ -22,6 +22,7 @@ namespace Logic.Network
             return exitCode == 0;
         }
 
+
         public async Task<bool> DownloadFileAsync(string url, string destinationFolder, string fileName)
         {
             // Paso 1: Inicialización
@@ -141,9 +142,6 @@ namespace Logic.Network
                 {
                     try
                     {
-                        string expectedExtractedName = fileName.Replace(".tar.gz", "").Replace(".zip", "").Replace(".tar.bz2", "");
-                        string expectedExtractedPath = Path.Combine(globalDestination, expectedExtractedName);
-
                         if (fileName.EndsWith(".tar.gz") || fileName.EndsWith(".tar.bz2") || fileName.EndsWith(".zip"))
                         {
                             // Avisamos a la interfaz que estamos extrayendo
@@ -172,16 +170,13 @@ namespace Logic.Network
                             extractProcess.Start();
                             extractProcess.WaitForExit();
 
-                            if (extractProcess.ExitCode != 0) throw new Exception("El proceso de extracción falló en el sistema.");
-
-                            if (!File.Exists(expectedExtractedPath) && !Directory.Exists(expectedExtractedPath))
+                            if (extractProcess.ExitCode != 0) 
                             {
-                                GD.PrintErr($"DownloadManager: Validación fallida. No se detectó la estructura extraída.");
-                                downloadSuccess = false;
+                                throw new Exception("El proceso de extracción falló en el sistema operativo.");
                             }
                             else
                             {
-                                GD.Print("DownloadManager: Validación exitosa post-extracción.");
+                                GD.Print($"DownloadManager: Extracción de {fileName} completada (ExitCode 0).");
                             }
                         }
                     }
