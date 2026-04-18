@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 
 public partial class LivemodeMain : Panel
 {
@@ -15,110 +16,98 @@ public partial class LivemodeMain : Panel
     public float TargetVoiceLevel = 0.0f;
     private float _currentVoiceLevel = 0.0f;
 
-    private bool _isRecording = false;
-    // MÁQUINA DE ESTADOS ESTRICTA
+    // Strict internal state machine architecture.
     public enum LiveState { Idle, Listening, ProcessingSTT, ThinkingLLM, SpeakingTTS }
     private LiveState _currentState = LiveState.Idle;
     
-    // Variables de control de audio
+    // Concurrency flag locking microphone state during LLM reasoning latency.
+    private bool _isLlamaThinking = false;
+    
+    // Audio hardware control and threshold parameters.
     private AudioEffectRecord _recorder;
     private float _silenceTimer = 0.0f;
-    private const float SilenceThreshold = 0.02f;
-    private const float MaxSilenceDuration = 1.5f; // Reducido de 3.0s a 1.5s para mayor fluidez
+    private const float SilenceThreshold = 0.04f;
+    private const float MaxSilenceDuration = 3f; 
     private float _recordingStartTime = 0.0f;
+    private float _debugTimer = 0.0f;
+    private AudioStreamGeneratorPlayback _ttsPlayback;
 
     public override void _Ready()
     {
-        GD.Print("[FLAG] LiveMode: Iniciando hardware...");
+        GD.Print("[FLAG] LiveMode: Initializing hardware infrastructure...");
         
-        // Retrieves the designated audio bus index and applies a programmatic mute to block physical output while preserving raw capture capability.
         int recordBusIndex = AudioServer.GetBusIndex(RecordBusName);
         if (recordBusIndex != -1)
         {
-            AudioServer.SetBusMute(recordBusIndex, true); 
             _recorder = (AudioEffectRecord)AudioServer.GetBusEffect(recordBusIndex, 0);
         }
         
-        // Overrides current microphone stream configuration to force continuous capture enablement independently of editor state.
         if (MicroRecorderPlayer != null)
         {
-            MicroRecorderPlayer.Stream = new AudioStreamMicrophone();
-            MicroRecorderPlayer.Bus = RecordBusName;
-            MicroRecorderPlayer.Autoplay = true;
-            MicroRecorderPlayer.Play(); 
-            GD.Print("[FLAG] MIC: Bus silenciado para evitar eco, pero capturando datos crudos.");
+            if (!MicroRecorderPlayer.Playing) 
+            {
+                MicroRecorderPlayer.Play(); 
+            }
+            GD.Print("[FLAG] MIC: Hardware listener successfully mapped to Godot node.");
+        }
+
+        // Activates the audio generator loop to keep the bus open to receive pushed vectors securely.
+        if (AIVoicePlayer != null && AIVoicePlayer.Stream is AudioStreamGenerator)
+        {
+            AIVoicePlayer.Play(); 
+            _ttsPlayback = (AudioStreamGeneratorPlayback)AIVoicePlayer.GetStreamPlayback();
+            GD.Print("[FLAG] TTS: AudioStreamGenerator continuously listening to PCM chunks.");
         }
         
-        // Casts and caches the shader material dependency for real-time visual property updates.
         if (WaveVisualizer != null)
         {
             _wavesMaterial = WaveVisualizer.Material as ShaderMaterial;
         }
 
-        if (WaveAnimationPlayer == null)
+        Logic.Network.NetworkManager networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
+        if (networkManager != null)
         {
-            GD.PrintErr("LivemodeMain: WaveAnimationPlayer is not assigned in the Inspector.");
+            // Binds real-time binary byte processing event instead of resolving physical path operations.
+            networkManager.TTSAudioChunkReceived += OnTTSAudioChunkReceived;
+            networkManager.STTCompleted += OnSTTCompleted; 
         }
 
-        // Establishes event subscription between the backend layer and the local UI for TTS audio playback handling.
-        Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
-        if (backend != null)
+        var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+        if (chatManager != null)
         {
-            backend.Connect("TTSCompleted", new Callable(this, MethodName.OnAIResponseReady));
+            chatManager.OnBotStartedThinking += OnBotStartedThinking;
+            chatManager.OnBotFinishedSpeaking += OnBotFinishedSpeaking;
         }
 
-        // Validates and constructs the local user directory structure required for volatile audio processing operations.
         string audioDir = ProjectSettings.GlobalizePath("user://audio");
         if (!global::System.IO.Directory.Exists(audioDir))
         {
             global::System.IO.Directory.CreateDirectory(audioDir);
-            GD.Print("LiveMode: Carpeta de audio creada.");
         }
     }
 
-    private void OnAIResponseReady(string audioPath)
-    {
-        if (AIVoicePlayer == null || !global::System.IO.File.Exists(audioPath)) return;
-
-        try
-        {
-            byte[] audioData = global::System.IO.File.ReadAllBytes(audioPath); 
-            AudioStreamWav newStream = new AudioStreamWav 
-            {
-                Data = audioData,
-                Format = AudioStreamWav.FormatEnum.Format16Bits,
-                MixRate = 22050 
-            };
-
-            AIVoicePlayer.Stream = newStream;
-            AIVoicePlayer.Play();
-        }
-        catch (Exception ex)
-        {
-            GD.PrintErr($"LivemodeMain: Fallo al cargar el buffer de audio. Excepción: {ex.Message}");
-        }
-    }
 
     public override void _Process(double delta)
     {
-        // 1. Lógica visual: Siempre actualizamos el nivel de voz de la IA si está hablando
+        _debugTimer += (float)delta;
+
+        int testBusIndex = AudioServer.GetBusIndex(RecordBusName);
+        float testDb = AudioServer.GetBusPeakVolumeLeftDb(testBusIndex, 0);
+        float testLinear = Mathf.DbToLinear(testDb);
+
+        if (_debugTimer > 0.5f) 
+        {
+            GD.Print($"[MIC DEBUG] dB: {testDb:F1} | Linear: {testLinear:F4} | State: {_currentState} | Recording: {(_recorder != null && _recorder.IsRecordingActive())}");
+            _debugTimer = 0.0f;
+        }
+
         if (AIVoicePlayer != null && AIVoicePlayer.Playing)
         {
-            UpdateStatus(LiveState.SpeakingTTS);
             int voiceBusIndex = AudioServer.GetBusIndex(VoiceBusName);
             float aiDb = AudioServer.GetBusPeakVolumeLeftDb(voiceBusIndex, 0);
             TargetVoiceLevel = Mathf.DbToLinear(aiDb) * 5.0f;
         }
-        else
-        {
-            // Si la IA ya no habla, pero nuestro estado seguía en SpeakingTTS, lo liberamos
-            if (_currentState == LiveState.SpeakingTTS)
-            {
-                UpdateStatus(LiveState.Idle);
-            }
-        }
 
-        // 2. VAD: Solo escuchamos al usuario si estamos libres
         if (_currentState == LiveState.Idle || _currentState == LiveState.Listening)
         {
             int recordBusIndex = AudioServer.GetBusIndex(RecordBusName);
@@ -130,7 +119,7 @@ public partial class LivemodeMain : Panel
             if (linearVolume > SilenceThreshold)
             {
                 if (_currentState == LiveState.Idle) StartRecording();
-                _silenceTimer = 0.0f; // Reinicia el temporizador de silencio
+                _silenceTimer = 0.0f; 
             }
             else if (_currentState == LiveState.Listening)
             {
@@ -142,7 +131,13 @@ public partial class LivemodeMain : Panel
             }
         }
 
-        // 3. Renderizado Visual (Igual que antes)
+        // Resolves state machine lock utilizing real-time bus amplitude mapping 
+        // since the generator playback continuous execution bypasses native Finish flags.
+        if (_currentState == LiveState.SpeakingTTS && !_isLlamaThinking && TargetVoiceLevel <= 0.05f)
+        {
+            UpdateStatus(LiveState.Idle);
+        }
+
         if (_wavesMaterial != null)
         {
             _currentVoiceLevel = Mathf.Lerp(_currentVoiceLevel, TargetVoiceLevel, (float)delta * 12.0f);
@@ -158,15 +153,60 @@ public partial class LivemodeMain : Panel
         }
     }
 
+    /// <summary>
+    /// Forwards STT parsed output strings securely towards the internal Brain (ChatManager) singleton logic.
+    /// </summary>
+    private void OnSTTCompleted(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) 
+        {
+            UpdateStatus(LiveState.Idle);
+            return;
+        }
+        
+        GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager")?.SendToAI(text);
+    }
+
+    /// <summary>
+    /// Processes incoming 16-bit PCM byte arrays originating directly from the websocket stream.
+    /// Casts data into floating-point bounds and propagates execution into Godot's audio bus.
+    /// </summary>
+    private void OnTTSAudioChunkReceived(byte[] pcmData)
+    {
+        if (_ttsPlayback == null) return;
+        
+        UpdateStatus(LiveState.SpeakingTTS);
+
+        int startIndex = 0;
+        if (pcmData.Length > 44 && pcmData[0] == 'R' && pcmData[1] == 'I' && pcmData[2] == 'F' && pcmData[3] == 'F')
+        {
+            startIndex = 44; 
+        }
+
+        for (int i = startIndex; i < pcmData.Length - 1; i += 2)
+        {
+            short sample = global::System.BitConverter.ToInt16(pcmData, i);
+            float floatSample = sample / 32768f; 
+            
+            _ttsPlayback.PushFrame(new Vector2(floatSample, floatSample));
+        }
+    }
+
+    /// <summary>
+    /// Secures microphone and starts system VAD active recording cycle.
+    /// </summary>
     private void StartRecording()
     {
         _recordingStartTime = (float)Time.GetTicksMsec() / 1000.0f;
         _silenceTimer = 0.0f; 
         _recorder.SetRecordingActive(true);
         UpdateStatus(LiveState.Listening);
-        GD.Print("[FLAG] VAD: Voz detectada. Iniciando captura.");
+        GD.Print("[FLAG] VAD: Voice frequency detected. Initializing buffer capture.");
     }
 
+    /// <summary>
+    /// Processes captured byte streams, filters out micro-sounds, and dispatches legitimate inputs to the Network layer.
+    /// </summary>
     private void StopAndSendRecording()
     {
         _recorder.SetRecordingActive(false);
@@ -175,9 +215,10 @@ public partial class LivemodeMain : Panel
         string fileName = "user_input.wav"; 
         string path = ProjectSettings.GlobalizePath($"user://audio/{fileName}");
 
-        if (duration < 1.0f) // Filtro ajustado a 1 segundo
+        // Aborts dispatch mechanism for false-positive short audio spikes.
+        if (duration < 1.0f) 
         {
-            GD.Print($"[FLAG] VAD: Audio descartado (muy corto).");
+            GD.Print($"[FLAG] VAD: Audio discarded (Duration threshold unmet).");
             if (global::System.IO.File.Exists(path)) global::System.IO.File.Delete(path);
             UpdateStatus(LiveState.Idle);
             return;
@@ -189,23 +230,64 @@ public partial class LivemodeMain : Panel
             Error err = recording.SaveToWav(path);
             if (err == Error.Ok)
             {
-                GD.Print($"[FLAG] AUDIO: Archivo guardado. Enviando a STT...");
-                UpdateStatus(LiveState.ProcessingSTT); // BLOQUEAMOS EL MICRÓFONO AQUÍ
-                GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher")?.ProcessSpeechToText(path);
+                GD.Print($"[FLAG] AUDIO: Buffer written to disk successfully. Piping to Network Manager...");
+                UpdateStatus(LiveState.ProcessingSTT); // STRICT LOCK TO AVOID MICROPHONE FEEDBACK
+                GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager")?.RequestSTT(path);
             }
         }
     }
 
+    /// <summary>
+    /// Modifies the active state machine status safely and invokes a standard telemetry footprint update.
+    /// </summary>
     private void UpdateStatus(LiveState nextStatus)
     {
         if (_currentState == nextStatus) return;
         _currentState = nextStatus;
         GD.Print($"[ANNIE_STATUS] {nextStatus.ToString()}"); 
     }
+
+    /// <summary>
+    /// Triggers visual status blocks, instantiates the concurrency flag, and routes filler audio logic to websocket runtime.
+    /// </summary>
+    private void OnBotStartedThinking()
+    {
+        _isLlamaThinking = true; 
+        UpdateStatus(LiveState.ThinkingLLM);
+        
+        string[] frasesEspera = { "Mmm, dame un segundo...", "Estoy pensando...", "A ver, déjame revisarlo." };
+        string fraseElegida = frasesEspera[new Random().Next(frasesEspera.Length)];
+        
+        GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager")?.RequestTTSWebSocket(fraseElegida);
+    }
+
+    /// <summary>
+    /// Safely unlocks the concurrency logic allowing the state machine to finalize once the queue is emptied.
+    /// Actual chunk dispatch is orchestrated by the ChatManager middleware.
+    /// </summary>
+    private void OnBotFinishedSpeaking(string fullResponse)
+    {
+        _isLlamaThinking = false; 
+    }
+
     public override void _ExitTree()
     {
-        GD.Print("[FLAG] SISTEMA: Liberando hardware de audio.");
+        GD.Print("[FLAG] SYSTEM: Nullifying hardware delegates and closing open logic channels.");
         if (MicroRecorderPlayer != null) MicroRecorderPlayer.Stop();
         if (_recorder != null) _recorder.SetRecordingActive(false);
+
+        var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+        if (chatManager != null)
+        {
+            chatManager.OnBotStartedThinking -= OnBotStartedThinking;
+            chatManager.OnBotFinishedSpeaking -= OnBotFinishedSpeaking;
+        }
+
+        var networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
+        if (networkManager != null)
+        {
+            networkManager.TTSAudioChunkReceived -= OnTTSAudioChunkReceived;
+            networkManager.STTCompleted -= OnSTTCompleted; 
+        }
     }
 }

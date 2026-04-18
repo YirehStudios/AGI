@@ -137,7 +137,8 @@ _data = {
 
 [sub_resource type="AudioStreamMicrophone" id="AudioStreamMicrophone_k6qk6"]
 
-[sub_resource type="AudioStreamWAV" id="AudioStreamWAV_k6qk6"]
+[sub_resource type="AudioStreamGenerator" id="AudioStreamGenerator_k6qk6"]
+mix_rate = 22050.0
 
 [node name="LiveModeInterface" type="Panel" unique_id=140527907 node_paths=PackedStringArray("WaveVisualizer", "WaveAnimationPlayer", "AIVoicePlayer", "MicroRecorderPlayer")]
 anchors_preset = 15
@@ -208,8 +209,9 @@ layout_mode = 2
 theme_override_colors/default_color = Color(0.4, 0.4, 0.4, 1)
 theme_override_font_sizes/normal_font_size = 14
 bbcode_enabled = true
-text = "[center]Tap to cancel[/center]"
+text = "Tap to cancel"
 fit_content = true
+horizontal_alignment = 1
 
 [node name="CenterButtonLayout" type="HBoxContainer" parent="MainContainer/LiveAreaContainer/CenterArea/BottomControls" unique_id=429733414]
 layout_mode = 2
@@ -241,6 +243,6 @@ autoplay = true
 bus = &"Record"
 
 [node name="AIVoiceStream" type="AudioStreamPlayer" parent="." unique_id=1061261565]
-stream = SubResource("AudioStreamWAV_k6qk6")
+stream = SubResource("AudioStreamGenerator_k6qk6")
 autoplay = true
 bus = &"Voice"
