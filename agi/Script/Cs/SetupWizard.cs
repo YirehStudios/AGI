@@ -52,7 +52,7 @@ namespace Logic.Utils
         [Export] private string LlamaServerUrl = "https://github.com/ggml-org/llama.cpp/releases/download/b8770/llama-b8770-bin-ubuntu-vulkan-x64.tar.gz";
         [Export] private string WhisperServerUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/refs/heads/main/whisper-server-vulkan-linux/whisper-server-vulkan-linux.tar.gz";
         [Export] private string SherpaServerUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.39/sherpa-onnx-v1.12.39-linux-x64-static.tar.bz2";
-        [Export] private string TtsBridgeUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/main/agi/Drivers/tts_server.py";
+        [Export] private string TtsBridgeUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/refs/heads/main/agi/Script/Cs/System/Drivers/tts_server.py";
         private ConfigManager.ModelPreset _selectedLLM;
         private ConfigManager.ModelPreset _selectedSTT;
         private ConfigManager.ModelPreset _selectedTTS;
