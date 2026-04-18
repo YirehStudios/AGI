@@ -44,6 +44,10 @@ window/stretch/aspect="ignore"
 
 project/assembly_name="AGI"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/markdownlabel/plugin.cfg")
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

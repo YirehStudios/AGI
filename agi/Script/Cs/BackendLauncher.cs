@@ -12,25 +12,19 @@ namespace Logic.Backend
     /// </summary>
     public partial class BackendLauncher : Node
     {
-        
         [Signal]
         public delegate void ConnectionLostEventHandler();
-
         [Signal]
         public delegate void BackendReadyEventHandler();
-        
         [Signal]
         public delegate void BuildLogReceivedEventHandler(string logMessage);
 
-        [Signal]
-        public delegate void STTCompletedEventHandler(string recognizedText);
-
-        [Signal]
-        public delegate void TTSCompletedEventHandler(string audioFilePath);
         [Export] public int LlamaPort = 8080;
         [Export] public int WhisperPort = 8081;
+        [Export] public int SherpaPort = 8888; 
         private Process _llamaProcess;
         private Process _whisperProcess;
+        private Process _sherpaProcess;
         private const long MaxRamAllowed = 12L * 1024 * 1024 * 1024;
         private bool _isPanicking = false;
         private bool _isRunning = false;
@@ -72,88 +66,15 @@ namespace Logic.Backend
             });
         }
 
-        public void ProcessSpeechToText(string audioFilePath)
-        {
-            GD.Print($"[FLAG] STT: Enviando {Path.GetFileName(audioFilePath)} vía HTTP...");
-
-            // Offloads the synchronous network blocking request onto an asynchronous task thread.
-            Task.Run(async () => 
-            {
-                try
-                {
-                    // Instantiates connection client and initializes payload structure for multipart forms.
-                    using var client = new global::System.Net.Http.HttpClient();
-                    using var form = new global::System.Net.Http.MultipartFormDataContent();
-                    
-                    // Reads binary constraints of the file system wav and enforces the strictly typed MIME parameter.
-                    byte[] audioBytes = global::System.IO.File.ReadAllBytes(audioFilePath);
-                    var audioContent = new global::System.Net.Http.ByteArrayContent(audioBytes);
-                    audioContent.Headers.ContentType = global::System.Net.Http.Headers.MediaTypeHeaderValue.Parse("audio/wav");
-                    
-                    form.Add(audioContent, "file", global::System.IO.Path.GetFileName(audioFilePath));
-                    
-                    // Dispatches payload to the local HTTP Whisper endpoint handling inference natively.
-                    var response = await client.PostAsync("http://127.0.0.1:8081/inference", form);
-                    response.EnsureSuccessStatusCode();
-                    
-                    string jsonResponse = await response.Content.ReadAsStringAsync();
-                    
-                    // Executes JSON string parsing to extract and isolate the strictly text-formatted response.
-                    using var doc = global::System.Text.Json.JsonDocument.Parse(jsonResponse);
-                    if (doc.RootElement.TryGetProperty("text", out global::System.Text.Json.JsonElement textElement))
-                    {
-                        string recognizedText = textElement.GetString().Trim();
-                        GD.Print($"[FLAG] STT SUCCESS: {recognizedText}");
-                        CallDeferred(MethodName.EmitSignal, SignalName.STTCompleted, recognizedText);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    GD.PrintErr($"[FLAG] STT ERROR: Falló la petición HTTP a Whisper. {ex.Message}");
-                }
-            });
-        }
-
-        private void ExecuteInstantCommand(string exePath, string args, string engineName, string targetFilePath, Action<int> onFinished = null)
-        {
-            Task.Run(() => {
-                // Instantiates a local process bypassing Docker, pointing directly to the extracted native binary.
-                ProcessStartInfo info = new ProcessStartInfo {
-                    FileName = exePath,
-                    Arguments = args,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-                using Process p = Process.Start(info);
-                p.WaitForExit();
-                
-                onFinished?.Invoke(p.ExitCode);
-
-                if (p.ExitCode != 0) {
-                    GD.PrintErr($"[FLAG] ERROR: {engineName} falló con código {p.ExitCode}");
-                    return;
-                }
-
-                if (engineName == "Whisper") {
-                    string txtPath = targetFilePath + ".txt";
-                    if (global::System.IO.File.Exists(txtPath)) {
-                        string text = global::System.IO.File.ReadAllText(txtPath).Trim();
-                        CallDeferred(MethodName.EmitSignal, SignalName.STTCompleted, text);
-                    }
-                }
-            });
-        }
-
         /// <summary>
-        /// Realiza una purga de procesos huérfanos de ejecuciones anteriores 
-        /// para garantizar un entorno limpio antes del despliegue del Backend.
+        /// Executes a preemptive traversal of the operating system's active process tree prior to initialization,
+        /// forcefully terminating detached binary instances to guarantee unhindered port binding and memory allocation.
         /// </summary>
         private void TerminateOrphanedResources()
         {
-            // Definimos los nombres de los binarios a monitorear
             string[] targetResources = { "llama-server", "whisper-server" };
             
-            GD.Print("ResourceMonitor: Iniciando rutina de conciliación de recursos...");
+            GD.Print("ResourceMonitor: Initiating resource reconciliation routine...");
 
             try
             {
@@ -165,17 +86,16 @@ namespace Logic.Backend
                     {
                         try 
                         {
-                            // Verificamos si el proceso sigue activo antes de intentar terminarlo
                             if (!process.HasExited)
                             {
-                                process.Kill(true); // 'true' mata también a los procesos hijos (árbol completo)
-                                process.WaitForExit(1000); // Espera hasta 1 segundo para confirmar el cierre
-                                GD.Print($"ResourceMonitor: Recurso huérfano '{resourceName}' (PID: {process.Id}) terminado exitosamente.");
+                                process.Kill(true); 
+                                process.WaitForExit(1000); 
+                                GD.Print($"ResourceMonitor: Orphaned resource '{resourceName}' (PID: {process.Id}) terminated successfully.");
                             }
                         }
                         catch (Exception innerEx)
                         {
-                            GD.PushWarning($"ResourceMonitor: No se pudo liberar el PID {process.Id}: {innerEx.Message}");
+                            GD.PushWarning($"ResourceMonitor: Failed to release PID {process.Id}: {innerEx.Message}");
                         }
                         finally
                         {
@@ -183,41 +103,18 @@ namespace Logic.Backend
                         }
                     }
                 }
-                GD.Print("ResourceMonitor: Limpieza de infraestructura completada. Sistema listo para inicialización.");
+                GD.Print("ResourceMonitor: Infrastructure cleanup completed. System ready for initialization.");
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"ResourceMonitor: Error crítico durante la gestión de recursos: {ex.Message}");
+                GD.PrintErr($"ResourceMonitor: Critical failure during resource management: {ex.Message}");
             }
         }
 
-        public void GenerateTextToSpeech(string textToSynthesize)
-        {
-            string modelFolder = _configManager?.ActiveTTSModel ?? "vits-piper-es_MX-claude-high";
-            string modelName = modelFolder.Replace("vits-piper-", "");
-            string outputFileName = "temp_voice.wav";
-
-            // Resolves standard internal data paths mapping to the user directory context.
-            string modelsDir = ProjectSettings.GlobalizePath("user://models");
-            string audioDir = ProjectSettings.GlobalizePath("user://audio");
-            string sherpaBinPath = ProjectSettings.GlobalizePath("user://bin/sherpa-onnx-offline-tts");
-
-            // Constructs absolute OS structural paths for ONNX architectural models and dependencies.
-            string vitsModelPath = global::System.IO.Path.Combine(modelsDir, modelFolder, $"{modelName}.onnx");
-            string vitsTokensPath = global::System.IO.Path.Combine(modelsDir, modelFolder, "tokens.txt");
-            string vitsLexiconPath = global::System.IO.Path.Combine(modelsDir, modelFolder, "lexicon.txt");
-            string outputFilePath = global::System.IO.Path.Combine(audioDir, outputFileName);
-
-            // Formats strictly structured arguments pointing to validated local paths to execute audio synthesis natively.
-            string arguments = $"--vits-model=\"{vitsModelPath}\" " +
-                            $"--vits-tokens=\"{vitsTokensPath}\" " +
-                            $"--vits-lexicon=\"{vitsLexiconPath}\" " +
-                            $"--output-filename=\"{outputFilePath}\" \"{textToSynthesize}\"";
-
-            ExecuteInstantCommand(sherpaBinPath, arguments, "Sherpa", outputFilePath);
-        }
-
-
+        /// <summary>
+        /// Orchestrates the asynchronous initialization sequence for the persistent local servers.
+        /// Dynamically synthesizes a Python WebSockets bridge script for TTS mapping and handles native engine allocation.
+        /// </summary>
         private async Task ManageBackendLifecycle(string modelsDir, string safeFileName)
         {
             try
@@ -225,15 +122,28 @@ namespace Logic.Backend
                 int threadCount = Math.Max(1, global::System.Environment.ProcessorCount / 2);
                 string modelLlamaPath = global::System.IO.Path.Combine(modelsDir, safeFileName);
                 
+                string binDir = ProjectSettings.GlobalizePath("user://bin");
                 string sttModel = _configManager?.ActiveSTTModel ?? "Whisper_Base.bin"; 
                 string modelWhisperPath = global::System.IO.Path.Combine(modelsDir, sttModel);
+                string pythonScriptPath = global::System.IO.Path.Combine(binDir, "tts_server.py");
 
-                string binDir = ProjectSettings.GlobalizePath("user://bin");
                 string llamaBinDir = global::System.IO.Path.Combine(binDir, "llama-b8770");
                 string llamaBinPath = global::System.IO.Path.Combine(llamaBinDir, "llama-server");
                 string whisperBinPath = global::System.IO.Path.Combine(binDir, "whisper-server");
 
-                // Instantiates the ProcessStartInfo strictly configuring standard stream redirection and suppressing window creation for Whisper.
+                string modelFolder = "vits-piper-es_MX-claude-high";
+                string vitsModelPath = global::System.IO.Path.Combine(modelsDir, modelFolder, "es_MX-claude-high.onnx");
+                string vitsTokensPath = global::System.IO.Path.Combine(modelsDir, modelFolder, "tokens.txt");
+                string vitsDataDir = global::System.IO.Path.Combine(modelsDir, modelFolder, "espeak-ng-data");
+
+                // We verify driver existence before instantiation.
+                if (!global::System.IO.File.Exists(pythonScriptPath))
+                {
+                    GD.PrintErr("BackendLauncher: Fatal - TTS Driver (tts_server.py) not found in bin directory.");
+                    HandleCrash();
+                    return;
+                }
+
                 ProcessStartInfo whisperInfo = new ProcessStartInfo
                 {
                     FileName = whisperBinPath,
@@ -244,8 +154,6 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
-                // Instantiates the ProcessStartInfo strictly configuring standard stream redirection and suppressing window creation for Llama.
-                // Purges generation-specific arguments (temp, repeat-penalty) to comply with native server runtime parameter constraints.
                 ProcessStartInfo llamaInfo = new ProcessStartInfo
                 {
                     FileName = llamaBinPath,
@@ -256,10 +164,26 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
+                ProcessStartInfo sherpaInfo = new ProcessStartInfo
+                {
+                    FileName = "python3",
+                    Arguments = $"\"{pythonScriptPath}\" {SherpaPort} \"{vitsModelPath}\" \"{vitsTokensPath}\" \"{vitsDataDir}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                whisperInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = binDir;
+                whisperInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = "1";
+                
+                llamaInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = llamaBinDir;
+                llamaInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = "1";
+
                 _whisperProcess = new Process { StartInfo = whisperInfo, EnableRaisingEvents = true };
                 _llamaProcess = new Process { StartInfo = llamaInfo, EnableRaisingEvents = true };
+                _sherpaProcess = new Process { StartInfo = sherpaInfo, EnableRaisingEvents = true };
 
-                // Subscribes local delegates to capture the asynchronous standard output streams for console replication and engine diagnostics.
                 _whisperProcess.OutputDataReceived += (sender, e) => 
                 { 
                     if (!string.IsNullOrEmpty(e.Data)) 
@@ -278,7 +202,6 @@ namespace Logic.Backend
                         
                         string lowerData = e.Data.ToLower();
                         
-                        // Evaluates unhandled system exceptions or memory allocation faults to trigger the internal panic handler.
                         bool isFatalError = lowerData.Contains("out of memory") || 
                                             lowerData.Contains("bad allocation") || 
                                             lowerData.Contains("failed to allocate") || 
@@ -287,7 +210,7 @@ namespace Logic.Backend
 
                         if (isFatalError)
                         {
-                            PanicKill($"Fallo crítico de memoria/sistema reportado por el motor: {e.Data}");
+                            PanicKill($"Critical memory/system fault reported by engine: {e.Data}");
                             return;
                         }
                     }
@@ -303,7 +226,6 @@ namespace Logic.Backend
                     }
                 };
                 
-                // Evaluates the standard error output of the Llama process to detect the network binding success string or fatal execution faults.
                 _llamaProcess.ErrorDataReceived += (sender, e) => 
                 { 
                     if (!string.IsNullOrEmpty(e.Data)) 
@@ -313,7 +235,6 @@ namespace Logic.Backend
                         
                         string lowerData = e.Data.ToLower();
                         
-                        // Evaluates unhandled system exceptions or memory allocation faults to trigger the internal panic handler.
                         bool isFatalError = lowerData.Contains("out of memory") || 
                                             lowerData.Contains("bad allocation") || 
                                             lowerData.Contains("failed to allocate") || 
@@ -322,19 +243,51 @@ namespace Logic.Backend
 
                         if (isFatalError)
                         {
-                            PanicKill($"Fallo crítico de memoria/sistema reportado por el motor: {e.Data}");
+                            PanicKill($"Critical memory/system fault reported by engine: {e.Data}");
                             return;
                         }
                         
-                        // Validates the successful port binding and internal host initialization to dispatch the readiness flag.
                         if (e.Data.Contains("server is listening on") || e.Data.Contains("HTTP server listening"))
                         {
-                            GD.Print("BackendLauncher: Llama Server nativo cargado en memoria exitosamente.");
+                            GD.Print("BackendLauncher: Llama Server natively loaded into memory successfully.");
                             CallDeferred(MethodName.EmitSignal, SignalName.BackendReady);
                         }
                     }
                 };
                 _llamaProcess.Exited += OnProcessExited;
+
+                _sherpaProcess.OutputDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                    {
+                        GD.Print($"[Sherpa] {e.Data}");
+                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Sherpa] {e.Data}");
+                    }
+                };
+
+                _sherpaProcess.ErrorDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                    {
+                        GD.PrintErr($"[Sherpa ERR] {e.Data}");
+                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Sherpa ERR] {e.Data}");
+
+                        string lowerData = e.Data.ToLower();
+                        
+                        bool isFatalError = lowerData.Contains("out of memory") || 
+                                            lowerData.Contains("bad allocation") || 
+                                            lowerData.Contains("failed to allocate") || 
+                                            lowerData.Contains("segmentation fault") || 
+                                            lowerData.Contains("core dumped");
+
+                        if (isFatalError)
+                        {
+                            PanicKill($"Critical memory/system fault reported by engine: {e.Data}");
+                            return;
+                        }
+                    }
+                };
+                _sherpaProcess.Exited += OnProcessExited;
 
                 _whisperProcess.Start();
                 _whisperProcess.BeginOutputReadLine();
@@ -344,22 +297,29 @@ namespace Logic.Backend
                 _llamaProcess.BeginOutputReadLine();
                 _llamaProcess.BeginErrorReadLine();
 
+                _sherpaProcess.Start();
+                _sherpaProcess.BeginOutputReadLine();
+                _sherpaProcess.BeginErrorReadLine();
+
                 _isRunning = true;
 
-                GD.Print($"BackendLauncher: Nativos iniciados. Llama PID: {_llamaProcess.Id}, Whisper PID: {_whisperProcess.Id}");
+                GD.Print($"BackendLauncher: Natives initialized. Llama PID: {_llamaProcess.Id}, Whisper PID: {_whisperProcess.Id}, Sherpa PID: {_sherpaProcess.Id}");
                 
                 await MonitorProcessHealth();
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"BackendLauncher: Fallo general al instanciar los binarios nativos. {ex.Message}");
+                GD.PrintErr($"BackendLauncher: General fault instantiating native binaries. {ex.Message}");
                 HandleCrash();
             }
         }
 
+        /// <summary>
+        /// Continuously interrogates the resident memory footprint of the managed subsystems.
+        /// Enforces strict allocation ceilings, dispatching internal shutdown signals upon violation.
+        /// </summary>
         private async Task MonitorProcessHealth()
         {
-            // Evaluates memory allocation constraints iteratively while bypassing state cycles during panic mode.
             while (_isRunning && !_isPanicking)
             {
                 try
@@ -369,7 +329,7 @@ namespace Logic.Backend
                         _llamaProcess.Refresh();
                         if (_llamaProcess.WorkingSet64 > MaxRamAllowed)
                         {
-                            PanicKill("Desbordamiento de RAM detectado en Llama Server.");
+                            PanicKill("RAM overflow detected in Llama Server.");
                             break;
                         }
                     }
@@ -379,34 +339,46 @@ namespace Logic.Backend
                         _whisperProcess.Refresh();
                         if (_whisperProcess.WorkingSet64 > MaxRamAllowed)
                         {
-                            PanicKill("Desbordamiento de RAM detectado en Whisper Server.");
+                            PanicKill("RAM overflow detected in Whisper Server.");
+                            break;
+                        }
+                    }
+
+                    if (_sherpaProcess != null && !_sherpaProcess.HasExited)
+                    {
+                        _sherpaProcess.Refresh();
+                        if (_sherpaProcess.WorkingSet64 > MaxRamAllowed)
+                        {
+                            PanicKill("RAM overflow detected in Sherpa Server.");
                             break;
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    GD.PrintErr($"BackendLauncher: Excepción interceptada durante la interrogación de memoria: {ex.Message}");
+                    GD.PrintErr($"BackendLauncher: Exception intercepted during memory polling: {ex.Message}");
                 }
 
                 await Task.Delay(2000);
             }
         }
 
+        /// <summary>
+        /// Executes an emergency systemic teardown of all tracked application sub-processes.
+        /// Invalidates standard runtime constraints and prevents recursive execution cycles upon fatal exceptions.
+        /// </summary>
         private async void PanicKill(string reason)
         {
-            // Establishes a mutex lock to prevent recursive panic dispatch cascades across concurrent thread callbacks.
             if (_isPanicking) return;
             _isPanicking = true;
             _isRunning = false;
 
-            string panicMessage = $"[PANIC] Secuencia de aborto inicializada. Cancelando todo. Motivo: {reason}";
+            string panicMessage = $"[PANIC] Abort sequence initialized. Terminating all operations. Reason: {reason}";
             GD.PrintErr(panicMessage);
             CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, panicMessage);
 
             try
             {
-                // Executes tree-level immediate termination against active native dependencies.
                 if (_llamaProcess != null && !_llamaProcess.HasExited)
                 {
                     _llamaProcess.Kill(true);
@@ -415,19 +387,21 @@ namespace Logic.Backend
                 {
                     _whisperProcess.Kill(true);
                 }
+                if (_sherpaProcess != null && !_sherpaProcess.HasExited)
+                {
+                    _sherpaProcess.Kill(true);
+                }
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"BackendLauncher: Fallo secundario al ejecutar la purga de procesos (Kill): {ex.Message}");
+                GD.PrintErr($"BackendLauncher: Secondary fault executing process purge (Kill): {ex.Message}");
             }
 
-            // Invalidates the internal retry queue to enforce a hard lock constraint against cyclical reboots.
             _retryCount = MaxRetries;
             
-            // Dispatches the failure state to the connected UI nodes to prompt user intervention.
             CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
 
-            GD.Print("BackendLauncher: Congelando operaciones de arranque durante 5 segundos para purga del OS...");
+            GD.Print("BackendLauncher: Freezing boot operations for 5 seconds to allow OS level purge...");
             await Task.Delay(5000);
         }
 
@@ -455,11 +429,14 @@ namespace Logic.Backend
                 CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
             }
         }
-        
+
+        /// <summary>
+        /// Ensures structural memory hygiene by forcefully dispatching termination signals to active
+        /// child processes synchronously during the Godot node tree deallocation sequence.
+        /// </summary>
         public override void _ExitTree()
         {
-            // Enforces memory hygiene by forcefully terminating active child process execution trees upon application closure.
-            GD.Print("BackendLauncher: Limpieza de procesos nativos (Evitando Zombis).");
+            GD.Print("BackendLauncher: Purging native processes (Preventing Zombies).");
             _isRunning = false;
             
             try
@@ -475,10 +452,16 @@ namespace Logic.Backend
                     _whisperProcess.Kill();
                     _whisperProcess.Dispose();
                 }
+
+                if (_sherpaProcess != null && !_sherpaProcess.HasExited)
+                {
+                    _sherpaProcess.Kill();
+                    _sherpaProcess.Dispose();
+                }
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"BackendLauncher: Error durante la limpieza de procesos: {ex.Message}");
+                GD.PrintErr($"BackendLauncher: Error during process cleanup: {ex.Message}");
             }
         }
     }

@@ -43,5 +43,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.428261, -0.8864577, -17.2
 shape = SubResource("BoxShape3D_0oggk")
 
 [node name="Kipfel" parent="." unique_id=1718872066 node_paths=PackedStringArray("CamaraNodo") instance=ExtResource("1_0oggk")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.13411206, 0.057102144, -0.010687113)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.13291354, 0.057102144, -0.010699689)
 CamaraNodo = NodePath("../Camera3D")

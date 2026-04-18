@@ -12,6 +12,18 @@
 [ext_resource type="VideoStream" uid="uid://0esyq17ynyll" path="res://Resources/Farming-Simulator.ogv" id="7_amhcu"]
 [ext_resource type="VideoStream" uid="uid://bc7xtarwn1qiv" path="res://Resources/Paisaje.ogv" id="8_675c4"]
 [ext_resource type="VideoStream" uid="uid://b7hhl2fcqhlrl" path="res://Resources/Super-Tux.ogv" id="9_u6rn7"]
+[ext_resource type="FontFile" uid="uid://ogy7poywqv0f" path="res://Resources/Fonts/Inter/Inter-VariableFont_opsz,wght.ttf" id="12_b06b1"]
+[ext_resource type="Script" uid="uid://dbap0gqox0ty1" path="res://addons/markdownlabel/markdownlabel.gd" id="12_w5qr0"]
+[ext_resource type="Script" uid="uid://dcx7crs23nf4" path="res://addons/markdownlabel/header_formats/h1_format.gd" id="13_ogl8u"]
+[ext_resource type="FontFile" uid="uid://dh2m6i0ene4mw" path="res://Resources/Fonts/Inter/static/Inter_18pt-Bold.ttf" id="13_rq6ts"]
+[ext_resource type="Script" uid="uid://d0sin64i4v3op" path="res://addons/markdownlabel/header_formats/h2_format.gd" id="14_2d4k7"]
+[ext_resource type="FontFile" uid="uid://cnn7lrla24g7y" path="res://Resources/Fonts/Inter/static/Inter_18pt-BoldItalic.ttf" id="14_cae2h"]
+[ext_resource type="Script" uid="uid://dlok0dv1tq2bf" path="res://addons/markdownlabel/header_formats/h3_format.gd" id="15_143c2"]
+[ext_resource type="FontFile" uid="uid://c2w5e8cbsm7yt" path="res://Resources/Fonts/Inter/Inter-Italic-VariableFont_opsz,wght.ttf" id="15_js05h"]
+[ext_resource type="Script" uid="uid://bayuh2vafablg" path="res://addons/markdownlabel/header_formats/h4_format.gd" id="16_b06b1"]
+[ext_resource type="Script" uid="uid://dfr1w7u3jgni3" path="res://addons/markdownlabel/header_formats/h5_format.gd" id="17_rq6ts"]
+[ext_resource type="Script" uid="uid://bsi6dexoofpe6" path="res://addons/markdownlabel/header_formats/h6_format.gd" id="18_cae2h"]
+[ext_resource type="FontFile" uid="uid://c88eronmj27o0" path="res://Resources/Fonts/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf" id="23_rq6ts"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_popup_hover"]
 content_margin_left = 12.0
@@ -93,6 +105,30 @@ shadow_color = Color(0, 0, 0, 0.04)
 shadow_size = 6
 shadow_offset = Vector2(0, 2)
 anti_aliasing_size = 1.5
+
+[sub_resource type="Resource" id="Resource_js05h"]
+resource_local_to_scene = true
+script = ExtResource("13_ogl8u")
+
+[sub_resource type="Resource" id="Resource_rp26x"]
+resource_local_to_scene = true
+script = ExtResource("14_2d4k7")
+
+[sub_resource type="Resource" id="Resource_2c06c"]
+resource_local_to_scene = true
+script = ExtResource("15_143c2")
+
+[sub_resource type="Resource" id="Resource_wyifx"]
+resource_local_to_scene = true
+script = ExtResource("16_b06b1")
+
+[sub_resource type="Resource" id="Resource_cdhtr"]
+resource_local_to_scene = true
+script = ExtResource("17_rq6ts")
+
+[sub_resource type="Resource" id="Resource_8f5ok"]
+resource_local_to_scene = true
+script = ExtResource("18_cae2h")
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_avatar_container"]
 bg_color = Color(1, 1, 1, 1)
@@ -182,7 +218,7 @@ corner_radius_bottom_right = 25
 corner_radius_bottom_left = 25
 anti_aliasing_size = 1.5
 
-[node name="ChatbotInterface" type="Panel" unique_id=1530587113 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "UserMessageTemplate", "BotMessageTemplate", "ToolSelector")]
+[node name="ChatbotInterface" type="Panel" unique_id=1530587113 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "UserMessageTemplate", "BotMessageTemplate", "UserMessageMarkdownNode", "BotMessageMarkdownNode", "BotMessageLayoutNode", "ToolSelector")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -197,6 +233,9 @@ TextInputField = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/Input
 SendButton = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/SendButton")
 UserMessageTemplate = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate")
 BotMessageTemplate = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate")
+UserMessageMarkdownNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/MessageBubble/MessageBody")
+BotMessageMarkdownNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/MessageBody")
+BotMessageLayoutNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout")
 ToolSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolSelector")
 RandomImage1 = ExtResource("2_q7f8p")
 RandomImage2 = ExtResource("3_jta4j")
@@ -254,16 +293,29 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_spacer")
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
 
-[node name="MessageBody" type="RichTextLabel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/MessageBubble" unique_id=1684626461]
+[node name="MessageBody" type="RichTextLabel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/MessageBubble" unique_id=55994992]
 layout_mode = 2
 focus_mode = 2
-theme_override_colors/default_color = Color(0.15, 0.15, 0.15, 1)
+theme_override_fonts/normal_font = ExtResource("12_b06b1")
+theme_override_fonts/bold_font = ExtResource("13_rq6ts")
+theme_override_fonts/bold_italics_font = ExtResource("14_cae2h")
+theme_override_fonts/italics_font = ExtResource("15_js05h")
+theme_override_fonts/mono_font = ExtResource("23_rq6ts")
 bbcode_enabled = true
-text = "Plantilla Usuario"
 fit_content = true
+scroll_following = true
+scroll_following_visible_characters = true
 autowrap_mode = 0
 context_menu_enabled = true
 selection_enabled = true
+script = ExtResource("12_w5qr0")
+h1 = SubResource("Resource_js05h")
+h2 = SubResource("Resource_rp26x")
+h3 = SubResource("Resource_2c06c")
+h4 = SubResource("Resource_wyifx")
+h5 = SubResource("Resource_cdhtr")
+h6 = SubResource("Resource_8f5ok")
+metadata/_custom_type_script = "uid://dbap0gqox0ty1"
 
 [node name="AvatarPanel" type="PanelContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate" unique_id=705505517]
 clip_children = 1
@@ -279,7 +331,6 @@ expand_mode = 1
 stretch_mode = 6
 
 [node name="BotMessageTemplate" type="HBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer" unique_id=1233864621]
-visible = false
 layout_mode = 2
 theme_override_constants/separation = 15
 
@@ -304,17 +355,28 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
 [node name="MessageLayout" type="VBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble" unique_id=828698945]
 layout_mode = 2
 
-[node name="MessageBody" type="RichTextLabel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout" unique_id=1676817553]
+[node name="MessageBody" type="RichTextLabel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout" unique_id=1406244938]
 layout_mode = 2
 focus_mode = 2
-theme_override_colors/default_color = Color(0.2, 0.2, 0.2, 1)
+theme_override_fonts/normal_font = ExtResource("12_b06b1")
+theme_override_fonts/bold_font = ExtResource("13_rq6ts")
+theme_override_fonts/bold_italics_font = ExtResource("14_cae2h")
+theme_override_fonts/italics_font = ExtResource("15_js05h")
+theme_override_fonts/mono_font = ExtResource("23_rq6ts")
 bbcode_enabled = true
-text = "Plantilla Bot"
 fit_content = true
 scroll_following = true
-autowrap_mode = 2
+scroll_following_visible_characters = true
 context_menu_enabled = true
 selection_enabled = true
+script = ExtResource("12_w5qr0")
+h1 = SubResource("Resource_js05h")
+h2 = SubResource("Resource_rp26x")
+h3 = SubResource("Resource_2c06c")
+h4 = SubResource("Resource_wyifx")
+h5 = SubResource("Resource_cdhtr")
+h6 = SubResource("Resource_8f5ok")
+metadata/_custom_type_script = "uid://dbap0gqox0ty1"
 
 [node name="InputAreaMargin" type="MarginContainer" parent="MainContainer/ChatAreaContainer" unique_id=775477313]
 layout_mode = 2

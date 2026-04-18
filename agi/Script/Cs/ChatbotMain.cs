@@ -12,6 +12,10 @@ namespace Logic.UI
         [Export] public Button SendButton;
         [Export] public HBoxContainer UserMessageTemplate;
         [Export] public HBoxContainer BotMessageTemplate;
+    
+        [Export] public RichTextLabel UserMessageMarkdownNode;
+        [Export] public RichTextLabel BotMessageMarkdownNode;
+        [Export] public Control BotMessageLayoutNode;
         
         [Export] public OptionButton ToolSelector; 
         
@@ -32,7 +36,7 @@ namespace Logic.UI
         private bool _isRecording = false;
         
         private HBoxContainer _currentBotMessageNode;
-        private bool _isLiveModeEnabled = false;
+        private bool _isLiveModeEnabled = true;
         private bool _isWaitingForResponse = false;
         private Godot.Timer _typingAnimationTimer;
         
@@ -41,9 +45,8 @@ namespace Logic.UI
         private Random _randomGenerator = new Random();
 
         /// <summary>
-        /// Configura los delegados de la interfaz de usuario e inicializa las suscripciones a las señales de red y procesamiento 
-        /// en el momento en que el nodo se acopla al árbol de escena, incluyendo la escucha de la finalización del STT
-        /// y la configuración del bus nativo de grabación.
+        /// Configures UI delegates and initializes subscriptions to network and processing signals 
+        /// upon node attachment to the scene tree. Also configures the native audio recording bus.
         /// </summary>
         public override void _Ready()
         {
@@ -55,28 +58,25 @@ namespace Logic.UI
             if (UserMessageTemplate != null) UserMessageTemplate.Visible = false;
             if (BotMessageTemplate != null) BotMessageTemplate.Visible = false;
 
-            Node networkManager = GetNodeOrNull("/root/NetworkManager");
-            if (networkManager != null)
+            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+            if (chatManager != null) 
             {
-                networkManager.Connect("TokenReceived", new Callable(this, MethodName.OnTokenReceived));
+                chatManager.OnBotStartedThinking += OnBotStartedThinking;
+                chatManager.OnBotMessageTokenReceived += OnTokenReceived;
+                chatManager.OnBotFinishedSpeaking += OnBotFinishedSpeaking;
             }
 
-            Node chatManager = GetNodeOrNull("/root/ChatManager");
-            if (chatManager != null)
+            // CRITICAL FIX: Routed STT event subscription to the Network layer.
+            var networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
+            if (networkManager != null) 
             {
-                chatManager.Connect("MessageReady", new Callable(this, MethodName.OnMessageReady));
-            }
-
-            Node backendLauncher = GetNodeOrNull("/root/BackendLauncher");
-            if (backendLauncher != null)
-            {
-                backendLauncher.Connect("STTCompleted", new Callable(this, MethodName.OnSTTCompleted));
+                networkManager.STTCompleted += OnSTTCompleted;
             }
         }
 
         /// <summary>
-        /// Monitoriza asíncronamente el bus de grabación de audio para evaluar los umbrales de sonido.
-        /// Desencadena el registro y el envío del segmento de audio tras superar la tolerancia de silencio.
+        /// Asynchronously monitors the audio recording bus to evaluate sound thresholds.
+        /// Triggers recording and audio segment dispatch upon exceeding silence tolerance.
         /// </summary>
         public override void _Process(double delta)
         {
@@ -102,18 +102,18 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Habilita el estado de captura activa sobre el bus asignado al efecto de grabación.
+        /// Enables active capture state on the bus assigned to the recording effect.
         /// </summary>
         private void StartRecording()
         {
             _isRecording = true;
             _recorder.SetRecordingActive(true);
-            GD.Print("ChatBot: Detectada voz, grabando...");
+            GD.Print("ChatBot: Voice detected, recording...");
         }
 
         /// <summary>
-        /// Finaliza la captura del segmento actual de voz, lo serializa en un archivo binario WAV dentro 
-        /// de la partición de usuario y cede el procesamiento a la canalización STT en segundo plano.
+        /// Finalizes capture of the current voice segment, serializes it to a binary WAV file 
+        /// within the user partition, and yields processing to the background STT pipeline.
         /// </summary>
         private void StopAndSendRecording()
         {
@@ -126,34 +126,40 @@ namespace Logic.UI
                 string path = ProjectSettings.GlobalizePath("user://audio/chat_input.wav");
                 recording.SaveToWav(path);
                 
-                Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
-                if (backend != null) backend.ProcessSpeechToText(path);
+                // CRITICAL FIX: Routed inference execution to the Network layer.
+                var networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
+                if (networkManager != null) 
+                {
+                    _ = networkManager.RequestSTT(path);
+                }
             }
             _silenceTimer = 0.0f;
         }
 
         /// <summary>
-        /// Captura la señal emitida al finalizar la transcripción de audio, validando la cadena resultante 
-        /// y derivándola al flujo principal de procesamiento de mensajes del chatbot.
+        /// Captures the signal emitted upon completion of audio transcription, validating the resulting 
+        /// string and routing it to the main chatbot message processing flow.
         /// </summary>
-        /// <param name="recognizedText">Cadena de texto generada por el motor STT.</param>
         private void OnSTTCompleted(string recognizedText)
         {
             if (string.IsNullOrWhiteSpace(recognizedText)) return;
-            GD.Print("[FLOW] Iniciando cadena de respuesta LLM...");
+            GD.Print("[FLOW] Initiating LLM response chain...");
             _ = ProcessMessage(recognizedText);
         }
 
         /// <summary>
-        /// Delega la síntesis de una cadena de texto al motor de audio subyacente. 
-        /// Inyecta la instrucción asíncrona hacia el proceso en contenedor.
+        /// Delegates synthesis of a text string to the underlying WebSocket audio engine.
         /// </summary>
-        /// <param name="textToSynthesize">Cadena que requiere conversión a flujo de audio.</param>
         private void DispatchSherpaSpeech(string textToSynthesize)
         {
-            GD.Print($"[TTS] Solicitando síntesis de voz: {textToSynthesize.Substr(0, 20)}...");
-            var backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
-            backend?.GenerateTextToSpeech(textToSynthesize);
+            GD.Print($"[TTS] Requesting speech synthesis via WebSocket: {textToSynthesize.Substring(0, Math.Min(20, textToSynthesize.Length))}...");
+            
+            // CRITICAL FIX: Routed synthesis execution to the Network WebSocket stream.
+            var networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
+            if (networkManager != null) 
+            {
+                _ = networkManager.RequestTTSWebSocket(textToSynthesize);
+            }
         }
 
         private void OnSendPressed()
@@ -166,6 +172,10 @@ namespace Logic.UI
             _ = ProcessMessage(newText);
         }
 
+        /// <summary>
+        /// Processes user input and delegates to the appropriate logic pipeline.
+        /// Utilizes relative topological paths to assign markdown content to cloned instances.
+        /// </summary>
         private async Task ProcessMessage(string text)
         {
             if (string.IsNullOrWhiteSpace(text) || _isWaitingForResponse) return;
@@ -175,7 +185,14 @@ namespace Logic.UI
             SendButton.Disabled = true;
 
             HBoxContainer newUserMsg = (HBoxContainer)UserMessageTemplate.Duplicate();
-            newUserMsg.GetNode<RichTextLabel>("MessageBubble/MessageBody").Text = text;
+            
+            // Resolve node relative path to assign properties safely to the duplicated instance
+            string relativePath = UserMessageTemplate.GetPathTo(UserMessageMarkdownNode);
+            RichTextLabel userMarkdownLabel = newUserMsg.GetNode<RichTextLabel>(relativePath);
+            
+            // Interface with the markdown plugin using the exposed GDScript property
+            userMarkdownLabel.Set("markdown_text", text);
+            
             newUserMsg.Visible = true;
             MessagesContainer.AddChild(newUserMsg);
             ScrollToBottom();
@@ -192,34 +209,55 @@ namespace Logic.UI
             }
             else
             {
-                ProcessNormalChatMessage(text);
+                var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+                if (chatManager != null) 
+                {
+                    await chatManager.SendToAI(text);
+                }
+                else
+                {
+                    _isWaitingForResponse = false;
+                    SendButton.Disabled = false;
+                }
             }
         }
 
-        private void ProcessNormalChatMessage(string text)
+        /// <summary>
+        /// Prepares the UI state for incoming token streaming by deploying a new message node.
+        /// </summary>
+        private void OnBotStartedThinking()
         {
+            _fullMessageBuffer = string.Empty;
+
             HBoxContainer newBotMsg = (HBoxContainer)BotMessageTemplate.Duplicate();
-            RichTextLabel botTextLabel = newBotMsg.GetNode<RichTextLabel>("MessageBubble/MessageLayout/MessageBody");
-            botTextLabel.Text = ".";
+            
+            string relativePath = BotMessageTemplate.GetPathTo(BotMessageMarkdownNode);
+            RichTextLabel botTextLabel = newBotMsg.GetNode<RichTextLabel>(relativePath);
+            
+            botTextLabel.Set("markdown_text", ".");
             newBotMsg.Visible = true;
             MessagesContainer.AddChild(newBotMsg);
             
             _currentBotMessageNode = newBotMsg;
-            _ttsBuffer = string.Empty;
-            _fullMessageBuffer = string.Empty;
             ScrollToBottom();
-
             StartTypingAnimation(botTextLabel);
-
-            Logic.Lite.ChatManager chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
-            if (chatManager != null) chatManager.GeneratePrompt(text);
         }
 
+        /// <summary>
+        /// Mocks media generation utilizing dynamically resolved topology paths instead of hardcoded strings.
+        /// </summary>
         private async Task GenerateMockMediaResponse(string prompt, bool isVideo)
         {
             HBoxContainer newBotMsg = (HBoxContainer)BotMessageTemplate.Duplicate();
-            RichTextLabel botTextLabel = newBotMsg.GetNode<RichTextLabel>("MessageBubble/MessageLayout/MessageBody");
-            botTextLabel.Text = isVideo ? "Generando video para: " + prompt : "Generando imagen para: " + prompt;
+            
+            string mdRelativePath = BotMessageTemplate.GetPathTo(BotMessageMarkdownNode);
+            RichTextLabel botTextLabel = newBotMsg.GetNode<RichTextLabel>(mdRelativePath);
+            
+            string layoutRelativePath = BotMessageTemplate.GetPathTo(BotMessageLayoutNode);
+            Control messageLayout = newBotMsg.GetNode<Control>(layoutRelativePath);
+
+            botTextLabel.Set("markdown_text", isVideo ? "Generando video para: " + prompt : "Generando imagen para: " + prompt);
+            
             newBotMsg.Visible = true;
             MessagesContainer.AddChild(newBotMsg);
             ScrollToBottom();
@@ -228,7 +266,7 @@ namespace Logic.UI
             await ToSignal(GetTree().CreateTimer(3.0f), SceneTreeTimer.SignalName.Timeout);
 
             StopTypingAnimation();
-            botTextLabel.Text = isVideo ? "¡Aquí tienes tu video!" : "¡Aquí tienes tu imagen!";
+            botTextLabel.Set("markdown_text", isVideo ? "¡Aquí tienes tu video!" : "¡Aquí tienes tu imagen!");
 
             if (isVideo)
             {
@@ -266,7 +304,6 @@ namespace Logic.UI
                     videoPlayer.Stream = chosenVideo;
                 }
                 
-
                 aspectContainer.AddChild(videoPlayer);
                 videoWrapper.AddChild(aspectContainer);
 
@@ -342,7 +379,7 @@ namespace Logic.UI
                 controlsLayout.AddChild(progressSlider);
 
                 videoWrapper.AddChild(controlsLayout);
-                newBotMsg.GetNode<Control>("MessageBubble/MessageLayout").AddChild(videoWrapper);
+                messageLayout.AddChild(videoWrapper);
 
                 Godot.Timer syncTimer = new Godot.Timer();
                 syncTimer.WaitTime = 0.1f;
@@ -400,7 +437,7 @@ namespace Logic.UI
                     mediaRect.Texture = chosenImage;
                 }
 
-                newBotMsg.GetNode<Control>("MessageBubble/MessageLayout").AddChild(mediaRect);
+                messageLayout.AddChild(mediaRect);
             }
             
             ScrollToBottom();
@@ -412,38 +449,33 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Procesa el flujo de texto entrante del LLM en tiempo real.
-        /// Garantiza la separación de canales: actualiza la UI visualmente de forma incondicional,
-        /// pero delega la síntesis de voz (TTS) única y exclusivamente si el contexto es interactivo (LiveMode).
+        /// Processes the incoming real-time token stream from the LLM.
+        /// It builds a buffer to ensure markdown integrity and invokes the parser sequentially.
         /// </summary>
         private void OnTokenReceived(string token)
         {
             if (_currentBotMessageNode == null) return;
 
-            RichTextLabel messageBody = _currentBotMessageNode.GetNode<RichTextLabel>("MessageBubble/MessageLayout/MessageBody");
+            string relativePath = BotMessageTemplate.GetPathTo(BotMessageMarkdownNode);
+            RichTextLabel messageBody = _currentBotMessageNode.GetNode<RichTextLabel>(relativePath);
             
             if (_typingAnimationTimer != null)
             {
                 StopTypingAnimation();
-                messageBody.Text = "";
+                _fullMessageBuffer = string.Empty;
             }
 
-            messageBody.Text += token;
-            ScrollToBottom();
-
-            _ttsBuffer += token;
             _fullMessageBuffer += token;
+            messageBody.Set("markdown_text", _fullMessageBuffer);
+            
+            ScrollToBottom();
+        }
 
-            if (token.Contains(".") || token.Contains("!") || token.Contains("?"))
-            {
-                // Evaluación de contexto estricta: El bot permanece mudo en chat regular.
-                if (_isLiveModeEnabled) 
-                {
-                    DispatchSherpaSpeech(_ttsBuffer.Trim());
-                }
-                
-                _ttsBuffer = string.Empty;
-            }
+        private void OnBotFinishedSpeaking(string fullResponse)
+        {
+            _isWaitingForResponse = false;
+            TextInputField.Editable = true;
+            SendButton.Disabled = false;
         }
 
         private async void ScrollToBottom()
@@ -456,6 +488,9 @@ namespace Logic.UI
             }
         }
 
+        /// <summary>
+        /// Animates a typing state reading directly from the markdown property.
+        /// </summary>
         private void StartTypingAnimation(RichTextLabel label)
         {
             if (_typingAnimationTimer != null) return; 
@@ -466,9 +501,10 @@ namespace Logic.UI
             
             _typingAnimationTimer.Timeout += () =>
             {
-                if (label.Text.EndsWith("...")) label.Text = label.Text.Substring(0, label.Text.Length - 3) + ".";
-                else if (label.Text.EndsWith("..")) label.Text = label.Text.Substring(0, label.Text.Length - 2) + "...";
-                else if (label.Text.EndsWith(".")) label.Text = label.Text.Substring(0, label.Text.Length - 1) + "..";
+                string currentText = label.Get("markdown_text").AsString();
+                if (currentText.EndsWith("...")) label.Set("markdown_text", currentText.Substring(0, currentText.Length - 3) + ".");
+                else if (currentText.EndsWith("..")) label.Set("markdown_text", currentText.Substring(0, currentText.Length - 2) + "...");
+                else if (currentText.EndsWith(".")) label.Set("markdown_text", currentText.Substring(0, currentText.Length - 1) + "..");
             };
             
             AddChild(_typingAnimationTimer);
@@ -485,20 +521,21 @@ namespace Logic.UI
             }
         }
 
-        private async void OnMessageReady(string formattedMistralPrompt)
+        public override void _ExitTree()
         {
-            Logic.Network.NetworkManager networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
-            if (networkManager != null)
+            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+            if (chatManager != null) 
             {
-                await networkManager.StreamChatCompletion(formattedMistralPrompt);
+                chatManager.OnBotStartedThinking -= OnBotStartedThinking;
+                chatManager.OnBotMessageTokenReceived -= OnTokenReceived;
+                chatManager.OnBotFinishedSpeaking -= OnBotFinishedSpeaking;
+            }
 
-                Logic.Lite.ChatManager chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
-                if (chatManager != null) chatManager.RegisterAssistantReply(_fullMessageBuffer);
-
-                _isWaitingForResponse = false;
-                TextInputField.Editable = true;
-                SendButton.Disabled = false;
-                TextInputField.GrabFocus();
+            // CRITICAL FIX: Unsubscribed from NetworkManager instead of BackendLauncher.
+            var networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
+            if (networkManager != null) 
+            {
+                networkManager.STTCompleted -= OnSTTCompleted;
             }
         }
     }

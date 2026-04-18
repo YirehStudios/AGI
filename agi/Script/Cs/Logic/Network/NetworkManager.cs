@@ -5,13 +5,10 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using System.Text.Json;
+using System.Net.WebSockets;
 
 namespace Logic.Network
 {
-    /// <summary>
-    /// Se encarga de la comunicación con el LLM nativo utilizando el estándar de la API de OpenAI.
-    /// Emite los tokens individuales recibidos por Server-Sent Events (SSE).
-    /// </summary>
     public partial class NetworkManager : Node
     {
         [Signal]
@@ -19,6 +16,11 @@ namespace Logic.Network
         
         [Signal]
         public delegate void TokenReceivedEventHandler(string token);
+        
+        [Signal]
+        public delegate void STTCompletedEventHandler(string text);
+        [Signal]
+        public delegate void TTSAudioChunkReceivedEventHandler(byte[] pcmData);
 
         private readonly global::System.Net.Http.HttpClient _httpClient = new global::System.Net.Http.HttpClient();
 
@@ -52,8 +54,10 @@ namespace Logic.Network
         /// </summary>
         public async Task StreamChatCompletion(string prompt)
         {
-            string urlSegura = GetActiveUrl();
-            // 2. Nos sumergimos en el hilo de fondo
+            // --- CAMBIO CRUCIAL: Obtenemos la URL en el hilo principal antes de entrar al Task ---
+            string urlSegura = GetActiveUrl(); 
+            GD.Print($"[NET] Enviando petición a Llama en: {urlSegura}");
+
             await Task.Run(async () => 
             {
                 try
@@ -62,18 +66,18 @@ namespace Logic.Network
                     {
                         prompt = prompt,
                         stream = true,
-                        n_predict = -1 
+                        n_predict = 2048 
                     };
 
                     string jsonPayload = JsonSerializer.Serialize(requestBody);
                     var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
-                    // 3. Usamos la variable que capturamos arriba
                     var request = new HttpRequestMessage(HttpMethod.Post, $"{urlSegura}/v1/completions")
                     {
                         Content = content
                     };
 
+                    // Añadimos un timeout de seguridad de 60 segundos para la conexión inicial
                     using HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
                     response.EnsureSuccessStatusCode();
 
@@ -91,29 +95,125 @@ namespace Logic.Network
                         try
                         {
                             using JsonDocument doc = JsonDocument.Parse(data);
-                            JsonElement root = doc.RootElement;
-                            if (root.TryGetProperty("choices", out JsonElement choices) && choices.GetArrayLength() > 0)
+                            if (doc.RootElement.TryGetProperty("choices", out JsonElement choices) && choices.GetArrayLength() > 0)
                             {
                                 if (choices[0].TryGetProperty("text", out JsonElement contentElement))
                                 {
                                     string token = contentElement.GetString();
                                     if (!string.IsNullOrEmpty(token))
                                     {
-                                        // CallDeferred se asegura de enviar esto de vuelta al hilo principal de forma segura
                                         CallDeferred(MethodName.EmitSignal, SignalName.TokenReceived, token);
                                     }
                                 }
                             }
                         }
-                        catch (JsonException) { }
+                        catch { /* Ignorar fragmentos JSON malformados durante el stream */ }
                     }
                 }
                 catch (Exception ex)
                 {
-                    GD.PrintErr($"NetworkManager: Stream processing failure. {ex.Message}");
+                    GD.PrintErr($"[NET ERROR] Fallo en el flujo de Llama: {ex.Message}");
                 }
             });
         }
+
+        /// <summary>
+        /// Establishes a persistent ClientWebSocket connection to the Sherpa TTS engine.
+        /// Dispatches text payloads and streams back binary PCM structures in real-time, bypassing disk I/O.
+        /// </summary>
+        public async Task RequestTTSWebSocket(string textToSynthesize)
+        {
+            try
+            {
+                using var ws = new ClientWebSocket();
+                Uri serverUri = new Uri("ws://127.0.0.1:8888"); 
+                
+                await ws.ConnectAsync(serverUri, global::System.Threading.CancellationToken.None);
+
+                var payload = new { text = textToSynthesize };
+                string jsonPayload = global::System.Text.Json.JsonSerializer.Serialize(payload);
+                byte[] bytes = global::System.Text.Encoding.UTF8.GetBytes(jsonPayload);
+
+                // Dispatches the synthesis request to the active local model.
+                await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, global::System.Threading.CancellationToken.None);
+
+                // Implements a continuous stream loop, capturing generated audio fragments sequentially.
+                byte[] buffer = new byte[8192];
+                while (ws.State == WebSocketState.Open)
+                {
+                    var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), global::System.Threading.CancellationToken.None);
+
+                    if (result.MessageType == WebSocketMessageType.Binary)
+                    {
+                        byte[] audioChunk = new byte[result.Count];
+                        global::System.Array.Copy(buffer, audioChunk, result.Count);
+
+                        // Routes the raw binary array to the hardware presentation layer in real-time.
+                        CallDeferred(MethodName.EmitSignal, SignalName.TTSAudioChunkReceived, audioChunk);
+                    }
+                    else if (result.MessageType == WebSocketMessageType.Text)
+                    {
+                        string msg = global::System.Text.Encoding.UTF8.GetString(buffer, 0, result.Count);
+                        if (msg.Contains("Done", StringComparison.OrdinalIgnoreCase))
+                        {
+                            break; 
+                        }
+                    }
+                    else if (result.MessageType == WebSocketMessageType.Close)
+                    {
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"[NET ERROR] WebSocket TTS Engine Exception: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Offloads the synchronous network request onto an asynchronous task thread.
+        /// Handles multipart form data for Whisper local inference and emits parsed text payload.
+        /// </summary>
+        public async Task RequestSTT(string audioFilePath)
+        {
+            GD.Print($"[FLAG] STT: Dispatching {Path.GetFileName(audioFilePath)} via HTTP...");
+            
+            await Task.Run(async () => 
+            {
+                try
+                {
+                    using var client = new global::System.Net.Http.HttpClient();
+                    using var form = new global::System.Net.Http.MultipartFormDataContent();
+                    
+                    byte[] audioBytes = global::System.IO.File.ReadAllBytes(audioFilePath);
+                    var audioContent = new global::System.Net.Http.ByteArrayContent(audioBytes);
+                    audioContent.Headers.ContentType = global::System.Net.Http.Headers.MediaTypeHeaderValue.Parse("audio/wav");
+                    
+                    form.Add(audioContent, "file", global::System.IO.Path.GetFileName(audioFilePath));
+                    form.Add(new global::System.Net.Http.StringContent("es"), "language"); 
+                    form.Add(new global::System.Net.Http.StringContent("json"), "response_format");
+                    
+                    var response = await client.PostAsync("http://127.0.0.1:8081/inference", form);
+                    response.EnsureSuccessStatusCode();
+                    
+                    string jsonResponse = await response.Content.ReadAsStringAsync();
+                    
+                    using var doc = global::System.Text.Json.JsonDocument.Parse(jsonResponse);
+                    if (doc.RootElement.TryGetProperty("text", out global::System.Text.Json.JsonElement textElement))
+                    {
+                        string recognizedText = textElement.GetString().Trim();
+                        GD.Print($"[FLAG] STT SUCCESS: {recognizedText}");
+                        CallDeferred(MethodName.EmitSignal, SignalName.STTCompleted, recognizedText);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    GD.PrintErr($"[FLAG] STT ERROR: Whisper HTTP request failed. {ex.Message}");
+                }
+            });
+        }
+
         private string GetActiveUrl()
         {
             var config = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");

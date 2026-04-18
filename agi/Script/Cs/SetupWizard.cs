@@ -51,7 +51,8 @@ namespace Logic.Utils
         [Export] public LineEdit TxtCustomPort;
         [Export] private string LlamaServerUrl = "https://github.com/ggml-org/llama.cpp/releases/download/b8770/llama-b8770-bin-ubuntu-vulkan-x64.tar.gz";
         [Export] private string WhisperServerUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/refs/heads/main/whisper-server-vulkan-linux/whisper-server-vulkan-linux.tar.gz";
-
+        [Export] private string SherpaServerUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.39/sherpa-onnx-v1.12.39-linux-x64-static.tar.bz2";
+        [Export] private string TtsBridgeUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/main/agi/Drivers/tts_server.py";
         private ConfigManager.ModelPreset _selectedLLM;
         private ConfigManager.ModelPreset _selectedSTT;
         private ConfigManager.ModelPreset _selectedTTS;
@@ -287,33 +288,47 @@ namespace Logic.Utils
 		}
 
         /// <summary>
-		/// Orchestrates the asynchronous and sequential retrieval of selected model binaries.
-		/// Assigns persistent file paths based on the required engine extension, modifies the global configuration,
-		/// and delegates the container engine startup upon successful traversal of the list.
-		/// </summary>
+        /// Orchestrates the asynchronous and sequential retrieval of selected model binaries and native engines.
+        /// Implements caching checks to bypass redundant network utilization if the binaries (Llama, Whisper, Sherpa) 
+        /// or models already exist locally. Assigns persistent file paths, modifies the global configuration,
+        /// and delegates the container engine startup upon successful traversal.
+        /// </summary>
         private async void StartModelDownload()
         {
-            // Enforces the transition to the downloading visual state.
             SwitchState(WizardState.Downloading);
 
-            // Initializes the core application binaries mapping.
             string binDir = ProjectSettings.GlobalizePath("user://bin");
             global::System.IO.Directory.CreateDirectory(binDir);
 
-            if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando motores nativos (Llama/Whisper)...[/center]";
+            // --- 1. CHEQUEO DE MOTORES EXISTENTES (LLAMA Y WHISPER) ---
+            string llamaBinPath = global::System.IO.Path.Combine(binDir, "llama-b8770/llama-server");
+            string whisperBinPath = global::System.IO.Path.Combine(binDir, "whisper-server");
 
-            // Dispatches the asynchronous requests for the precompiled server engines.
-            await _downloadManager.DownloadFileAsync(LlamaServerUrl, "user://bin", "llama-server.tar.gz");
-            await _downloadManager.DownloadFileAsync(WhisperServerUrl, "user://bin", "whisper-server.tar.gz");
+            if (!global::System.IO.File.Exists(llamaBinPath) || !global::System.IO.File.Exists(whisperBinPath))
+            {
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando motores nativos (Llama/Whisper)...[/center]";
+                
+                await _downloadManager.DownloadFileAsync(LlamaServerUrl, "user://bin", "llama-server.tar.gz");
+                await _downloadManager.DownloadFileAsync(WhisperServerUrl, "user://bin", "whisper-server.tar.gz");
+                
+                OS.Execute("chmod", new string[] { "+x", llamaBinPath }, new Godot.Collections.Array(), true);
+                OS.Execute("chmod", new string[] { "+x", whisperBinPath }, new Godot.Collections.Array(), true);
+            }
+            else
+            {
+                GD.Print("SetupWizard: Motores Llama/Whisper ya existen. Omitiendo descarga.");
+            }
 
-            // Applies strict Unix executable permissions to the downloaded binaries to prevent OS access restrictions.
-            // Integrates the specific subfolder path for the Llama binary extraction structure.
-            string llamaBinPath = ProjectSettings.GlobalizePath("user://bin/llama-b8770/llama-server");
-            string whisperBinPath = ProjectSettings.GlobalizePath("user://bin/whisper-server");
-            OS.Execute("chmod", new string[] { "+x", llamaBinPath }, new Godot.Collections.Array(), true);
-            OS.Execute("chmod", new string[] { "+x", whisperBinPath }, new Godot.Collections.Array(), true);
+            // --- 2 DESCARGA DEL DRIVER / BRIDGE PYTHON ---
+            string pythonBridgePath = global::System.IO.Path.Combine(binDir, "tts_server.py");
+            if (!global::System.IO.File.Exists(pythonBridgePath)) 
+            {
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando Driver de Voz (Python Bridge)...[/center]";
+                // Fetches the standalone driver from the repository to enable hot-patching.
+                await _downloadManager.DownloadFileAsync(TtsBridgeUrl, "user://bin", "tts_server.py");
+            }
 
-            // Evaluates the user-selected configuration preset models and iterates their respective network fetches.
+            // --- 3. DESCARGA DE MODELOS (PRESETS) ---
             List<ConfigManager.ModelPreset> presetsToDownload = new List<ConfigManager.ModelPreset> { _selectedLLM, _selectedSTT, _selectedTTS };
 
             foreach (ConfigManager.ModelPreset preset in presetsToDownload)
@@ -336,7 +351,6 @@ namespace Logic.Utils
                 if (preset.Name.Contains("Sherpa")) _configManager.ActiveTTSModel = safeFileName.Replace(".tar.bz2", "");
                 _configManager.SaveConfiguration();
 
-                // Evaluates local storage for the requested asset to bypass redundant network utilization.
                 string globalPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
                 if (global::System.IO.File.Exists(globalPath))
                 {
@@ -361,7 +375,6 @@ namespace Logic.Utils
                 }
             }
 
-            // Delegates the execution flow to the backend instantiation sequence upon successful traversal.
             StartLlamaServer();
         }
 
@@ -448,6 +461,9 @@ namespace Logic.Utils
             }
 
             if (ModelDownloadProgress != null) ModelDownloadProgress.Value = 100;
+
+            _configManager.SetupCompleted = true;
+            _configManager.SaveConfiguration();
 
             TransitionToMainScene();
         }
