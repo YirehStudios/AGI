@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bx5yq2jklxap"]
 
 [ext_resource type="Script" uid="uid://cqlqgupb2vwje" path="res://Script/Cs/LivemodeMain.cs" id="1_script"]
+[ext_resource type="Shader" uid="uid://u154mo58le6m" path="res://Resources/Components/LiveModeShader.gdshader" id="2_jrrha"]
 
 [sub_resource type="SystemFont" id="SystemFont_regular"]
 font_names = PackedStringArray("Sans-Serif")
@@ -16,40 +17,9 @@ bg_color = Color(0.882, 0.882, 0.839, 1)
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_panel_wrapper"]
 content_margin_left = 0.0
 
-[sub_resource type="Shader" id="Shader_chatgpt_blob"]
-code = "shader_type canvas_item;
-
-
-uniform float state : hint_range(0.0, 1.0) = 0.0;
-
-
-void fragment() {
-   vec2 uv = UV * 2.0 - 1.0;
-   float a = atan(uv.y, uv.x);
-   float r = length(uv);
-
-
-   float time = TIME;
-
-
-   float noise = sin(a * 3.0 + time) * 0.04;
-   noise += cos(a * 2.0 - time * 0.8) * 0.03;
-   noise += sin(a * 4.0 + time * 1.2) * 0.02;
-
-
-   float base_radius = 0.65;
-   float final_radius = base_radius + noise;
-
-
-   float alpha = 1.0 - smoothstep(final_radius - 0.01, final_radius + 0.01, r);
-
-
-   COLOR = vec4(1.0, 1.0, 1.0, alpha);
-}"
-
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_chatgpt_blob"]
-shader = SubResource("Shader_chatgpt_blob")
-shader_parameter/state = 0.0
+shader = ExtResource("2_jrrha")
+shader_parameter/voice_level = 0.0
 
 [sub_resource type="SystemFont" id="SystemFont_bold"]
 font_names = PackedStringArray("Sans-Serif")
@@ -139,6 +109,7 @@ _data = {
 
 [sub_resource type="AudioStreamGenerator" id="AudioStreamGenerator_k6qk6"]
 mix_rate = 22050.0
+buffer_length = 0.75
 
 [node name="LiveModeInterface" type="Panel" unique_id=140527907 node_paths=PackedStringArray("WaveVisualizer", "WaveAnimationPlayer", "AIVoicePlayer", "MicroRecorderPlayer")]
 anchors_preset = 15

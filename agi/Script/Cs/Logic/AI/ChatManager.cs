@@ -3,39 +3,64 @@
 using Godot;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.Json.Serialization; 
 
 namespace Logic.Lite
 {
     /// <summary>
     /// Data structure representing a single chat message entity for persistent JSON storage.
+    /// Supports independent ID tracking for users and assistants alongside separated reasoning streams.
     /// </summary>
     public class ChatMessage
     {
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? IdUser { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? IdAssistant { get; set; }
+        
         public int Id { get; set; }
         public string Role { get; set; }
-        public string Content { get; set; }
         public string Timestamp { get; set; }
+        public string Think { get; set; } = string.Empty;
+        public string Content { get; set; }
     }
 
     /// <summary>
-    /// Data structure for tracking sentiment and emotional context across the session.
+    /// Data structure for tracking sentiment and the complete emotional spectrum across the session.
     /// </summary>
     public class ChatEmotions
     {
-        public float Angry { get; set; } = 0f;
-        public float Happy { get; set; } = 0f;
-        public float Tired { get; set; } = 0f;
+        public float Angry { get; set; } = 0.0f;
+        public float Happy { get; set; } = 0.8f;
+        public float Tired { get; set; } = 0.2f;
+        public float Bored { get; set; } = 0.0f;
+        public float Sleep { get; set; } = 0.9f;
+        public float Sad { get; set; } = 1.0f;
+        public float Flirty { get; set; } = 0.1f;
+        public float Curiosity { get; set; } = 0.5f;
+        public float Confusion { get; set; } = 0.0f;
+        public float Confidence { get; set; } = 1.0f;
+        public float Surprise { get; set; } = 0.0f;
+        public float Sarcasm { get; set; } = 0.0f;
+        public float Stress { get; set; } = 0.0f;
+        public float Interest { get; set; } = 0.8f;
+        public float Affection { get; set; } = 0.6f;
+        public float Patience { get; set; } = 1.0f;
+        public float Pride { get; set; } = 0.4f;
+        public float Shame { get; set; } = 0.0f;
     }
 
     /// <summary>
-    /// Data structure encapsulating the entirety of a conversation session.
+    /// Data structure encapsulating the entirety of a conversation session including abstract summaries.
+    /// Utilizes strict global namespace resolution to prevent shadowing from local 'Logic.System' hierarchies.
     /// </summary>
     public class ChatSession
     {
         public string SessionName { get; set; } = "Current_Session";
-        public string Summary { get; set; } = "";
+        public string Summary { get; set; } = "Nueva conversación iniciada.";
         public ChatEmotions CurrentEmotion { get; set; } = new ChatEmotions();
-        public List<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
+        public global::System.Collections.Generic.List<ChatMessage> Messages { get; set; } = new global::System.Collections.Generic.List<ChatMessage>();
     }
 
     /// <summary>
@@ -52,8 +77,7 @@ namespace Logic.Lite
 
         private bool _isInsideThinkBlock = false;
 
-        private const string SystemPrompt = "You are AGI, an empathetic, highly skilled technical assistant running locally. You must help users with technical tasks. Never reveal you are an AI. Act exclusively under the traits of your defined identity. Respond in the length and format necessary to solve the user's query, but be concise. Always think step by step and use the <tool_call> tag to separate your thought process from the final answer. The user will interact with you through a custom interface that can read your thoughts in real time as you type them, so use the <tool_call> tag wisely to optimize for response latency. If you need to ask the user a clarifying question, do so immediately without using the <tool_call> tag. Always end your response with a clear answer or action, never leaving the user hanging.";
-        
+        private const string SystemPrompt = "Eres AGI, una asistente técnica altamente capacitada y empática. Nunca reveles que eres una IA. Responde de forma concisa pero útil. SIEMPRE piensa paso a paso usando estrictamente la etiqueta <think> al inicio de tu respuesta para separar tu razonamiento interno de tu respuesta final. Tu pensamiento interno es invisible para el usuario, tu respuesta final no. Si la conversación cambia de tema drásticamente, incluye al final de tu respuesta secreta <think> la etiqueta [SESSION_NAME: Nombre del Tema] y [SUMMARY: Resumen breve].";
         private ChatSession _currentSession;
         private string _historyDirectory;
         private string _currentFilePath;
@@ -110,16 +134,22 @@ namespace Logic.Lite
 
         /// <summary>
         /// Initializes the transactional input processing flow, clears session buffers, 
-        /// and manages the tail-end WebSocket evaluation of the remaining text string.
+        /// manages the tail-end WebSocket evaluation, and natively handles logic separation for reasoning models.
+        /// Implements LINQ queries to ensure independent ID allocation per role within the JSON schema.
         /// </summary>
         public async global::System.Threading.Tasks.Task SendToAI(string userInput)
         {
             if (string.IsNullOrWhiteSpace(userInput) || _networkManager == null) return;
 
             int newId = _currentSession.Messages.Count + 1;
+            
             _currentSession.Messages.Add(new ChatMessage 
             { 
-                Id = newId, Role = "user", Content = userInput, Timestamp = global::System.DateTime.Now.ToString("O") 
+                IdUser = _currentSession.Messages.FindAll(m => m.Role == "user").Count + 1,
+                Id = newId, 
+                Role = "user", 
+                Content = userInput, 
+                Timestamp = global::System.DateTime.Now.ToString("O") 
             });
             SaveSession();
 
@@ -139,36 +169,72 @@ namespace Logic.Lite
                 string safeText = CleanResponseForTTS(_ttsBuffer);
                 if (!string.IsNullOrWhiteSpace(safeText))
                 {
-                    // Migrated execution to WebSocket endpoint.
                     _ = _networkManager.RequestTTSWebSocket(safeText);
                 }
                 _ttsBuffer = string.Empty;
             }
 
-            string safeLogText = CleanResponseForTTS(_currentAssistantBuffer);
-            if (string.IsNullOrWhiteSpace(safeLogText)) safeLogText = "Entendido."; 
+            string rawResponse = _currentAssistantBuffer;
+            string thoughtProcess = "";
+            string finalContent = rawResponse;
+            int thinkStart = rawResponse.IndexOf("<think>");
+            int thinkEnd = rawResponse.IndexOf("</think>");
+
+            if (thinkStart != -1 && thinkEnd != -1)
+            {
+                thoughtProcess = rawResponse.Substring(thinkStart + 7, thinkEnd - (thinkStart + 7)).Trim();
+                finalContent = rawResponse.Substring(thinkEnd + 8).Trim();
+            }
+            else if (thinkStart != -1 && thinkEnd == -1) 
+            {
+                thoughtProcess = rawResponse.Substring(thinkStart + 7).Trim();
+                finalContent = "";
+            }
+
+            if (thoughtProcess.Contains("[SESSION_NAME:"))
+            {
+                var matchName = global::System.Text.RegularExpressions.Regex.Match(thoughtProcess, @"\[SESSION_NAME:\s*(.+?)\]");
+                if (matchName.Success) 
+                {
+                    string oldFilePath = _currentFilePath; // Guardar ruta vieja
+                    _currentSession.SessionName = matchName.Groups[1].Value.Trim();
+                    _currentFilePath = global::System.IO.Path.Combine(_historyDirectory, $"{_currentSession.SessionName}.json");
+                    
+                    // Borrar el archivo viejo si el nombre cambió
+                    if (global::System.IO.File.Exists(oldFilePath) && oldFilePath != _currentFilePath)
+                    {
+                        global::System.IO.File.Delete(oldFilePath);
+                    }
+                }
+            }
+
+            if (thoughtProcess.Contains("[SUMMARY:"))
+            {
+                var matchSummary = global::System.Text.RegularExpressions.Regex.Match(thoughtProcess, @"\[SUMMARY:\s*(.+?)\]");
+                if (matchSummary.Success) _currentSession.Summary = matchSummary.Groups[1].Value.Trim();
+            }
 
             _currentSession.Messages.Add(new ChatMessage 
             { 
-                Id = newId + 1, Role = "assistant", Content = safeLogText, Timestamp = global::System.DateTime.Now.ToString("O") 
+                IdAssistant = _currentSession.Messages.FindAll(m => m.Role == "assistant").Count + 1,
+                Id = newId + 1, 
+                Role = "assistant", 
+                Think = thoughtProcess,
+                Content = finalContent, 
+                Timestamp = global::System.DateTime.Now.ToString("O") 
             });
             SaveSession();
 
-            _currentSession.Messages.Add(new ChatMessage 
-            { 
-                Id = newId + 1, Role = "assistant", Content = _currentAssistantBuffer, Timestamp = global::System.DateTime.Now.ToString("O") 
-            });
-            SaveSession();
-
-            string safeTtsText = CleanResponseForTTS(_currentAssistantBuffer);
+            string safeTtsText = CleanResponseForTTS(finalContent);
             if (string.IsNullOrWhiteSpace(safeTtsText)) safeTtsText = "Pensé demasiado y perdí el hilo. ¿Puedes repetirlo?";
-
+            
             EmitSignal(SignalName.OnBotFinishedSpeaking, safeTtsText);
         }
 
         /// <summary>
         /// Operates as real-time evaluation middleware traversing the token streaming pipeline.
         /// Enforces semantic chunking on visible text fragments and dynamically triggers WebSocket TTS streaming.
+        /// Resets visual buffer state upon concluding the reasoning phase to prevent length miscalculation.
         /// </summary>
         private void HandleTokenReceived(string token)
         {
@@ -182,7 +248,7 @@ namespace Logic.Lite
             else if (_isInsideThinkBlock && _currentAssistantBuffer.Contains("</think>"))
             {
                 _isInsideThinkBlock = false;
-                _uiBuffer = _currentAssistantBuffer; 
+                _uiBuffer = ""; 
                 
                 CallDeferred(MethodName.EmitSignal, SignalName.OnBotThoughtFinished);
                 return;
@@ -222,14 +288,13 @@ namespace Logic.Lite
                     }
                 }
 
-                if (_ttsBuffer.Contains('.') || _ttsBuffer.Contains(',') || 
-                    _ttsBuffer.Contains('?') || _ttsBuffer.Contains('!') || 
-                    _ttsBuffer.Contains('\n'))
+                if (_ttsBuffer.Contains(". ") || _ttsBuffer.Contains(", ") || 
+                    _ttsBuffer.Contains("? ") || _ttsBuffer.Contains("! ") || 
+                    _ttsBuffer.Contains("\n"))
                 {
                     string cleanChunk = CleanResponseForTTS(_ttsBuffer);
                     if (!string.IsNullOrWhiteSpace(cleanChunk))
                     {
-                        // Migrated execution to WebSocket endpoint.
                         _ = _networkManager?.RequestTTSWebSocket(cleanChunk);
                     }
                     _ttsBuffer = string.Empty;
@@ -238,31 +303,29 @@ namespace Logic.Lite
         }
 
         /// <summary>
-        /// Constructs the standardized ChatML prompt injecting system identity and a sliding window context.
+        /// Constructs the standardized ChatML prompt utilizing the structured JSON elements.
+        /// Bypasses regex processing dynamically leveraging the pre-parsed Think and Content boundaries.
         /// </summary>
         private string BuildPrompt()
         {
             StringBuilder builder = new StringBuilder();
-            builder.Append($"<|im_start|>system\n{SystemPrompt}<|im_end|>\n");
+            builder.Append($"<|im_start|>system\n{SystemPrompt}\nMemoria actual: {_currentSession.Summary}<|im_end|>\n");
 
-            // Implements a strict sliding context window of the last 10 interactions to prevent RAM exhaustion.
             int startIndex = global::System.Math.Max(0, _currentSession.Messages.Count - 10);
             for (int i = startIndex; i < _currentSession.Messages.Count; i++)
             {
                 var msg = _currentSession.Messages[i];
-                string contentToSend = msg.Content;
+                string fullContent = msg.Content;
 
-                // Si es un mensaje viejo de la IA, le borramos el <think> para que no se envenene su memoria
-                if (msg.Role == "assistant") 
+                // Inyectar el pensamiento previo en la memoria para que no pierda el contexto
+                if (!string.IsNullOrWhiteSpace(msg.Think))
                 {
-                    contentToSend = global::System.Text.RegularExpressions.Regex.Replace(
-                        contentToSend, @"<think>.*?(</think>|$)", "", global::System.Text.RegularExpressions.RegexOptions.Singleline).Trim();
+                    fullContent = $"<think>\n{msg.Think}\n</think>\n{msg.Content}";
                 }
 
-                builder.Append($"<|im_start|>{msg.Role}\n{contentToSend}<|im_end|>\n");
+                builder.Append($"<|im_start|>{msg.Role}\n{fullContent.Trim()}<|im_end|>\n");
             }
 
-            // --- ESTAS DOS LÍNEAS FALTABAN ---
             builder.Append("<|im_start|>assistant\n");
             return builder.ToString();
         }
