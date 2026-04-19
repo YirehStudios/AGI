@@ -1,28 +1,28 @@
 [gd_scene format=3 uid="uid://bolcjtvklqbax"]
 
-[ext_resource type="Script" uid="uid://laxqt8bmvnnx" path="res://Script/Cs/ChatbotMain.cs" id="1_8rl47"]
+[ext_resource type="Script" uid="uid://bl0me3ywrs6os" path="res://Script/Cs/ChatbotMain.cs" id="1_8rl47"]
 [ext_resource type="Texture2D" uid="uid://ctvihwjmfflos" path="res://Resources/img1.png" id="2_q7f8p"]
-[ext_resource type="Texture2D" uid="uid://du3w0n73d40lw" path="res://Resources/avatar_bot.png" id="3_avatar_bot"]
+[ext_resource type="Texture2D" uid="uid://7bvvhb604twp" path="res://Resources/avatar_bot.png" id="3_avatar_bot"]
 [ext_resource type="Texture2D" uid="uid://cwv014ynmrq3l" path="res://Resources/img2.png" id="3_jta4j"]
 [ext_resource type="Texture2D" uid="uid://debnuc10m0as" path="res://Resources/Images/Icons/JirehStudiosIcon.png" id="3_ug3aw"]
 [ext_resource type="Texture2D" uid="uid://ca48hqiwv2eiy" path="res://Resources/img3.png" id="4_amhcu"]
 [ext_resource type="Texture2D" uid="uid://b5w5qmdk33hhg" path="res://Resources/img4.png" id="5_675c4"]
-[ext_resource type="Texture2D" uid="uid://b0gc5q4xau83j" path="res://Resources/flecha_enviar.png" id="5_ug3aw"]
-[ext_resource type="VideoStream" uid="uid://vvnb5vwgivbh" path="res://Resources/Carro.ogv" id="6_jta4j"]
-[ext_resource type="VideoStream" uid="uid://0esyq17ynyll" path="res://Resources/Farming-Simulator.ogv" id="7_amhcu"]
-[ext_resource type="VideoStream" uid="uid://bc7xtarwn1qiv" path="res://Resources/Paisaje.ogv" id="8_675c4"]
-[ext_resource type="VideoStream" uid="uid://b7hhl2fcqhlrl" path="res://Resources/Super-Tux.ogv" id="9_u6rn7"]
+[ext_resource type="Texture2D" uid="uid://g12gdjwnf6m2" path="res://Resources/flecha_enviar.png" id="5_ug3aw"]
+[ext_resource type="VideoStream" uid="uid://chfatw7u1aq50" path="res://Resources/Carro.ogv" id="6_jta4j"]
+[ext_resource type="VideoStream" uid="uid://d3bjj4f8hdsfl" path="res://Resources/Farming-Simulator.ogv" id="7_amhcu"]
+[ext_resource type="VideoStream" uid="uid://eor2urbre3v1" path="res://Resources/Paisaje.ogv" id="8_675c4"]
+[ext_resource type="VideoStream" uid="uid://wouj67lfkwj6" path="res://Resources/Super-Tux.ogv" id="9_u6rn7"]
 [ext_resource type="FontFile" uid="uid://ogy7poywqv0f" path="res://Resources/Fonts/Inter/Inter-VariableFont_opsz,wght.ttf" id="12_b06b1"]
-[ext_resource type="Script" uid="uid://dbap0gqox0ty1" path="res://addons/markdownlabel/markdownlabel.gd" id="12_w5qr0"]
-[ext_resource type="Script" uid="uid://dcx7crs23nf4" path="res://addons/markdownlabel/header_formats/h1_format.gd" id="13_ogl8u"]
+[ext_resource type="Script" uid="uid://cqij610ao7i7t" path="res://addons/markdownlabel/markdownlabel.gd" id="12_w5qr0"]
+[ext_resource type="Script" uid="uid://bget745sihovm" path="res://addons/markdownlabel/header_formats/h1_format.gd" id="13_ogl8u"]
 [ext_resource type="FontFile" uid="uid://dh2m6i0ene4mw" path="res://Resources/Fonts/Inter/static/Inter_18pt-Bold.ttf" id="13_rq6ts"]
-[ext_resource type="Script" uid="uid://d0sin64i4v3op" path="res://addons/markdownlabel/header_formats/h2_format.gd" id="14_2d4k7"]
+[ext_resource type="Script" uid="uid://8av8l8rh8xsn" path="res://addons/markdownlabel/header_formats/h2_format.gd" id="14_2d4k7"]
 [ext_resource type="FontFile" uid="uid://cnn7lrla24g7y" path="res://Resources/Fonts/Inter/static/Inter_18pt-BoldItalic.ttf" id="14_cae2h"]
-[ext_resource type="Script" uid="uid://dlok0dv1tq2bf" path="res://addons/markdownlabel/header_formats/h3_format.gd" id="15_143c2"]
+[ext_resource type="Script" uid="uid://dgq2hq4cbtoc3" path="res://addons/markdownlabel/header_formats/h3_format.gd" id="15_143c2"]
 [ext_resource type="FontFile" uid="uid://c2w5e8cbsm7yt" path="res://Resources/Fonts/Inter/Inter-Italic-VariableFont_opsz,wght.ttf" id="15_js05h"]
-[ext_resource type="Script" uid="uid://bayuh2vafablg" path="res://addons/markdownlabel/header_formats/h4_format.gd" id="16_b06b1"]
-[ext_resource type="Script" uid="uid://dfr1w7u3jgni3" path="res://addons/markdownlabel/header_formats/h5_format.gd" id="17_rq6ts"]
-[ext_resource type="Script" uid="uid://bsi6dexoofpe6" path="res://addons/markdownlabel/header_formats/h6_format.gd" id="18_cae2h"]
+[ext_resource type="Script" uid="uid://bd54q6m41aig4" path="res://addons/markdownlabel/header_formats/h4_format.gd" id="16_b06b1"]
+[ext_resource type="Script" uid="uid://7pg7hjyip5q0" path="res://addons/markdownlabel/header_formats/h5_format.gd" id="17_rq6ts"]
+[ext_resource type="Script" uid="uid://cymjg8t36qka3" path="res://addons/markdownlabel/header_formats/h6_format.gd" id="18_cae2h"]
 [ext_resource type="FontFile" uid="uid://c88eronmj27o0" path="res://Resources/Fonts/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf" id="23_rq6ts"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_popup_hover"]
@@ -227,6 +227,14 @@ grow_vertical = 2
 theme = SubResource("Theme_global")
 theme_override_styles/panel = SubResource("StyleBoxFlat_main_bg")
 script = ExtResource("1_8rl47")
+RandomImage1 = ExtResource("2_q7f8p")
+RandomImage2 = ExtResource("3_jta4j")
+RandomImage3 = ExtResource("4_amhcu")
+RandomImage4 = ExtResource("5_675c4")
+RandomVideo1 = ExtResource("6_jta4j")
+RandomVideo2 = ExtResource("7_amhcu")
+RandomVideo3 = ExtResource("8_675c4")
+RandomVideo4 = ExtResource("9_u6rn7")
 ChatScrollContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer")
 MessagesContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer")
 TextInputField = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/TextInputField")
@@ -237,14 +245,6 @@ UserMessageMarkdownNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollCo
 BotMessageMarkdownNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/MessageBody")
 BotMessageLayoutNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout")
 ToolSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolSelector")
-RandomImage1 = ExtResource("2_q7f8p")
-RandomImage2 = ExtResource("3_jta4j")
-RandomImage3 = ExtResource("4_amhcu")
-RandomImage4 = ExtResource("5_675c4")
-RandomVideo1 = ExtResource("6_jta4j")
-RandomVideo2 = ExtResource("7_amhcu")
-RandomVideo3 = ExtResource("8_675c4")
-RandomVideo4 = ExtResource("9_u6rn7")
 
 [node name="MainContainer" type="HBoxContainer" parent="." unique_id=497214364]
 layout_mode = 1
@@ -315,7 +315,6 @@ h3 = SubResource("Resource_2c06c")
 h4 = SubResource("Resource_wyifx")
 h5 = SubResource("Resource_cdhtr")
 h6 = SubResource("Resource_8f5ok")
-metadata/_custom_type_script = "uid://dbap0gqox0ty1"
 
 [node name="AvatarPanel" type="PanelContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate" unique_id=705505517]
 clip_children = 1
@@ -376,7 +375,6 @@ h3 = SubResource("Resource_2c06c")
 h4 = SubResource("Resource_wyifx")
 h5 = SubResource("Resource_cdhtr")
 h6 = SubResource("Resource_8f5ok")
-metadata/_custom_type_script = "uid://dbap0gqox0ty1"
 
 [node name="InputAreaMargin" type="MarginContainer" parent="MainContainer/ChatAreaContainer" unique_id=775477313]
 layout_mode = 2

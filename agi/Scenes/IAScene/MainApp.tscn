@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://s8tuasw0blu"]
 
-[ext_resource type="Script" uid="uid://cburckky6i8de" path="res://Script/Cs/MainApp.cs" id="1_script"]
+[ext_resource type="Script" uid="uid://c5hiho8ehxcq4" path="res://Script/Cs/MainApp.cs" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://bolcjtvklqbax" path="res://Scenes/IAScene/Chatbot.tscn" id="2_dpcee"]
-[ext_resource type="Texture2D" uid="uid://dxui8em8fu8w3" path="res://Resources/logo.png" id="2_logo"]
+[ext_resource type="Texture2D" uid="uid://ugkkcc760if6" path="res://Resources/logo.png" id="2_logo"]
 [ext_resource type="PackedScene" uid="uid://bx5yq2jklxap" path="res://Scenes/IAScene/Livemode.tscn" id="3_l7jlp"]
 
 [sub_resource type="SystemFont" id="SystemFont_regular"]
