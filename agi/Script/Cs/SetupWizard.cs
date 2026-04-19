@@ -222,6 +222,8 @@ namespace Logic.Utils
                         {
                             if (PanelDependencies != null) PanelDependencies.Visible = true;
                             
+                            if (TerminalLog != null) TerminalLog.Text = result.AuditLog;
+
                             if (TxtCommandDisplay != null)
                             {
                                 string displayText = result.RequiredCommand;
