@@ -53,6 +53,8 @@ namespace Logic.Utils
         [Export] private string WhisperServerUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/refs/heads/main/whisper-server-vulkan-linux/whisper-server-vulkan-linux.tar.gz";
         [Export] private string SherpaServerUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.39/sherpa-onnx-v1.12.39-linux-x64-static.tar.bz2";
         [Export] private string TtsBridgeUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/refs/heads/main/agi/Script/Cs/System/Drivers/tts_server.py";
+        [Export] private string KokoroModelUrl = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/kokoro-v0_19.onnx";
+        [Export] private string KokoroVoicesUrl = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin";
         private ConfigManager.ModelPreset _selectedLLM;
         private ConfigManager.ModelPreset _selectedSTT;
         private ConfigManager.ModelPreset _selectedTTS;
@@ -259,33 +261,33 @@ namespace Logic.Utils
         /// </summary>
         /// <param name="preset">The configuration object of the selected model.</param>
         private void OnModelSelected(ConfigManager.ModelPreset preset, Button clickedButton)
-		{
-			// Retroalimentación visual
-			clickedButton.Text = "¡Seleccionado!";
-			clickedButton.Disabled = true;
+        {
+            // Retroalimentación visual
+            clickedButton.Text = "¡Seleccionado!";
+            clickedButton.Disabled = true;
 
-			if (preset.Name.Contains("Whisper"))
-			{
-				_selectedSTT = preset;
-			}
-			else if (preset.Name.Contains("Sherpa"))
-			{
-				_selectedTTS = preset;
-			}
-			else
-			{
-				_selectedLLM = preset;
-			}
+            if (preset.Name.Contains("Whisper"))
+            {
+                _selectedSTT = preset;
+            }
+            else if (preset.Name.Contains("Sherpa") || preset.Name.Contains("Kokoro"))
+            {
+                _selectedTTS = preset;
+            }
+            else
+            {
+                _selectedLLM = preset;
+            }
 
-			if (_selectedLLM != null && _selectedSTT != null && _selectedTTS != null)
-			{
-				if (BtnStartBatchDownload != null)
-				{
-					BtnStartBatchDownload.Disabled = false;
-					BtnStartBatchDownload.Text = "Todo listo. Iniciar Sistema";
-				}
-			}
-		}
+            if (_selectedLLM != null && _selectedSTT != null && _selectedTTS != null)
+            {
+                if (BtnStartBatchDownload != null)
+                {
+                    BtnStartBatchDownload.Disabled = false;
+                    BtnStartBatchDownload.Text = "Todo listo. Iniciar Sistema";
+                }
+            }
+        }
 
         /// <summary>
         /// Orchestrates the asynchronous and sequential retrieval of selected model binaries and native engines.
@@ -328,12 +330,37 @@ namespace Logic.Utils
                 await _downloadManager.DownloadFileAsync(TtsBridgeUrl, "user://bin", "tts_server.py");
             }
 
+            // --- 2.5 DESCARGA DEL CEREBRO Y VOCES KOKORO ---
+            string kokoroDir = ProjectSettings.GlobalizePath("user://models/kokoro-tts");
+            global::System.IO.Directory.CreateDirectory(kokoroDir);
+
+            string kokoroModelPath = global::System.IO.Path.Combine(kokoroDir, "kokoro-v0_19.onnx");
+            if (!global::System.IO.File.Exists(kokoroModelPath)) 
+            {
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando IA de Voz (Kokoro-82M)...[/center]";
+                await _downloadManager.DownloadFileAsync(KokoroModelUrl, "user://models/kokoro-tts", "kokoro-v0_19.onnx");
+            }
+
+            string kokoroVoicesPath = global::System.IO.Path.Combine(kokoroDir, "voices.bin");
+            if (!global::System.IO.File.Exists(kokoroVoicesPath)) 
+            {
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando Paquete de Respiración y Prosodia humana...[/center]";
+                await _downloadManager.DownloadFileAsync(KokoroVoicesUrl, "user://models/kokoro-tts", "voices.bin");
+            }
+
             // --- 3. DESCARGA DE MODELOS (PRESETS) ---
             List<ConfigManager.ModelPreset> presetsToDownload = new List<ConfigManager.ModelPreset> { _selectedLLM, _selectedSTT, _selectedTTS };
 
             foreach (ConfigManager.ModelPreset preset in presetsToDownload)
             {
                 if (preset == null) continue;
+
+                if (preset.Name.Contains("Kokoro")) 
+                {
+                    _configManager.ActiveTTSModel = "kokoro-tts";
+                    _configManager.SaveConfiguration();
+                    continue; 
+                }
 
                 string safeFileName = preset.Name.Replace(" ", "_");
                 if (preset.Name.Contains("Whisper")) safeFileName += ".bin";

@@ -139,7 +139,7 @@ namespace Logic.Backend
                 // Configura los directorios de mapeo de tensores ONNX y descriptores del motor Kokoro.
                 string kokoroFolder = "kokoro-tts";
                 string kokoroModelPath = global::System.IO.Path.Combine(modelsDir, kokoroFolder, "kokoro-v0_19.onnx");
-                string kokoroVoicesPath = global::System.IO.Path.Combine(modelsDir, kokoroFolder, "voices.json");
+                string kokoroVoicesPath = global::System.IO.Path.Combine(modelsDir, kokoroFolder, "voices.bin");
                 string voiceName = "e_es_alvaro"; 
 
                 if (!global::System.IO.File.Exists(pythonScriptPath))

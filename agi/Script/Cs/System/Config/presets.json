@@ -30,9 +30,9 @@
     "ExpectedSize": 147953258
   },
   {
-  "Name": "Sherpa Spanish",
-  "Description": "Voz de Claude (México) - Alta calidad (Paquete completo para Linux)",
-  "DownloadLinks": ["https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-es_MX-claude-high.tar.bz2"],
-  "ExpectedSize": 64000000
+    "Name": "Kokoro Spanish",
+    "Description": "Voz Humana Alta Fidelidad. Incluye respiración y prosodia real (80MB)",
+    "DownloadLinks": ["https://dummy-link-ignored-by-setup-wizard.com"],
+    "ExpectedSize": 0
   }
 ]
