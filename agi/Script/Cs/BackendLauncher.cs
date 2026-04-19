@@ -140,7 +140,7 @@ namespace Logic.Backend
                 string kokoroFolder = "kokoro-tts";
                 string kokoroModelPath = global::System.IO.Path.Combine(modelsDir, kokoroFolder, "kokoro-v0_19.onnx");
                 string kokoroVoicesPath = global::System.IO.Path.Combine(modelsDir, kokoroFolder, "voices.bin");
-                string voiceName = "e_es_alvaro"; 
+                string voiceName = "ef_dora"; 
 
                 if (!global::System.IO.File.Exists(pythonScriptPath))
                 {
