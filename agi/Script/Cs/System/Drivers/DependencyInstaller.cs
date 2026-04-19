@@ -7,16 +7,16 @@ namespace Logic.System.Drivers
 {
     /// <summary>
     /// Instala dependencias lanzando un script maestro generado dinámicamente.
-    /// Detecta hardware (NVIDIA) y la distribución de Linux para automatizar la configuración.
+    /// Detecta hardware y la distribución de Linux para automatizar la configuración.
     /// </summary>
     public partial class DependencyInstaller : Node
     {
         /// <summary>
         /// Executes system checks asynchronously to prevent blocking the main rendering thread.
-        /// Generates and provisions a bash script to resolve missing networking, rendering, and Python infrastructure dependencies.
-        /// Actively validates the presence of the required Python modules to ensure the TTS WebSocket bridge can initialize.
+        /// Generates and provisions a bash script to resolve missing networking, rendering, Python infrastructure, and phonetic dependencies.
+        /// Actively validates the presence of the required Python modules and system binaries to ensure the TTS WebSocket bridge can initialize.
         /// </summary>
-        public async Task<(bool IsReady, string RequiredCommand)> AuditSystemDependenciesAsync()
+        public async Task<(bool IsReady, string RequiredCommand, string AuditLog)> AuditSystemDependenciesAsync()
         {
             return await Task.Run(() =>
             {
@@ -28,14 +28,26 @@ namespace Logic.System.Drivers
                 int pyExitCode = OS.Execute("python3", new string[] { "-c", "import kokoro_onnx" }, pyOutput, true);
                 bool hasKokoroPython = (pyExitCode == 0);
 
+                // Integración de validación para diccionarios fonéticos base requeridos por el motor de síntesis.
+                bool hasEspeak = CheckCommandExists("espeak-ng");
+
                 bool needsAria2 = !hasAria2;
                 bool needsVulkan = !hasVulkan;
                 bool needsPythonBridge = !hasKokoroPython;
+                bool needsEspeak = !hasEspeak;
 
-                if (!needsAria2 && !needsVulkan && !needsPythonBridge)
+                // Evaluación del estado general del entorno para salida temprana.
+                if (!needsAria2 && !needsVulkan && !needsPythonBridge && !needsEspeak)
                 {
-                    return (true, string.Empty);
+                    return (true, string.Empty, "> Todos los subsistemas operativos están en línea y funcionales.");
                 }
+
+                string missingLog = "> Análisis completado. Se detectaron dependencias faltantes:\n";
+                if (needsAria2) missingLog += "- Gestor de descargas acelerado (aria2c)\n";
+                if (needsVulkan) missingLog += "- Aceleración gráfica (Vulkan Tools)\n";
+                if (needsPythonBridge) missingLog += "- IA de síntesis de voz (Kokoro-ONNX)\n";
+                if (needsEspeak) missingLog += "- Diccionarios fonéticos (espeak-ng)\n";
+                missingLog += "\n> Generando script de resolución automática...";
 
                 string scriptPath = ProjectSettings.GlobalizePath("user://instalar_dependencias.sh");
                 string scriptContent = "#!/bin/bash\nset -e\n\n";
@@ -47,12 +59,13 @@ namespace Logic.System.Drivers
                 bool hasDnf = CheckCommandExists("dnf");
                 bool hasPacman = CheckCommandExists("pacman");
 
-                if (needsAria2 || needsVulkan || needsPythonBridge)
+                // Inyección dinámica de directivas de instalación según el gestor de paquetes detectado.
+                if (needsAria2 || needsVulkan || needsPythonBridge || needsEspeak)
                 {
-                    scriptContent += "echo '-> Instalando dependencias de red, aceleración Vulkan y Python...'\n";
-                    if (hasApt) scriptContent += $"sudo apt-get update && sudo apt-get install -y {(needsPythonBridge ? "python3 python3-pip " : "")}{(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "mesa-vulkan-drivers vulkan-tools " : "")}\n";
-                    else if (hasDnf) scriptContent += $"sudo dnf install -y {(needsPythonBridge ? "python3 python3-pip " : "")}{(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "mesa-vulkan-drivers vulkan-tools " : "")}\n";
-                    else if (hasPacman) scriptContent += $"sudo pacman -S --noconfirm {(needsPythonBridge ? "python3 python-pip " : "")}{(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "vulkan-radeon vulkan-intel vulkan-tools " : "")}\n";
+                    scriptContent += "echo '-> Instalando dependencias de red, aceleración Vulkan, Python y Diccionarios Fonéticos...'\n";
+                    if (hasApt) scriptContent += $"sudo apt-get update && sudo apt-get install -y {(needsPythonBridge ? "python3 python3-pip " : "")}{(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "mesa-vulkan-drivers vulkan-tools " : "")}{(needsEspeak ? "espeak-ng " : "")}\n";
+                    else if (hasDnf) scriptContent += $"sudo dnf install -y {(needsPythonBridge ? "python3 python3-pip " : "")}{(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "mesa-vulkan-drivers vulkan-tools " : "")}{(needsEspeak ? "espeak-ng " : "")}\n";
+                    else if (hasPacman) scriptContent += $"sudo pacman -S --noconfirm {(needsPythonBridge ? "python3 python-pip " : "")}{(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "vulkan-radeon vulkan-intel vulkan-tools " : "")}{(needsEspeak ? "espeak-ng " : "")}\n";
                     scriptContent += "\n";
                 }
 
@@ -67,7 +80,7 @@ namespace Logic.System.Drivers
 
                 string finalCommand = $"bash \"{scriptPath}\"";
                 
-                return (false, finalCommand);
+                return (false, finalCommand, missingLog);
             });
         }
 

@@ -136,7 +136,7 @@ public partial class LivemodeMain : Panel
             float currentDb = AudioServer.GetBusPeakVolumeLeftDb(recordBusIndex, 0);
             float linearVolume = Mathf.DbToLinear(currentDb);
 
-            TargetVoiceLevel = linearVolume * 5.0f;
+            TargetVoiceLevel = linearVolume * 0.0f;
 
             if (linearVolume > SilenceThreshold)
             {
