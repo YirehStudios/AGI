@@ -76,6 +76,9 @@ namespace Logic.Backend
             
             GD.Print("ResourceMonitor: Initiating resource reconciliation routine...");
 
+            // CAZADOR DE ZOMBIS PYTHON: Mata cualquier script tts_server.py que haya quedado vivo en el puerto 8888
+            OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
+
             try
             {
                 foreach (string resourceName in targetResources)
@@ -117,6 +120,8 @@ namespace Logic.Backend
         /// </summary>
         private async Task ManageBackendLifecycle(string modelsDir, string safeFileName)
         {
+            /// Orquesta la inicialización asíncrona de la capa nativa y puente de Python.
+            /// Configura los parámetros ejecutables e intercepta los flujos estándar para su enrutamiento y monitoreo interno.
             try
             {
                 int threadCount = Math.Max(1, global::System.Environment.ProcessorCount / 2);
@@ -131,12 +136,12 @@ namespace Logic.Backend
                 string llamaBinPath = global::System.IO.Path.Combine(llamaBinDir, "llama-server");
                 string whisperBinPath = global::System.IO.Path.Combine(binDir, "whisper-server");
 
-                string modelFolder = "vits-piper-es_MX-claude-high";
-                string vitsModelPath = global::System.IO.Path.Combine(modelsDir, modelFolder, "es_MX-claude-high.onnx");
-                string vitsTokensPath = global::System.IO.Path.Combine(modelsDir, modelFolder, "tokens.txt");
-                string vitsDataDir = global::System.IO.Path.Combine(modelsDir, modelFolder, "espeak-ng-data");
+                // Configura los directorios de mapeo de tensores ONNX y descriptores del motor Kokoro.
+                string kokoroFolder = "kokoro-tts";
+                string kokoroModelPath = global::System.IO.Path.Combine(modelsDir, kokoroFolder, "kokoro-v0_19.onnx");
+                string kokoroVoicesPath = global::System.IO.Path.Combine(modelsDir, kokoroFolder, "voices.json");
+                string voiceName = "e_es_alvaro"; 
 
-                // We verify driver existence before instantiation.
                 if (!global::System.IO.File.Exists(pythonScriptPath))
                 {
                     GD.PrintErr("BackendLauncher: Fatal - TTS Driver (tts_server.py) not found in bin directory.");
@@ -164,10 +169,11 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
-                ProcessStartInfo sherpaInfo = new ProcessStartInfo
+                // Estructura los argumentos secuenciales esperados por el puente Python del driver TTS de Kokoro.
+                ProcessStartInfo ttsEngineInfo = new ProcessStartInfo
                 {
                     FileName = "python3",
-                    Arguments = $"\"{pythonScriptPath}\" {SherpaPort} \"{vitsModelPath}\" \"{vitsTokensPath}\" \"{vitsDataDir}\"",
+                    Arguments = $"\"{pythonScriptPath}\" {SherpaPort} \"{kokoroModelPath}\" \"{kokoroVoicesPath}\" \"{voiceName}\"",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -182,7 +188,7 @@ namespace Logic.Backend
 
                 _whisperProcess = new Process { StartInfo = whisperInfo, EnableRaisingEvents = true };
                 _llamaProcess = new Process { StartInfo = llamaInfo, EnableRaisingEvents = true };
-                _sherpaProcess = new Process { StartInfo = sherpaInfo, EnableRaisingEvents = true };
+                _sherpaProcess = new Process { StartInfo = ttsEngineInfo, EnableRaisingEvents = true };
 
                 _whisperProcess.OutputDataReceived += (sender, e) => 
                 { 
@@ -256,12 +262,13 @@ namespace Logic.Backend
                 };
                 _llamaProcess.Exited += OnProcessExited;
 
+                // Modifica las etiquetas de salida al interceptar y redirigir el flujo stdout/stderr del proceso hijo (Kokoro).
                 _sherpaProcess.OutputDataReceived += (sender, e) =>
                 {
                     if (!string.IsNullOrEmpty(e.Data))
                     {
-                        GD.Print($"[Sherpa] {e.Data}");
-                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Sherpa] {e.Data}");
+                        GD.Print($"[Kokoro] {e.Data}");
+                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Kokoro] {e.Data}");
                     }
                 };
 
@@ -269,8 +276,8 @@ namespace Logic.Backend
                 {
                     if (!string.IsNullOrEmpty(e.Data))
                     {
-                        GD.PrintErr($"[Sherpa ERR] {e.Data}");
-                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Sherpa ERR] {e.Data}");
+                        GD.PrintErr($"[Kokoro ERR] {e.Data}");
+                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Kokoro ERR] {e.Data}");
 
                         string lowerData = e.Data.ToLower();
                         
@@ -303,7 +310,7 @@ namespace Logic.Backend
 
                 _isRunning = true;
 
-                GD.Print($"BackendLauncher: Natives initialized. Llama PID: {_llamaProcess.Id}, Whisper PID: {_whisperProcess.Id}, Sherpa PID: {_sherpaProcess.Id}");
+                GD.Print($"BackendLauncher: Natives initialized. Llama PID: {_llamaProcess.Id}, Whisper PID: {_whisperProcess.Id}, Kokoro PID: {_sherpaProcess.Id}");
                 
                 await MonitorProcessHealth();
             }
@@ -397,6 +404,9 @@ namespace Logic.Backend
                 GD.PrintErr($"BackendLauncher: Secondary fault executing process purge (Kill): {ex.Message}");
             }
 
+            // GARANTÍA ANTIMUERTE: Destrucción forzada a nivel de OS en caso de Pánico
+            OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
+
             _retryCount = MaxRetries;
             
             CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
@@ -434,10 +444,17 @@ namespace Logic.Backend
         /// Ensures structural memory hygiene by forcefully dispatching termination signals to active
         /// child processes synchronously during the Godot node tree deallocation sequence.
         /// </summary>
+        /// <summary>
+        /// Ensures structural memory hygiene by forcefully dispatching termination signals to active
+        /// child processes synchronously during the Godot node tree deallocation sequence.
+        /// </summary>
         public override void _ExitTree()
         {
             GD.Print("BackendLauncher: Purging native processes (Preventing Zombies).");
             _isRunning = false;
+            
+            // LIMPIEZA FORZADA DE PYTHON AL CERRAR LA APP
+            OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
             
             try
             {

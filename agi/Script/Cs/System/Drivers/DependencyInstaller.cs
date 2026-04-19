@@ -24,12 +24,13 @@ namespace Logic.System.Drivers
                 bool hasVulkan = CheckCommandExists("vulkaninfo");
 
                 Godot.Collections.Array pyOutput = new Godot.Collections.Array();
-                int pyExitCode = OS.Execute("python3", new string[] { "-c", "import sherpa_onnx" }, pyOutput, true);
-                bool hasSherpaPython = (pyExitCode == 0);
+                
+                int pyExitCode = OS.Execute("python3", new string[] { "-c", "import kokoro_onnx" }, pyOutput, true);
+                bool hasKokoroPython = (pyExitCode == 0);
 
                 bool needsAria2 = !hasAria2;
                 bool needsVulkan = !hasVulkan;
-                bool needsPythonBridge = !hasSherpaPython;
+                bool needsPythonBridge = !hasKokoroPython;
 
                 if (!needsAria2 && !needsVulkan && !needsPythonBridge)
                 {
@@ -55,8 +56,8 @@ namespace Logic.System.Drivers
                     scriptContent += "\n";
                 }
 
-                scriptContent += "echo '-> Instalando librerías Python para el motor de voz...'\n";
-                scriptContent += "pip3 install --user sherpa-onnx websockets numpy --break-system-packages || pip3 install --user sherpa-onnx websockets numpy\n\n";
+                scriptContent += "echo '-> Instalando librerías Python para el motor de voz Kokoro-ONNX...'\n";
+                scriptContent += "pip3 install --user kokoro-onnx soundfile websockets numpy --break-system-packages || pip3 install --user kokoro-onnx soundfile websockets numpy\n\n";
 
                 scriptContent += "echo '============================================'\n";
                 scriptContent += "echo '¡Todo listo! Cierra esta terminal y reinicia tu app.'\n";

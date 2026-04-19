@@ -1,68 +1,70 @@
 import asyncio
 import websockets
 import json
-import sherpa_onnx
 import sys
 import numpy as np
+from kokoro_onnx import Kokoro
 
-# AGI Standalone TTS Driver - Python Bridge
-# This script acts as a middleware between Godot (C#) and the Sherpa-ONNX engine.
+# AGI High-Fidelity TTS Driver - Kokoro-ONNX Bridge
 
-async def tts_server(port, model_path, tokens_path, data_dir):
-    print(f'[Python TTS] Initializing VITS engine on port {port}...', flush=True)
+async def tts_server(port, model_path, voices_path, voice_name):
+    """
+    Inicializa el entorno de inferencia acústica de Kokoro y expone el servicio mediante WebSocket.
+    Mantiene los tensores del modelo en memoria para evitar latencias de E/S en peticiones subsecuentes.
+    """
+    print(f'[Kokoro TTS] Inicializando motor de Alta Fidelidad en puerto {port}...', flush=True)
     
-    # Engine Configuration
-    tts_config = sherpa_onnx.OfflineTtsConfig(
-        model=sherpa_onnx.OfflineTtsModelConfig(
-            vits=sherpa_onnx.OfflineTtsVitsModelConfig(
-                model=model_path, 
-                lexicon='', 
-                tokens=tokens_path, 
-                data_dir=data_dir
-            ),
-            num_threads=2, 
-            debug=False, 
-            provider='cpu'
-        )
-    )
-    
-    # Instance initialization
-    tts = sherpa_onnx.OfflineTts(tts_config)
-    print('[Python TTS] Engine Ready. Waiting for WebSocket connections...', flush=True)
+    try:
+        # Carga del grafo computacional de ONNX y el manifiesto de descriptores de voz en la memoria de la VM de Python.
+        kokoro = Kokoro(model_path, voices_path)
+        print(f'[Kokoro TTS] Motor Listo. Voz activa: {voice_name}. Esperando conexiones WebSocket...', flush=True)
+    except Exception as e:
+        print(f'[Kokoro TTS] Error fatal procesando los pesos del modelo: {e}', flush=True)
+        return
 
     async def handler(websocket):
+        """
+        Gestiona la conexión bidireccional por socket. 
+        Desempaqueta las tramas JSON, dirige la predicción fonética y retransmite los vectores de audio al cliente.
+        """
         try:
             async for message in websocket:
-                # Expecting JSON: {"text": "Hello world"}
                 data = json.loads(message)
                 text = data.get('text', '')
                 
                 if text:
-                    # Generate raw floating point samples
-                    audio = tts.generate(text, sid=0, speed=1.0)
+                    # Extrae el prefijo de localización estructural de la voz para asignar las reglas fonéticas correctas.
+                    lang_code = voice_name[0] if voice_name else 'e'
                     
-                    # Convert float32 [-1.0, 1.0] to int16 PCM
-                    samples = (np.array(audio.samples) * 32767).astype(np.int16)
+                    # Genera la síntesis espectral y recupera los valores escalares en coma flotante y la frecuencia de muestreo.
+                    samples, sample_rate = kokoro.create(text, voice=voice_name, speed=1.0, lang=lang_code)
                     
-                    # Send Binary PCM Data
-                    await websocket.send(samples.tobytes())
-                    # Send text delimiter to notify chunk completion
+                    # Interpola los valores normalizados de amplitud [-1.0, 1.0] hacia el espacio de bits de PCM 16.
+                    pcm_samples = (np.array(samples) * 32767).astype(np.int16)
+                    
+                    # Retransmite la trama codificada mediante flujos binarios puros.
+                    await websocket.send(pcm_samples.tobytes())
+                    
+                    # Emite delimitador lógico para confirmar el término del flujo acústico al proceso integrador.
                     await websocket.send('Done')
+                    
         except websockets.exceptions.ConnectionClosed:
             pass
         except Exception as e:
-            print(f'[Python TTS] Runtime Error: {e}', flush=True)
+            print(f'[Kokoro TTS] Error en tiempo de ejecución durante la inferencia: {e}', flush=True)
 
-    # Start the local server
+    # Vincula el servidor de sockets asíncronos a la capa de red local del host.
     async with websockets.serve(handler, '127.0.0.1', port):
-        await asyncio.Future()  # Run forever
+        await asyncio.Future()
 
 if __name__ == '__main__':
+    # Valida la integridad paramétrica de invocación delegada por el sistema gestor.
     if len(sys.argv) < 5:
-        print("Usage: python tts_server.py <port> <model> <tokens> <data_dir>")
+        print("Uso: python tts_server.py <puerto> <ruta_kokoro.onnx> <ruta_voices.json> <nombre_de_voz>")
         sys.exit(1)
         
     try:
+        # Asigna la ejecución a la jerarquía asíncrona principal.
         asyncio.run(tts_server(int(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]))
     except KeyboardInterrupt:
-        print("[Python TTS] Shutting down...")
+        print("[Kokoro TTS] Terminación de ejecución forzada interponiendo apagado seguro del puerto...")

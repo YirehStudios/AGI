@@ -31,6 +31,8 @@ public partial class LivemodeMain : Panel
     private float _recordingStartTime = 0.0f;
     private float _debugTimer = 0.0f;
     private AudioStreamGeneratorPlayback _ttsPlayback;
+    private Queue<Vector2> _pcmBuffer = new Queue<Vector2>();
+    private float _ttsFinishTimer = 0.0f;
 
     public override void _Ready()
     {
@@ -87,10 +89,28 @@ public partial class LivemodeMain : Panel
     }
 
 
+    /// <summary>
+    /// Core execution loop for real-time audio processing and state management.
+    /// Manages the PCM buffer feed, Voice Activity Detection (VAD), and handles the 
+    /// transition grace period for the Speaking state to ensure visual continuity.
+    /// </summary>
     public override void _Process(double delta)
     {
         _debugTimer += (float)delta;
 
+        // Efficiently consumes the PCM FIFO buffer based on hardware availability.
+        if (_ttsPlayback != null && _pcmBuffer.Count > 0)
+        {
+            int framesAvailable = _ttsPlayback.GetFramesAvailable();
+            int framesToPush = Math.Min(framesAvailable, _pcmBuffer.Count);
+
+            for (int i = 0; i < framesToPush; i++)
+            {
+                _ttsPlayback.PushFrame(_pcmBuffer.Dequeue());
+            }
+        }
+
+        // Samples raw amplitude from the hardware buses for UI visualization.
         int testBusIndex = AudioServer.GetBusIndex(RecordBusName);
         float testDb = AudioServer.GetBusPeakVolumeLeftDb(testBusIndex, 0);
         float testLinear = Mathf.DbToLinear(testDb);
@@ -101,6 +121,7 @@ public partial class LivemodeMain : Panel
             _debugTimer = 0.0f;
         }
 
+        // Updates the target voice level based on the active AI voice output.
         if (AIVoicePlayer != null && AIVoicePlayer.Playing)
         {
             int voiceBusIndex = AudioServer.GetBusIndex(VoiceBusName);
@@ -108,6 +129,7 @@ public partial class LivemodeMain : Panel
             TargetVoiceLevel = Mathf.DbToLinear(aiDb) * 5.0f;
         }
 
+        // Standard VAD logic for user input recording.
         if (_currentState == LiveState.Idle || _currentState == LiveState.Listening)
         {
             int recordBusIndex = AudioServer.GetBusIndex(RecordBusName);
@@ -131,19 +153,37 @@ public partial class LivemodeMain : Panel
             }
         }
 
-        // Resolves state machine lock utilizing real-time bus amplitude mapping 
-        // since the generator playback continuous execution bypasses native Finish flags.
-        if (_currentState == LiveState.SpeakingTTS && !_isLlamaThinking && TargetVoiceLevel <= 0.05f)
+        // Implementation of the 3-second grace period (Debounce) for the Speaking state.
+        // Prevents premature transitions to Idle while the LLM is still generating or audio is pending.
+        if (_currentState == LiveState.SpeakingTTS)
         {
-            UpdateStatus(LiveState.Idle);
+            bool isStillGenerating = _isLlamaThinking;
+            bool hasPendingAudio = _pcmBuffer.Count > 0;
+            bool isCurrentlySounding = TargetVoiceLevel > 0.01f;
+
+            if (isStillGenerating || hasPendingAudio || isCurrentlySounding)
+            {
+                _ttsFinishTimer = 0.0f;
+            }
+            else
+            {
+                _ttsFinishTimer += (float)delta;
+                if (_ttsFinishTimer >= 3.0f)
+                {
+                    UpdateStatus(LiveState.Idle);
+                    _ttsFinishTimer = 0.0f;
+                }
+            }
         }
 
+        // Updates the visualizer shader parameters with linear interpolation.
         if (_wavesMaterial != null)
         {
             _currentVoiceLevel = Mathf.Lerp(_currentVoiceLevel, TargetVoiceLevel, (float)delta * 12.0f);
             _wavesMaterial.SetShaderParameter("voice_level", _currentVoiceLevel);
         }
 
+        // Orchestrates the high-level UI animation states.
         if (WaveAnimationPlayer != null)
         {
             if (TargetVoiceLevel > 0.1f && WaveAnimationPlayer.CurrentAnimation != "speak")
@@ -169,7 +209,7 @@ public partial class LivemodeMain : Panel
 
     /// <summary>
     /// Processes incoming 16-bit PCM byte arrays originating directly from the websocket stream.
-    /// Casts data into floating-point bounds and propagates execution into Godot's audio bus.
+    /// Casts data into floating-point bounds and queues them in RAM to decouple network speed from audio clock.
     /// </summary>
     private void OnTTSAudioChunkReceived(byte[] pcmData)
     {
@@ -188,7 +228,8 @@ public partial class LivemodeMain : Panel
             short sample = global::System.BitConverter.ToInt16(pcmData, i);
             float floatSample = sample / 32768f; 
             
-            _ttsPlayback.PushFrame(new Vector2(floatSample, floatSample));
+            // REFACTOR: Enqueue frames instead of pushing directly, avoiding buffer overruns
+            _pcmBuffer.Enqueue(new Vector2(floatSample, floatSample));
         }
     }
 
