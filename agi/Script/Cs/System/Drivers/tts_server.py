@@ -34,7 +34,18 @@ async def tts_server(port, model_path, voices_path, voice_name):
                 
                 if text:
                     # Extrae el prefijo de localización estructural de la voz para asignar las reglas fonéticas correctas.
-                    lang_code = voice_name[0] if voice_name else 'e'
+                    lang_char = voice_name[0] if voice_name else 'e'
+                    lang_map = {
+                        'e': 'es',      # Español
+                        'a': 'en-us',   # Inglés Americano
+                        'b': 'en-gb',   # Inglés Británico
+                        'f': 'fr',      # Francés
+                        'i': 'it',      # Italiano
+                        'j': 'ja',      # Japonés
+                        'h': 'hi',      # Hindi
+                        'z': 'zh'       # Mandarín
+                    }
+                    lang_code = lang_map.get(lang_char, 'es')
                     
                     # Genera la síntesis espectral y recupera los valores escalares en coma flotante y la frecuencia de muestreo.
                     samples, sample_rate = kokoro.create(text, voice=voice_name, speed=1.0, lang=lang_code)
