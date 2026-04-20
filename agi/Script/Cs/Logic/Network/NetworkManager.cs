@@ -118,8 +118,9 @@ namespace Logic.Network
         }
 
         /// <summary>
-        /// Establishes a persistent ClientWebSocket connection to the Sherpa TTS engine.
-        /// Dispatches text payloads and streams back binary PCM structures in real-time, bypassing disk I/O.
+        /// Establishes a persistent ClientWebSocket connection directed to the native Sherpa C++ TTS engine.
+        /// Parses standard JSON requests expected by Sherpa and manages raw binary payload reception robustly without 
+        /// relying on legacy string-based control signals from the Python bridge.
         /// </summary>
         public async Task RequestTTSWebSocket(string textToSynthesize)
         {
@@ -130,15 +131,16 @@ namespace Logic.Network
                 
                 await ws.ConnectAsync(serverUri, global::System.Threading.CancellationToken.None);
 
+                // Instancia y empaqueta el diccionario estricto esperado por el binario C++ de Sherpa.
                 var payload = new { text = textToSynthesize };
                 string jsonPayload = global::System.Text.Json.JsonSerializer.Serialize(payload);
                 byte[] bytes = global::System.Text.Encoding.UTF8.GetBytes(jsonPayload);
 
-                // Dispatches the synthesis request to the active local model.
                 await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, global::System.Threading.CancellationToken.None);
 
-                // Implements a continuous stream loop, capturing generated audio fragments sequentially.
                 byte[] buffer = new byte[8192];
+
+                // Evalúa el socket en un ciclo continuo que intercepta estructuras WAV nativas.
                 while (ws.State == WebSocketState.Open)
                 {
                     var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), global::System.Threading.CancellationToken.None);
@@ -148,26 +150,25 @@ namespace Logic.Network
                         byte[] audioChunk = new byte[result.Count];
                         global::System.Array.Copy(buffer, audioChunk, result.Count);
 
-                        // Routes the raw binary array to the hardware presentation layer in real-time.
                         CallDeferred(MethodName.EmitSignal, SignalName.TTSAudioChunkReceived, audioChunk);
-                    }
-                    else if (result.MessageType == WebSocketMessageType.Text)
-                    {
-                        string msg = global::System.Text.Encoding.UTF8.GetString(buffer, 0, result.Count);
-                        if (msg.Contains("Done", StringComparison.OrdinalIgnoreCase))
+                        
+                        // Cierra controladamente el ciclo si la señal EOF se define por la clausura anticipada del socket tras el streaming binario.
+                        if (result.EndOfMessage && result.Count < buffer.Length)
                         {
+                            // Heurística de salida limpia dependiente de los chunks del binario nativo.
                             break; 
                         }
                     }
                     else if (result.MessageType == WebSocketMessageType.Close)
                     {
+                        // Resuelve y finaliza la conexión sistemáticamente acatando el cierre del servidor remoto C++.
                         break;
                     }
                 }
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"[NET ERROR] WebSocket TTS Engine Exception: {ex.Message}");
+                GD.PrintErr($"[NET ERROR] Native WebSocket TTS Engine Exception: {ex.Message}");
             }
         }
 

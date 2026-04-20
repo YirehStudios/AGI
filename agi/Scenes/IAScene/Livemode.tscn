@@ -108,7 +108,7 @@ _data = {
 [sub_resource type="AudioStreamMicrophone" id="AudioStreamMicrophone_k6qk6"]
 
 [sub_resource type="AudioStreamGenerator" id="AudioStreamGenerator_k6qk6"]
-mix_rate = 22050.0
+mix_rate = 24000.0
 buffer_length = 0.75
 
 [node name="LiveModeInterface" type="Panel" unique_id=140527907 node_paths=PackedStringArray("WaveVisualizer", "WaveAnimationPlayer", "AIVoicePlayer", "MicroRecorderPlayer")]
