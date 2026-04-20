@@ -72,12 +72,10 @@ namespace Logic.Backend
         /// </summary>
         private void TerminateOrphanedResources()
         {
-            string[] targetResources = { "llama-server", "whisper-server" };
+            // Asigna los descriptores exactos de los procesos nativos en C++ hacia el arreglo de rastreo.
+            string[] targetResources = { "llama-server", "whisper-server", "sherpa-onnx-tts-server" };
             
-            GD.Print("ResourceMonitor: Initiating resource reconciliation routine...");
-
-            // CAZADOR DE ZOMBIS PYTHON: Mata cualquier script tts_server.py que haya quedado vivo en el puerto 8888
-            OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
+            GD.Print("ResourceMonitor: Initiating resource reconciliation routine for native engines...");
 
             try
             {
@@ -93,7 +91,7 @@ namespace Logic.Backend
                             {
                                 process.Kill(true); 
                                 process.WaitForExit(1000); 
-                                GD.Print($"ResourceMonitor: Orphaned resource '{resourceName}' (PID: {process.Id}) terminated successfully.");
+                                GD.Print($"ResourceMonitor: Orphaned C++ native resource '{resourceName}' (PID: {process.Id}) terminated successfully.");
                             }
                         }
                         catch (Exception innerEx)
@@ -106,7 +104,7 @@ namespace Logic.Backend
                         }
                     }
                 }
-                GD.Print("ResourceMonitor: Infrastructure cleanup completed. System ready for initialization.");
+                GD.Print("ResourceMonitor: Infrastructure cleanup completed. System ready for C++ engine initialization.");
             }
             catch (Exception ex)
             {
@@ -115,13 +113,12 @@ namespace Logic.Backend
         }
 
         /// <summary>
-        /// Orchestrates the asynchronous initialization sequence for the persistent local servers.
-        /// Dynamically synthesizes a Python WebSockets bridge script for TTS mapping and handles native engine allocation.
+        /// Orchestrates the asynchronous initialization sequence for the persistent local C++ servers.
+        /// Computes absolute file paths dynamically leveraging the serialized configuration properties
+        /// to allocate memory environments for Llama, Whisper, and Sherpa processes natively.
         /// </summary>
         private async Task ManageBackendLifecycle(string modelsDir, string safeFileName)
         {
-            /// Orquesta la inicialización asíncrona de la capa nativa y puente de Python.
-            /// Configura los parámetros ejecutables e intercepta los flujos estándar para su enrutamiento y monitoreo interno.
             try
             {
                 int threadCount = Math.Max(1, global::System.Environment.ProcessorCount / 2);
@@ -130,21 +127,23 @@ namespace Logic.Backend
                 string binDir = ProjectSettings.GlobalizePath("user://bin");
                 string sttModel = _configManager?.ActiveSTTModel ?? "Whisper_Base.bin"; 
                 string modelWhisperPath = global::System.IO.Path.Combine(modelsDir, sttModel);
-                string pythonScriptPath = global::System.IO.Path.Combine(binDir, "tts_server.py");
 
                 string llamaBinDir = global::System.IO.Path.Combine(binDir, "llama-b8770");
                 string llamaBinPath = global::System.IO.Path.Combine(llamaBinDir, "llama-server");
                 string whisperBinPath = global::System.IO.Path.Combine(binDir, "whisper-server");
 
-                // Configura los directorios de mapeo de tensores ONNX y descriptores del motor Kokoro.
-                string kokoroFolder = "kokoro-tts";
-                string kokoroModelPath = global::System.IO.Path.Combine(modelsDir, kokoroFolder, "kokoro-v0_19.onnx");
-                string kokoroVoicesPath = global::System.IO.Path.Combine(modelsDir, kokoroFolder, "voices.bin");
-                string voiceName = "ef_dora"; 
+                string sherpaBinDir = global::System.IO.Path.Combine(binDir, "sherpa-onnx");
+                string sherpaBinPath = global::System.IO.Path.Combine(sherpaBinDir, "sherpa-onnx-tts-server");
+                
+                // Resuelve la nomenclatura del directorio acústico accediendo a la estructura persistida en el gestor de configuración.
+                string piperFolder = _configManager?.ActiveTTSModel ?? "vits-piper-es_ES-upc_ona-high";
+                
+                // Construye el nombre estandarizado del archivo de grafo onnx suprimiendo el prefijo estructural base.
+                string onnxFileName = piperFolder.Replace("vits-piper-", "") + ".onnx";
 
-                if (!global::System.IO.File.Exists(pythonScriptPath))
+                if (!global::System.IO.File.Exists(sherpaBinPath))
                 {
-                    GD.PrintErr("BackendLauncher: Fatal - TTS Driver (tts_server.py) not found in bin directory.");
+                    GD.PrintErr("BackendLauncher: Fatal - Native C++ TTS Server (sherpa-onnx-tts-server) not found.");
                     HandleCrash();
                     return;
                 }
@@ -169,11 +168,15 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
-                // Estructura los argumentos secuenciales esperados por el puente Python del driver TTS de Kokoro.
+                // Asigna rutas compuestas al sistema de memoria mapeando variables acústicas dinámicas extraídas previamente.
+                string piperModelPath = global::System.IO.Path.Combine(modelsDir, piperFolder, onnxFileName);
+                string piperTokensPath = global::System.IO.Path.Combine(modelsDir, piperFolder, "tokens.txt");
+                string piperDataPath = global::System.IO.Path.Combine(modelsDir, piperFolder, "es_dict");
+
                 ProcessStartInfo ttsEngineInfo = new ProcessStartInfo
                 {
-                    FileName = "python3",
-                    Arguments = $"\"{pythonScriptPath}\" {SherpaPort} \"{kokoroModelPath}\" \"{kokoroVoicesPath}\" \"{voiceName}\"",
+                    FileName = sherpaBinPath,
+                    Arguments = $"--vits-model=\"{piperModelPath}\" --vits-tokens=\"{piperTokensPath}\" --vits-data-dir=\"{piperDataPath}\" --port={SherpaPort}",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -185,6 +188,8 @@ namespace Logic.Backend
                 
                 llamaInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = llamaBinDir;
                 llamaInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = "1";
+
+                ttsEngineInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = sherpaBinDir;
 
                 _whisperProcess = new Process { StartInfo = whisperInfo, EnableRaisingEvents = true };
                 _llamaProcess = new Process { StartInfo = llamaInfo, EnableRaisingEvents = true };
@@ -207,18 +212,8 @@ namespace Logic.Backend
                         CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Whisper ERR] {e.Data}"); 
                         
                         string lowerData = e.Data.ToLower();
-                        
-                        bool isFatalError = lowerData.Contains("out of memory") || 
-                                            lowerData.Contains("bad allocation") || 
-                                            lowerData.Contains("failed to allocate") || 
-                                            lowerData.Contains("segmentation fault") || 
-                                            lowerData.Contains("core dumped");
-
-                        if (isFatalError)
-                        {
-                            PanicKill($"Critical memory/system fault reported by engine: {e.Data}");
-                            return;
-                        }
+                        bool isFatalError = lowerData.Contains("out of memory") || lowerData.Contains("bad allocation") || lowerData.Contains("segmentation fault");
+                        if (isFatalError) PanicKill($"Critical memory fault: {e.Data}");
                     }
                 };
                 _whisperProcess.Exited += OnProcessExited;
@@ -240,18 +235,8 @@ namespace Logic.Backend
                         CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Llama ERR] {e.Data}");
                         
                         string lowerData = e.Data.ToLower();
-                        
-                        bool isFatalError = lowerData.Contains("out of memory") || 
-                                            lowerData.Contains("bad allocation") || 
-                                            lowerData.Contains("failed to allocate") || 
-                                            lowerData.Contains("segmentation fault") || 
-                                            lowerData.Contains("core dumped");
-
-                        if (isFatalError)
-                        {
-                            PanicKill($"Critical memory/system fault reported by engine: {e.Data}");
-                            return;
-                        }
+                        bool isFatalError = lowerData.Contains("out of memory") || lowerData.Contains("bad allocation") || lowerData.Contains("segmentation fault");
+                        if (isFatalError) PanicKill($"Critical memory fault: {e.Data}");
                         
                         if (e.Data.Contains("server is listening on") || e.Data.Contains("HTTP server listening"))
                         {
@@ -262,13 +247,12 @@ namespace Logic.Backend
                 };
                 _llamaProcess.Exited += OnProcessExited;
 
-                // Modifica las etiquetas de salida al interceptar y redirigir el flujo stdout/stderr del proceso hijo (Kokoro).
                 _sherpaProcess.OutputDataReceived += (sender, e) =>
                 {
                     if (!string.IsNullOrEmpty(e.Data))
                     {
-                        GD.Print($"[Kokoro] {e.Data}");
-                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Kokoro] {e.Data}");
+                        GD.Print($"[Sherpa-ONNX] {e.Data}");
+                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Sherpa-ONNX] {e.Data}");
                     }
                 };
 
@@ -276,22 +260,12 @@ namespace Logic.Backend
                 {
                     if (!string.IsNullOrEmpty(e.Data))
                     {
-                        GD.PrintErr($"[Kokoro ERR] {e.Data}");
-                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Kokoro ERR] {e.Data}");
+                        GD.PrintErr($"[Sherpa-ONNX ERR] {e.Data}");
+                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Sherpa-ONNX ERR] {e.Data}");
 
                         string lowerData = e.Data.ToLower();
-                        
-                        bool isFatalError = lowerData.Contains("out of memory") || 
-                                            lowerData.Contains("bad allocation") || 
-                                            lowerData.Contains("failed to allocate") || 
-                                            lowerData.Contains("segmentation fault") || 
-                                            lowerData.Contains("core dumped");
-
-                        if (isFatalError)
-                        {
-                            PanicKill($"Critical memory/system fault reported by engine: {e.Data}");
-                            return;
-                        }
+                        bool isFatalError = lowerData.Contains("out of memory") || lowerData.Contains("bad allocation") || lowerData.Contains("segmentation fault");
+                        if (isFatalError) PanicKill($"Critical memory fault: {e.Data}");
                     }
                 };
                 _sherpaProcess.Exited += OnProcessExited;
@@ -310,7 +284,7 @@ namespace Logic.Backend
 
                 _isRunning = true;
 
-                GD.Print($"BackendLauncher: Natives initialized. Llama PID: {_llamaProcess.Id}, Whisper PID: {_whisperProcess.Id}, Kokoro PID: {_sherpaProcess.Id}");
+                GD.Print($"BackendLauncher: Natives initialized. Llama PID: {_llamaProcess.Id}, Whisper PID: {_whisperProcess.Id}, Sherpa PID: {_sherpaProcess.Id}");
                 
                 await MonitorProcessHealth();
             }
@@ -448,13 +422,14 @@ namespace Logic.Backend
         /// Ensures structural memory hygiene by forcefully dispatching termination signals to active
         /// child processes synchronously during the Godot node tree deallocation sequence.
         /// </summary>
+        /// <summary>
+        /// Ensures structural memory hygiene by forcefully dispatching termination signals to active
+        /// child processes synchronously during the Godot node tree deallocation sequence.
+        /// </summary>
         public override void _ExitTree()
         {
-            GD.Print("BackendLauncher: Purging native processes (Preventing Zombies).");
+            GD.Print("BackendLauncher: Purging native C++ processes (Preventing Zombies).");
             _isRunning = false;
-            
-            // LIMPIEZA FORZADA DE PYTHON AL CERRAR LA APP
-            OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
             
             try
             {

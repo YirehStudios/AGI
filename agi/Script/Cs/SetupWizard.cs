@@ -51,10 +51,8 @@ namespace Logic.Utils
         [Export] public LineEdit TxtCustomPort;
         [Export] private string LlamaServerUrl = "https://github.com/ggml-org/llama.cpp/releases/download/b8770/llama-b8770-bin-ubuntu-vulkan-x64.tar.gz";
         [Export] private string WhisperServerUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/refs/heads/main/whisper-server-vulkan-linux/whisper-server-vulkan-linux.tar.gz";
-        [Export] private string SherpaServerUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.39/sherpa-onnx-v1.12.39-linux-x64-static.tar.bz2";
-        [Export] private string TtsBridgeUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/refs/heads/main/agi/Script/Cs/System/Drivers/tts_server.py";
-        [Export] private string KokoroModelUrl = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/kokoro-v0_19.onnx";
-        [Export] private string KokoroVoicesUrl = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin";
+        [Export] private string SherpaServerUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.10.32/sherpa-onnx-v1.10.32-linux-x64.tar.bz2";
+        [Export] private string PiperModelUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-es_ES-upc_ona-high.tar.bz2";
         private ConfigManager.ModelPreset _selectedLLM;
         private ConfigManager.ModelPreset _selectedSTT;
         private ConfigManager.ModelPreset _selectedTTS;
@@ -292,10 +290,9 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Orchestrates the asynchronous and sequential retrieval of selected model binaries and native engines.
-        /// Implements caching checks to bypass redundant network utilization if the binaries (Llama, Whisper, Sherpa) 
-        /// or models already exist locally. Assigns persistent file paths, modifies the global configuration,
-        /// and delegates the container engine startup upon successful traversal.
+        /// Orchestrates the asynchronous retrieval, extraction, and initialization of native C++ engines.
+        /// Isolates binary dependency validation to prevent redundant network invocations, dynamically resolves
+        /// TTS dictionary structures, and coordinates file system mappings via the configuration orchestrator.
         /// </summary>
         private async void StartModelDownload()
         {
@@ -304,102 +301,111 @@ namespace Logic.Utils
             string binDir = ProjectSettings.GlobalizePath("user://bin");
             global::System.IO.Directory.CreateDirectory(binDir);
 
-            // --- 1. CHEQUEO DE MOTORES EXISTENTES (LLAMA Y WHISPER) ---
             string llamaBinPath = global::System.IO.Path.Combine(binDir, "llama-b8770/llama-server");
             string whisperBinPath = global::System.IO.Path.Combine(binDir, "whisper-server");
+            string sherpaBinPath = global::System.IO.Path.Combine(binDir, "sherpa-onnx/sherpa-onnx-tts-server");
+            string binDirAbs = ProjectSettings.GlobalizePath("user://bin");
 
-            if (!global::System.IO.File.Exists(llamaBinPath) || !global::System.IO.File.Exists(whisperBinPath))
+            // Interroga el sistema de archivos local de forma aislada para resolver el contenedor Llama.
+            if (!global::System.IO.File.Exists(llamaBinPath))
             {
-                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando motores nativos (Llama/Whisper)...[/center]";
-                
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando Llama Server...[/center]";
                 await _downloadManager.DownloadFileAsync(LlamaServerUrl, "user://bin", "llama-server.tar.gz");
-                await _downloadManager.DownloadFileAsync(WhisperServerUrl, "user://bin", "whisper-server.tar.gz");
-                
+                OS.Execute("tar", new string[] { "-xf", global::System.IO.Path.Combine(binDirAbs, "llama-server.tar.gz"), "-C", binDirAbs }, new Godot.Collections.Array(), true);
                 OS.Execute("chmod", new string[] { "+x", llamaBinPath }, new Godot.Collections.Array(), true);
+            }
+
+            // Interroga el sistema de archivos local de forma aislada para resolver el contenedor Whisper.
+            if (!global::System.IO.File.Exists(whisperBinPath))
+            {
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando Whisper Server...[/center]";
+                await _downloadManager.DownloadFileAsync(WhisperServerUrl, "user://bin", "whisper-server.tar.gz");
+                OS.Execute("tar", new string[] { "-xf", global::System.IO.Path.Combine(binDirAbs, "whisper-server.tar.gz"), "-C", binDirAbs }, new Godot.Collections.Array(), true);
                 OS.Execute("chmod", new string[] { "+x", whisperBinPath }, new Godot.Collections.Array(), true);
             }
-            else
+
+            // Interroga el sistema de archivos local de forma aislada para resolver el contenedor Sherpa-ONNX.
+            if (!global::System.IO.File.Exists(sherpaBinPath))
             {
-                GD.Print("SetupWizard: Motores Llama/Whisper ya existen. Omitiendo descarga.");
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando Sherpa-ONNX Server...[/center]";
+                await _downloadManager.DownloadFileAsync(SherpaServerUrl, "user://bin", "sherpa-onnx-linux.tar.bz2");
+                OS.Execute("tar", new string[] { "-xjf", global::System.IO.Path.Combine(binDirAbs, "sherpa-onnx-linux.tar.bz2"), "-C", binDirAbs }, new Godot.Collections.Array(), true);
+                
+                string extractedSherpaDir = global::System.IO.Path.Combine(binDirAbs, "sherpa-onnx-v1.10.32-linux-x64");
+                string targetSherpaDir = global::System.IO.Path.Combine(binDirAbs, "sherpa-onnx");
+                if (global::System.IO.Directory.Exists(extractedSherpaDir))
+                {
+                    if (global::System.IO.Directory.Exists(targetSherpaDir)) global::System.IO.Directory.Delete(targetSherpaDir, true);
+                    global::System.IO.Directory.Move(extractedSherpaDir, targetSherpaDir);
+                }
+                OS.Execute("chmod", new string[] { "+x", sherpaBinPath }, new Godot.Collections.Array(), true);
             }
 
-            // --- 2 DESCARGA DEL DRIVER / BRIDGE PYTHON ---
-            string pythonBridgePath = global::System.IO.Path.Combine(binDir, "tts_server.py");
-            if (!global::System.IO.File.Exists(pythonBridgePath)) 
-            {
-                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando Driver de Voz (Python Bridge)...[/center]";
-                // Fetches the standalone driver from the repository to enable hot-patching.
-                await _downloadManager.DownloadFileAsync(TtsBridgeUrl, "user://bin", "tts_server.py");
-            }
+            string piperDir = ProjectSettings.GlobalizePath("user://models");
+            global::System.IO.Directory.CreateDirectory(piperDir);
 
-            // --- 2.5 DESCARGA DEL CEREBRO Y VOCES KOKORO ---
-            string kokoroDir = ProjectSettings.GlobalizePath("user://models/kokoro-tts");
-            global::System.IO.Directory.CreateDirectory(kokoroDir);
-
-            string kokoroModelPath = global::System.IO.Path.Combine(kokoroDir, "kokoro-v0_19.onnx");
-            if (!global::System.IO.File.Exists(kokoroModelPath)) 
-            {
-                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando IA de Voz (Kokoro-82M)...[/center]";
-                await _downloadManager.DownloadFileAsync(KokoroModelUrl, "user://models/kokoro-tts", "kokoro-v0_19.onnx");
-            }
-
-            string kokoroVoicesPath = global::System.IO.Path.Combine(kokoroDir, "voices.bin");
-            if (!global::System.IO.File.Exists(kokoroVoicesPath)) 
-            {
-                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando Paquete de Respiración y Prosodia humana...[/center]";
-                await _downloadManager.DownloadFileAsync(KokoroVoicesUrl, "user://models/kokoro-tts", "voices.bin");
-            }
-
-            // --- 3. DESCARGA DE MODELOS (PRESETS) ---
             List<ConfigManager.ModelPreset> presetsToDownload = new List<ConfigManager.ModelPreset> { _selectedLLM, _selectedSTT, _selectedTTS };
 
             foreach (ConfigManager.ModelPreset preset in presetsToDownload)
             {
                 if (preset == null) continue;
 
-                if (preset.Name.Contains("Kokoro")) 
-                {
-                    _configManager.ActiveTTSModel = "kokoro-tts";
-                    _configManager.SaveConfiguration();
-                    continue; 
-                }
-
                 string safeFileName = preset.Name.Replace(" ", "_");
+                
+                // Extrae los descriptores de archivo basándose en la clase de modelo y su topología de red de origen.
                 if (preset.Name.Contains("Whisper")) safeFileName += ".bin";
-                else if (preset.Name.Contains("Sherpa")) safeFileName += ".tar.bz2";
+                else if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa")) 
+                {
+                    safeFileName = global::System.IO.Path.GetFileName(new global::System.Uri(preset.DownloadLinks[0]).LocalPath);
+                }
                 else safeFileName += ".gguf";
 
-                if (!preset.Name.Contains("Whisper") && !preset.Name.Contains("Sherpa"))
+                // Delega las asignaciones persistentes en el gestor de configuración evaluando las clasificaciones semánticas.
+                if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa"))
+                {
+                    _configManager.ActiveTTSEngine = "sherpa-onnx";
+                    _configManager.ActiveTTSModel = safeFileName.Replace(".tar.bz2", ""); 
+                }
+                else if (preset.Name.Contains("Whisper"))
+                {
+                    _configManager.ActiveSTTModel = safeFileName;
+                }
+                else
                 {
                     _configManager.ActiveModelName = preset.Name;
                     _configManager.ActiveModelPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
                 }
 
                 _configManager.ActiveModelUrl = preset.DownloadLinks[0];
-                if (preset.Name.Contains("Whisper")) _configManager.ActiveSTTModel = safeFileName;
-                if (preset.Name.Contains("Sherpa")) _configManager.ActiveTTSModel = safeFileName.Replace(".tar.bz2", "");
                 _configManager.SaveConfiguration();
 
+                // Implementa resolución de caché dinámico diferenciando entre contenedores simples y directorios extraídos.
                 string globalPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
-                if (global::System.IO.File.Exists(globalPath))
+                bool isAlreadyExtracted = false;
+                
+                if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa"))
                 {
-                    GD.Print($"SetupWizard: El archivo {safeFileName} ya existe. Omitiendo descarga.");
-                    if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]El archivo {preset.Name} ya existe en el sistema. Omitiendo...[/center]";
-                    await ToSignal(GetTree().CreateTimer(1.5), SceneTreeTimer.SignalName.Timeout); 
+                    string extractedFolderPath = ProjectSettings.GlobalizePath("user://models/" + _configManager.ActiveTTSModel);
+                    if (global::System.IO.Directory.Exists(extractedFolderPath)) isAlreadyExtracted = true;
+                }
+
+                if (global::System.IO.File.Exists(globalPath) || isAlreadyExtracted)
+                {
+                    GD.Print($"SetupWizard: Cache local validado para {safeFileName}");
+                    if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]El modelo {preset.Name} ya está listo. Omitiendo...[/center]";
+                    await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout); 
                     continue; 
                 }
 
-                if (ModelDownloadStatus != null)
-                {
-                    ModelDownloadStatus.Text = $"[center]Descargando: {preset.Name}...[/center]";
-                }
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]Descargando tensores: {preset.Name}...[/center]";
 
                 bool success = await _downloadManager.DownloadFileAsync(preset.DownloadLinks[0], "user://models", safeFileName);
 
+                // Rompe el ciclo e interrumpe la transición de arranque si la transferencia binaria arroja falsos positivos.
                 if (!success)
                 {
-                    GD.PrintErr($"SetupWizard: Fallo en descarga de {preset.Name}");
-                    if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center][color=red]Error descargando {preset.Name}.[/color][/center]";
+                    GD.PrintErr($"SetupWizard: Fallo de red con {preset.Name}");
+                    if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center][color=red]Error de red descargando {preset.Name}.[/color][/center]";
                     return;
                 }
             }
