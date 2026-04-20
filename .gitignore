@@ -1,26 +1,31 @@
+# Archivos de Godot
 .godot/
 *.import
 export_presets.cfg
-*.uid
+/android/
+
+# Herramientas y Editores
 .vscode/
 .history/
 *.code-workspace
 .DS_Store
 Thumbs.db
-*.tmp
 desktop.ini
+
+# Temporales y Logs
+*.tmp
 *.log
 *.bin
+
+# Recursos de arte (opcional, actívalo si no quieres archivos fuente en el repo)
 *.psd
 *.blend
 *.fbx
 *.obj
 *.gltf
 *.glb
+
+# Carpetas de pruebas específicas
 agi/Scenes/Test/
 agi/Scenes/Test/Kipfel/
 agi/Scenes/Test/**/*.tscn
-=======
-.godot/
-/android/
->>>>>>> 8afa76c5c5a0f8f7afad78a30a345091115300a5
