@@ -262,7 +262,6 @@ namespace Logic.Utils
         /// <param name="preset">The configuration object of the selected model.</param>
         private void OnModelSelected(ConfigManager.ModelPreset preset, Button clickedButton)
         {
-            // Retroalimentación visual
             clickedButton.Text = "¡Seleccionado!";
             clickedButton.Disabled = true;
 
@@ -270,7 +269,7 @@ namespace Logic.Utils
             {
                 _selectedSTT = preset;
             }
-            else if (preset.Name.Contains("Sherpa") || preset.Name.Contains("Kokoro"))
+            else if (preset.Name.Contains("Sherpa") || preset.Name.Contains("Piper"))
             {
                 _selectedTTS = preset;
             }

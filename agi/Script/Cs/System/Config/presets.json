@@ -26,13 +26,17 @@
   {
     "Name": "Whisper Base",
     "Description": "Modelo STT balanceado (Formato GGML para Linux)",
-    "DownloadLinks": ["https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin?download=true"],
+    "DownloadLinks": [
+      "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin?download=true"
+    ],
     "ExpectedSize": 147953258
   },
   {
-    "Name": "Piper VITS High (Ona)",
-    "Description": "Voz Humana Alta Fidelidad nativa en C++. Máxima velocidad (64MB)",
-    "DownloadLinks": ["https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-es_ES-upc_ona-high.tar.bz2"],
-    "ExpectedSize": 64000000
+    "Name": "Kokoro v1.1 (Alta Fidelidad C++)",
+    "Description": "Voz Humana Premium (82M params). Motor Sherpa-ONNX nativo. Usa EnCodec para eliminar el audio robótico.",
+    "DownloadLinks": [
+      "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2"
+    ],
+    "ExpectedSize": 380000000
   }
 ]
