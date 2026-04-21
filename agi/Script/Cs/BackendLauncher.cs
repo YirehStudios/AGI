@@ -116,6 +116,7 @@ namespace Logic.Backend
         /// Orchestrates the asynchronous initialization sequence for the persistent local C++ servers.
         /// Computes absolute file paths dynamically leveraging the serialized configuration properties
         /// to allocate memory environments for Llama, Whisper, and Sherpa processes natively.
+        /// Dynamically injects conditional data directories depending on the acoustic model's requirement for espeak-ng.
         /// </summary>
         private async Task ManageBackendLifecycle(string modelsDir, string safeFileName)
         {
@@ -135,11 +136,17 @@ namespace Logic.Backend
                 string sherpaBinDir = global::System.IO.Path.Combine(binDir, "sherpa-onnx");
                 string sherpaBinPath = global::System.IO.Path.Combine(sherpaBinDir, "sherpa-onnx-tts-server");
                 
-                // Resuelve la nomenclatura del directorio acústico accediendo a la estructura persistida en el gestor de configuración.
-                string piperFolder = _configManager?.ActiveTTSModel ?? "vits-piper-es_ES-upc_ona-high";
+                // Extrae dinámicamente el directorio del modelo Kokoro desde la configuración activa.
+                string ttsFolder = _configManager?.ActiveTTSModel ?? "kokoro-multi-lang-v1_1";
                 
-                // Construye el nombre estandarizado del archivo de grafo onnx suprimiendo el prefijo estructural base.
-                string onnxFileName = piperFolder.Replace("vits-piper-", "") + ".onnx";
+                // Construye las estructuras de sistema de archivos base esperadas por la integración Kokoro en Sherpa-ONNX.
+                string kokoroModelPath = global::System.IO.Path.Combine(modelsDir, ttsFolder, "model.onnx");
+                string kokoroVoicesPath = global::System.IO.Path.Combine(modelsDir, ttsFolder, "voices.bin");
+                string kokoroTokensPath = global::System.IO.Path.Combine(modelsDir, ttsFolder, "tokens.txt");
+                
+                // Mapea la ruta del diccionario espeak-ng-data e inyecta la bandera correspondiente de forma heurística.
+                string kokoroDataDir = global::System.IO.Path.Combine(modelsDir, ttsFolder, "espeak-ng-data");
+                string dataDirFlag = global::System.IO.Directory.Exists(kokoroDataDir) ? $"--kokoro-data-dir=\"{kokoroDataDir}\"" : "";
 
                 if (!global::System.IO.File.Exists(sherpaBinPath))
                 {
@@ -168,15 +175,11 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
-                // Asigna rutas compuestas al sistema de memoria mapeando variables acústicas dinámicas extraídas previamente.
-                string piperModelPath = global::System.IO.Path.Combine(modelsDir, piperFolder, onnxFileName);
-                string piperTokensPath = global::System.IO.Path.Combine(modelsDir, piperFolder, "tokens.txt");
-                string piperDataPath = global::System.IO.Path.Combine(modelsDir, piperFolder, "es_dict");
-
+                // Asigna las directivas CLI exigidas por la implementación nativa C++ interpolando las rutas pre-evaluadas y la bandera condicional.
                 ProcessStartInfo ttsEngineInfo = new ProcessStartInfo
                 {
                     FileName = sherpaBinPath,
-                    Arguments = $"--vits-model=\"{piperModelPath}\" --vits-tokens=\"{piperTokensPath}\" --vits-data-dir=\"{piperDataPath}\" --port={SherpaPort}",
+                    Arguments = $"--kokoro-model=\"{kokoroModelPath}\" --kokoro-voices=\"{kokoroVoicesPath}\" --kokoro-tokens=\"{kokoroTokensPath}\" {dataDirFlag} --port={SherpaPort}",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,

@@ -121,6 +121,7 @@ namespace Logic.Network
         /// Establishes a persistent ClientWebSocket connection directed to the native Sherpa C++ TTS engine.
         /// Parses standard JSON requests expected by Sherpa and manages raw binary payload reception robustly without 
         /// relying on legacy string-based control signals from the Python bridge.
+        /// Integrates mandatory Speaker ID parameters to explicitly map to multi-language .bin voice assets.
         /// </summary>
         public async Task RequestTTSWebSocket(string textToSynthesize)
         {
@@ -132,7 +133,12 @@ namespace Logic.Network
                 await ws.ConnectAsync(serverUri, global::System.Threading.CancellationToken.None);
 
                 // Instancia y empaqueta el diccionario estricto esperado por el binario C++ de Sherpa.
-                var payload = new { text = textToSynthesize };
+                // Inyecta el índice del hablante (sid) para resolver la asignación de voz en modelos que consolidan múltiples firmas acústicas.
+                var payload = new { 
+                    text = textToSynthesize, 
+                    sid = 0 
+                };
+                
                 string jsonPayload = global::System.Text.Json.JsonSerializer.Serialize(payload);
                 byte[] bytes = global::System.Text.Encoding.UTF8.GetBytes(jsonPayload);
 
