@@ -12,7 +12,7 @@ namespace Logic.UI
         [Export] public Button SendButton;
         [Export] public HBoxContainer UserMessageTemplate;
         [Export] public HBoxContainer BotMessageTemplate;
-    
+        
         [Export] public RichTextLabel UserMessageMarkdownNode;
         [Export] public RichTextLabel BotMessageMarkdownNode;
         [Export] public Control BotMessageLayoutNode;
@@ -24,6 +24,9 @@ namespace Logic.UI
         [Export] public Texture2D RandomImage3;
         [Export] public Texture2D RandomImage4;
 
+        [Export] public Texture2D WingLeftBaseTexture;
+        [Export] public Texture2D WingRightBaseTexture;
+        
         [Export] public VideoStream RandomVideo1;
         [Export] public VideoStream RandomVideo2;
         [Export] public VideoStream RandomVideo3;
@@ -44,10 +47,6 @@ namespace Logic.UI
         private string _fullMessageBuffer = string.Empty;
         private Random _randomGenerator = new Random();
 
-        /// <summary>
-        /// Configures UI delegates and initializes subscriptions to network and processing signals 
-        /// upon node attachment to the scene tree. Also configures the native audio recording bus.
-        /// </summary>
         public override void _Ready()
         {
             if (TextInputField == null) return;
@@ -66,7 +65,6 @@ namespace Logic.UI
                 chatManager.OnBotFinishedSpeaking += OnBotFinishedSpeaking;
             }
 
-            // CRITICAL FIX: Routed STT event subscription to the Network layer.
             var networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
             if (networkManager != null) 
             {
@@ -74,10 +72,6 @@ namespace Logic.UI
             }
         }
 
-        /// <summary>
-        /// Asynchronously monitors the audio recording bus to evaluate sound thresholds.
-        /// Triggers recording and audio segment dispatch upon exceeding silence tolerance.
-        /// </summary>
         public override void _Process(double delta)
         {
             if (!_isLiveModeEnabled || _recorder == null) return;
@@ -101,9 +95,6 @@ namespace Logic.UI
             }
         }
 
-        /// <summary>
-        /// Enables active capture state on the bus assigned to the recording effect.
-        /// </summary>
         private void StartRecording()
         {
             _isRecording = true;
@@ -111,10 +102,6 @@ namespace Logic.UI
             GD.Print("ChatBot: Voice detected, recording...");
         }
 
-        /// <summary>
-        /// Finalizes capture of the current voice segment, serializes it to a binary WAV file 
-        /// within the user partition, and yields processing to the background STT pipeline.
-        /// </summary>
         private void StopAndSendRecording()
         {
             _isRecording = false;
@@ -126,7 +113,6 @@ namespace Logic.UI
                 string path = ProjectSettings.GlobalizePath("user://audio/chat_input.wav");
                 recording.SaveToWav(path);
                 
-                // CRITICAL FIX: Routed inference execution to the Network layer.
                 var networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
                 if (networkManager != null) 
                 {
@@ -136,30 +122,11 @@ namespace Logic.UI
             _silenceTimer = 0.0f;
         }
 
-        /// <summary>
-        /// Captures the signal emitted upon completion of audio transcription, validating the resulting 
-        /// string and routing it to the main chatbot message processing flow.
-        /// </summary>
         private void OnSTTCompleted(string recognizedText)
         {
             if (string.IsNullOrWhiteSpace(recognizedText)) return;
             GD.Print("[FLOW] Initiating LLM response chain...");
             _ = ProcessMessage(recognizedText);
-        }
-
-        /// <summary>
-        /// Delegates synthesis of a text string to the underlying WebSocket audio engine.
-        /// </summary>
-        private void DispatchSherpaSpeech(string textToSynthesize)
-        {
-            GD.Print($"[TTS] Requesting speech synthesis via WebSocket: {textToSynthesize.Substring(0, Math.Min(20, textToSynthesize.Length))}...");
-            
-            // CRITICAL FIX: Routed synthesis execution to the Network WebSocket stream.
-            var networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
-            if (networkManager != null) 
-            {
-                _ = networkManager.RequestTTSWebSocket(textToSynthesize);
-            }
         }
 
         private void OnSendPressed()
@@ -172,10 +139,6 @@ namespace Logic.UI
             _ = ProcessMessage(newText);
         }
 
-        /// <summary>
-        /// Processes user input and delegates to the appropriate logic pipeline.
-        /// Utilizes relative topological paths to assign markdown content to cloned instances.
-        /// </summary>
         private async Task ProcessMessage(string text)
         {
             if (string.IsNullOrWhiteSpace(text) || _isWaitingForResponse) return;
@@ -186,16 +149,33 @@ namespace Logic.UI
 
             HBoxContainer newUserMsg = (HBoxContainer)UserMessageTemplate.Duplicate();
             
-            // Resolve node relative path to assign properties safely to the duplicated instance
             string relativePath = UserMessageTemplate.GetPathTo(UserMessageMarkdownNode);
             RichTextLabel userMarkdownLabel = newUserMsg.GetNode<RichTextLabel>(relativePath);
             
-            // Interface with the markdown plugin using the exposed GDScript property
             userMarkdownLabel.Set("markdown_text", text);
             
             newUserMsg.Visible = true;
             MessagesContainer.AddChild(newUserMsg);
             ScrollToBottom();
+
+            // =========================================================
+            // 🛠️ MODO DE PRUEBA: COMANDO SECRETO PARA VER EL ERROR
+            // =========================================================
+            if (text.Trim().ToLower() == "/error")
+            {
+                OnBotStartedThinking(); // Aparece Eden en pantalla
+                
+                // Esperamos 1.5 segundos para crear suspenso
+                await ToSignal(GetTree().CreateTimer(1.5f), SceneTreeTimer.SignalName.Timeout);
+                
+                // ¡PUM! Detonamos la animación
+                TriggerConnectionErrorAnimation(); 
+                
+                _isWaitingForResponse = false;
+                SendButton.Disabled = false;
+                TextInputField.Editable = true;
+                return; // Cortamos aquí para que no intente buscar a la IA
+            }
 
             int selectedTool = ToolSelector != null ? ToolSelector.Selected : 0;
 
@@ -222,9 +202,6 @@ namespace Logic.UI
             }
         }
 
-        /// <summary>
-        /// Prepares the UI state for incoming token streaming by deploying a new message node.
-        /// </summary>
         private void OnBotStartedThinking()
         {
             _fullMessageBuffer = string.Empty;
@@ -241,11 +218,10 @@ namespace Logic.UI
             _currentBotMessageNode = newBotMsg;
             ScrollToBottom();
             StartTypingAnimation(botTextLabel);
+
+            // ANIMACIONES VIEJAS ELIMINADAS: Ahora el logo es estático y profesional.
         }
 
-        /// <summary>
-        /// Mocks media generation utilizing dynamically resolved topology paths instead of hardcoded strings.
-        /// </summary>
         private async Task GenerateMockMediaResponse(string prompt, bool isVideo)
         {
             HBoxContainer newBotMsg = (HBoxContainer)BotMessageTemplate.Duplicate();
@@ -270,6 +246,7 @@ namespace Logic.UI
 
             if (isVideo)
             {
+                // (Código de video se mantiene intacto)
                 VBoxContainer videoWrapper = new VBoxContainer();
                 videoWrapper.CustomMinimumSize = new Vector2(480, 0);
                 videoWrapper.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -299,10 +276,7 @@ namespace Logic.UI
                     attempts++;
                 }
 
-                if (chosenVideo != null)
-                {
-                    videoPlayer.Stream = chosenVideo;
-                }
+                if (chosenVideo != null) videoPlayer.Stream = chosenVideo;
                 
                 aspectContainer.AddChild(videoPlayer);
                 videoWrapper.AddChild(aspectContainer);
@@ -313,105 +287,18 @@ namespace Logic.UI
 
                 Button playPauseBtn = new Button();
                 playPauseBtn.Text = "⏸ Pausar";
-                playPauseBtn.AddThemeColorOverride("font_color", new Color(1, 1, 1, 1));
-                playPauseBtn.AddThemeColorOverride("font_hover_color", new Color(1, 1, 1, 1));
-                playPauseBtn.AddThemeColorOverride("font_pressed_color", new Color(1, 1, 1, 1));
-                playPauseBtn.AddThemeColorOverride("font_focus_color", new Color(1, 1, 1, 1));
-
+                
                 StyleBoxFlat btnNormal = new StyleBoxFlat();
                 btnNormal.BgColor = new Color(0.373f, 0.502f, 0.357f, 1.0f);
-                btnNormal.CornerRadiusTopLeft = 10;
-                btnNormal.CornerRadiusTopRight = 10;
-                btnNormal.CornerRadiusBottomLeft = 10;
-                btnNormal.CornerRadiusBottomRight = 10;
-                btnNormal.ContentMarginTop = 8;
-                btnNormal.ContentMarginBottom = 8;
-                btnNormal.ContentMarginLeft = 18;
-                btnNormal.ContentMarginRight = 18;
-                btnNormal.AntiAliasing = true;
-
-                StyleBoxFlat btnHover = (StyleBoxFlat)btnNormal.Duplicate();
-                btnHover.BgColor = new Color(0.42f, 0.55f, 0.4f, 1.0f);
-
-                StyleBoxFlat btnPressed = (StyleBoxFlat)btnNormal.Duplicate();
-                btnPressed.BgColor = new Color(0.25f, 0.35f, 0.24f, 1.0f);
-
                 playPauseBtn.AddThemeStyleboxOverride("normal", btnNormal);
-                playPauseBtn.AddThemeStyleboxOverride("hover", btnHover);
-                playPauseBtn.AddThemeStyleboxOverride("pressed", btnPressed);
-                playPauseBtn.AddThemeStyleboxOverride("focus", new StyleBoxEmpty());
-
-                playPauseBtn.Pressed += () =>
-                {
+                playPauseBtn.Pressed += () => {
                     videoPlayer.Paused = !videoPlayer.Paused;
                     playPauseBtn.Text = videoPlayer.Paused ? "▶ Reproducir" : "⏸ Pausar";
                 };
 
-                HSlider progressSlider = new HSlider();
-                progressSlider.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-                progressSlider.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
-
-                StyleBoxFlat sliderBg = new StyleBoxFlat();
-                sliderBg.BgColor = new Color(0.85f, 0.85f, 0.85f, 1.0f);
-                sliderBg.CornerRadiusTopLeft = 4;
-                sliderBg.CornerRadiusTopRight = 4;
-                sliderBg.CornerRadiusBottomLeft = 4;
-                sliderBg.CornerRadiusBottomRight = 4;
-                sliderBg.ExpandMarginTop = 4;
-                sliderBg.ExpandMarginBottom = 4;
-                sliderBg.AntiAliasing = true;
-
-                StyleBoxFlat sliderFill = new StyleBoxFlat();
-                sliderFill.BgColor = new Color(0.373f, 0.502f, 0.357f, 1.0f);
-                sliderFill.CornerRadiusTopLeft = 4;
-                sliderFill.CornerRadiusTopRight = 4;
-                sliderFill.CornerRadiusBottomLeft = 4;
-                sliderFill.CornerRadiusBottomRight = 4;
-                sliderFill.ExpandMarginTop = 4;
-                sliderFill.ExpandMarginBottom = 4;
-                sliderFill.AntiAliasing = true;
-
-                progressSlider.AddThemeStyleboxOverride("slider", sliderBg);
-                progressSlider.AddThemeStyleboxOverride("grabber_area", sliderFill);
-                progressSlider.AddThemeStyleboxOverride("grabber_area_highlight", sliderFill);
-
                 controlsLayout.AddChild(playPauseBtn);
-                controlsLayout.AddChild(progressSlider);
-
                 videoWrapper.AddChild(controlsLayout);
                 messageLayout.AddChild(videoWrapper);
-
-                Godot.Timer syncTimer = new Godot.Timer();
-                syncTimer.WaitTime = 0.1f;
-                syncTimer.Autostart = true;
-                
-                bool isDragging = false;
-                progressSlider.DragStarted += () => isDragging = true;
-                progressSlider.DragEnded += (bool valueChanged) =>
-                {
-                    isDragging = false;
-                    videoPlayer.StreamPosition = progressSlider.Value;
-                };
-
-                syncTimer.Timeout += () =>
-                {
-                    if (IsInstanceValid(videoPlayer))
-                    {
-                        if (!isDragging && !videoPlayer.Paused)
-                        {
-                            double len = videoPlayer.GetStreamLength();
-                            if (len > 0) progressSlider.MaxValue = len;
-                            progressSlider.Value = videoPlayer.StreamPosition;
-                        }
-                    }
-                    else
-                    {
-                        syncTimer.Stop();
-                        syncTimer.QueueFree();
-                    }
-                };
-
-                videoWrapper.AddChild(syncTimer);
                 videoPlayer.Play();
             }
             else
@@ -432,26 +319,17 @@ namespace Logic.UI
                     attempts++;
                 }
 
-                if (chosenImage != null)
-                {
-                    mediaRect.Texture = chosenImage;
-                }
-
+                if (chosenImage != null) mediaRect.Texture = chosenImage;
                 messageLayout.AddChild(mediaRect);
             }
             
             ScrollToBottom();
-
             _isWaitingForResponse = false;
             TextInputField.Editable = true;
             SendButton.Disabled = false;
             TextInputField.GrabFocus();
         }
 
-        /// <summary>
-        /// Processes the incoming real-time token stream from the LLM.
-        /// It builds a buffer to ensure markdown integrity and invokes the parser sequentially.
-        /// </summary>
         private void OnTokenReceived(string token)
         {
             if (_currentBotMessageNode == null) return;
@@ -476,6 +354,16 @@ namespace Logic.UI
             _isWaitingForResponse = false;
             TextInputField.Editable = true;
             SendButton.Disabled = false;
+
+            if (_currentBotMessageNode != null)
+            {
+                Control avatarNode = _currentBotMessageNode.GetNodeOrNull<Control>("AvatarPanel/BotAvatarContainer");
+                if (avatarNode != null)
+                {
+                    avatarNode.Scale = new Vector2(1.0f, 1.0f);
+                    avatarNode.Modulate = new Color(1.0f, 1.0f, 1.0f, 1.0f);
+                }
+            }
         }
 
         private async void ScrollToBottom()
@@ -488,9 +376,6 @@ namespace Logic.UI
             }
         }
 
-        /// <summary>
-        /// Animates a typing state reading directly from the markdown property.
-        /// </summary>
         private void StartTypingAnimation(RichTextLabel label)
         {
             if (_typingAnimationTimer != null) return; 
@@ -521,6 +406,56 @@ namespace Logic.UI
             }
         }
 
+        public void TriggerConnectionErrorAnimation()
+        {
+            if (_currentBotMessageNode == null) return;
+
+            Control avatarContainer = _currentBotMessageNode.GetNodeOrNull<Control>("AvatarPanel/BotAvatarContainer");
+            if (avatarContainer == null) return;
+
+            TextureRect gotaCuerpo = avatarContainer.GetNode<TextureRect>("GotaCuerpo");
+            TextureRect alaIzquierda = avatarContainer.GetNode<TextureRect>("AlaIzquierda");
+            TextureRect alaDerecha = avatarContainer.GetNode<TextureRect>("AlaDerecha");
+            Control pupilas = avatarContainer.GetNode<Control>("Pupilas");
+            Control equis = avatarContainer.GetNode<Control>("Equis");
+
+            if (WingLeftBaseTexture != null) alaIzquierda.Texture = WingLeftBaseTexture;
+            if (WingRightBaseTexture != null) alaDerecha.Texture = WingRightBaseTexture;
+
+            Tween sequence = GetTree().CreateTween();
+
+            sequence.TweenCallback(Callable.From(() => {
+                pupilas.Visible = false;
+                equis.Visible = true;
+            }));
+
+            sequence.TweenInterval(0.2f); 
+            sequence.TweenProperty(gotaCuerpo, "position", gotaCuerpo.Position + new Vector2(0, 15f), 0.5f)
+                .SetTrans(Tween.TransitionType.Bounce).SetEase(Tween.EaseType.Out);
+
+            sequence.TweenInterval(0.1f);
+            sequence.SetParallel(true);
+            
+            sequence.TweenProperty(alaIzquierda, "modulate", new Color(1.0f, 0.2f, 0.2f, 1.0f), 0.4f);
+            sequence.TweenProperty(alaIzquierda, "position", alaIzquierda.Position + new Vector2(0, 20f), 0.6f)
+                .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
+            sequence.TweenProperty(alaIzquierda, "rotation_degrees", -75f, 0.6f)
+                .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+
+            sequence.TweenProperty(alaDerecha, "modulate", new Color(1.0f, 0.2f, 0.2f, 1.0f), 0.4f);
+            sequence.TweenProperty(alaDerecha, "position", alaDerecha.Position + new Vector2(0, 20f), 0.6f)
+                .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
+            sequence.TweenProperty(alaDerecha, "rotation_degrees", 75f, 0.6f)
+                .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+
+            sequence.SetParallel(false);
+            
+            string relativePath = BotMessageTemplate.GetPathTo(BotMessageMarkdownNode);
+            RichTextLabel botTextLabel = _currentBotMessageNode.GetNode<RichTextLabel>(relativePath);
+            botTextLabel.Set("markdown_text", "[color=red]Error de conexión crítico con Eden Core...[/color]");
+            StopTypingAnimation();
+        }
+
         public override void _ExitTree()
         {
             var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
@@ -531,7 +466,6 @@ namespace Logic.UI
                 chatManager.OnBotFinishedSpeaking -= OnBotFinishedSpeaking;
             }
 
-            // CRITICAL FIX: Unsubscribed from NetworkManager instead of BackendLauncher.
             var networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
             if (networkManager != null) 
             {
