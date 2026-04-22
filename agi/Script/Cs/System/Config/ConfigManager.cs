@@ -242,19 +242,23 @@ namespace Logic.System.Config
         /// <returns>Una tarea asíncrona que retorna verdadero si el proceso de descarga y escritura concluye con éxito.</returns>
         private async Task<bool> DownloadPresetsFromGitHub(string destinationPath)
         {
-            string targetUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/main/agi/Script/Cs/System/Config/presets.json";
+            // Añadimos un timestamp para romper el caché
+            string cacheBuster = DateTime.Now.Ticks.ToString();
+            string targetUrl = $"https://raw.githubusercontent.com/YirehStudios/AGI/main/agi/Script/Cs/System/Config/presets.json?t={cacheBuster}";
 
             try
             {
                 using global::System.Net.Http.HttpClient client = new global::System.Net.Http.HttpClient();
-                string jsonContent = await client.GetStringAsync(targetUrl);
+                // Opcional: Añadir cabecera para no cachear
+                client.DefaultRequestHeaders.CacheControl = new global::System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
                 
+                string jsonContent = await client.GetStringAsync(targetUrl);
                 File.WriteAllText(destinationPath, jsonContent);
                 return true;
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"ConfigManager: Interrupción o error en la solicitud de red para descargar presets. Excepción: {ex.Message}");
+                GD.PrintErr($"ConfigManager: Error en la red: {ex.Message}");
                 return false;
             }
         }
