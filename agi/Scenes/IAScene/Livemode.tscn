@@ -107,11 +107,7 @@ _data = {
 
 [sub_resource type="AudioStreamMicrophone" id="AudioStreamMicrophone_k6qk6"]
 
-[sub_resource type="AudioStreamGenerator" id="AudioStreamGenerator_k6qk6"]
-mix_rate = 24000.0
-buffer_length = 0.75
-
-[node name="LiveModeInterface" type="Panel" unique_id=140527907 node_paths=PackedStringArray("WaveVisualizer", "WaveAnimationPlayer", "AIVoicePlayer", "MicroRecorderPlayer")]
+[node name="LiveModeInterface" type="Panel" unique_id=140527907 node_paths=PackedStringArray("WaveVisualizer", "WaveAnimationPlayer", "MicroRecorderPlayer")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -122,7 +118,6 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_main_bg")
 script = ExtResource("1_script")
 WaveVisualizer = NodePath("MainContainer/LiveAreaContainer/CenterArea/WaveVisualizer")
 WaveAnimationPlayer = NodePath("WaveAnimationPlayer")
-AIVoicePlayer = NodePath("AIVoiceStream")
 MicroRecorderPlayer = NodePath("Microphone")
 
 [node name="MainContainer" type="HBoxContainer" parent="." unique_id=1363021348]
@@ -212,8 +207,3 @@ autoplay = &"idle"
 stream = SubResource("AudioStreamMicrophone_k6qk6")
 autoplay = true
 bus = &"Record"
-
-[node name="AIVoiceStream" type="AudioStreamPlayer" parent="." unique_id=1061261565]
-stream = SubResource("AudioStreamGenerator_k6qk6")
-autoplay = true
-bus = &"Voice"

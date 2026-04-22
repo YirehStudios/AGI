@@ -51,8 +51,7 @@ namespace Logic.Utils
         [Export] public LineEdit TxtCustomPort;
         [Export] private string LlamaServerUrl = "https://github.com/ggml-org/llama.cpp/releases/download/b8770/llama-b8770-bin-ubuntu-vulkan-x64.tar.gz";
         [Export] private string WhisperServerUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/refs/heads/main/whisper-server-vulkan-linux/whisper-server-vulkan-linux.tar.gz";
-        [Export] private string SherpaServerUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.10.32/sherpa-onnx-v1.10.32-linux-x64.tar.bz2";
-        [Export] private string PiperModelUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-es_ES-upc_ona-high.tar.bz2";
+        [Export] private string SherpaServerUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.39/sherpa-onnx-v1.12.39-linux-x64-shared.tar.bz2";
         private ConfigManager.ModelPreset _selectedLLM;
         private ConfigManager.ModelPreset _selectedSTT;
         private ConfigManager.ModelPreset _selectedTTS;
@@ -63,6 +62,9 @@ namespace Logic.Utils
         private WizardState _currentState;
         private DependencyInstaller _dependencyInstaller;
         private ConfigManager _configManager;
+
+        //Delete
+        private List<ConfigManager.ModelPreset> _debugSelectedList = new List<ConfigManager.ModelPreset>();
 
         /// <summary>
         /// Initializes the core managers and child nodes, and binds the UI signals to their respective handlers.
@@ -265,33 +267,38 @@ namespace Logic.Utils
             clickedButton.Text = "¡Seleccionado!";
             clickedButton.Disabled = true;
 
-            if (preset.Name.Contains("Whisper"))
+            // Agregamos a la lista de depuración para contar clics
+            if (!_debugSelectedList.Contains(preset))
             {
-                _selectedSTT = preset;
-            }
-            else if (preset.Name.Contains("Sherpa") || preset.Name.Contains("Piper"))
-            {
-                _selectedTTS = preset;
-            }
-            else
-            {
-                _selectedLLM = preset;
+                _debugSelectedList.Add(preset);
             }
 
-            if (_selectedLLM != null && _selectedSTT != null && _selectedTTS != null)
+            // Intentamos la asignación lógica normal (por si los nombres coinciden)
+            if (preset.Name.Contains("Whisper")) _selectedSTT = preset;
+            else if (preset.Name.Contains("Sherpa") || preset.Name.Contains("Piper") || preset.Name.Contains("Kokoro")) _selectedTTS = preset;
+            else _selectedLLM = preset;
+
+            // PARCHE RÁPIDO: Si ya seleccionaste 3 cosas, forzamos el botón
+            if (_debugSelectedList.Count >= 3)
             {
+                // Para evitar que StartModelDownload truene por valores nulos, 
+                // llenamos los huecos con lo que sea que hayamos seleccionado.
+                _selectedLLM ??= _debugSelectedList[0];
+                _selectedSTT ??= _debugSelectedList[1];
+                _selectedTTS ??= _debugSelectedList[2];
+
                 if (BtnStartBatchDownload != null)
                 {
                     BtnStartBatchDownload.Disabled = false;
-                    BtnStartBatchDownload.Text = "Todo listo. Iniciar Sistema";
+                    BtnStartBatchDownload.Text = "Depuración: Iniciar con 3 Selecciones";
                 }
             }
         }
 
         /// <summary>
         /// Orchestrates the asynchronous retrieval, extraction, and initialization of native C++ engines.
-        /// Isolates binary dependency validation to prevent redundant network invocations, dynamically resolves
-        /// TTS dictionary structures, and coordinates file system mappings via the configuration orchestrator.
+        /// Isolates binary dependency validation leveraging the DownloadManager for native archive extraction.
+        /// Resolves execution permissions dynamically for shared libraries traversing the file system.
         /// </summary>
         private async void StartModelDownload()
         {
@@ -302,42 +309,64 @@ namespace Logic.Utils
 
             string llamaBinPath = global::System.IO.Path.Combine(binDir, "llama-b8770/llama-server");
             string whisperBinPath = global::System.IO.Path.Combine(binDir, "whisper-server");
-            string sherpaBinPath = global::System.IO.Path.Combine(binDir, "sherpa-onnx/sherpa-onnx-tts-server");
             string binDirAbs = ProjectSettings.GlobalizePath("user://bin");
 
-            // Interroga el sistema de archivos local de forma aislada para resolver el contenedor Llama.
+            // Validates the local file system for the Llama container, delegating extraction to the DownloadManager.
             if (!global::System.IO.File.Exists(llamaBinPath))
             {
                 if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando Llama Server...[/center]";
                 await _downloadManager.DownloadFileAsync(LlamaServerUrl, "user://bin", "llama-server.tar.gz");
-                OS.Execute("tar", new string[] { "-xf", global::System.IO.Path.Combine(binDirAbs, "llama-server.tar.gz"), "-C", binDirAbs }, new Godot.Collections.Array(), true);
                 OS.Execute("chmod", new string[] { "+x", llamaBinPath }, new Godot.Collections.Array(), true);
             }
 
-            // Interroga el sistema de archivos local de forma aislada para resolver el contenedor Whisper.
+            // Validates the local file system for the Whisper container, delegating extraction to the DownloadManager.
             if (!global::System.IO.File.Exists(whisperBinPath))
             {
                 if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando Whisper Server...[/center]";
                 await _downloadManager.DownloadFileAsync(WhisperServerUrl, "user://bin", "whisper-server.tar.gz");
-                OS.Execute("tar", new string[] { "-xf", global::System.IO.Path.Combine(binDirAbs, "whisper-server.tar.gz"), "-C", binDirAbs }, new Godot.Collections.Array(), true);
                 OS.Execute("chmod", new string[] { "+x", whisperBinPath }, new Godot.Collections.Array(), true);
             }
 
-            // Interroga el sistema de archivos local de forma aislada para resolver el contenedor Sherpa-ONNX.
-            if (!global::System.IO.File.Exists(sherpaBinPath))
+            // Evaluates the structural mapping for the Sherpa-ONNX engine to dynamically resolve the specific portable library directory.
+            string sherpaBaseDir = global::System.IO.Path.Combine(binDirAbs, "sherpa-onnx");
+            bool sherpaExists = global::System.IO.Directory.Exists(global::System.IO.Path.Combine(sherpaBaseDir, "lib"));
+
+            if (!sherpaExists)
             {
                 if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando Sherpa-ONNX Server...[/center]";
-                await _downloadManager.DownloadFileAsync(SherpaServerUrl, "user://bin", "sherpa-onnx-linux.tar.bz2");
-                OS.Execute("tar", new string[] { "-xjf", global::System.IO.Path.Combine(binDirAbs, "sherpa-onnx-linux.tar.bz2"), "-C", binDirAbs }, new Godot.Collections.Array(), true);
                 
-                string extractedSherpaDir = global::System.IO.Path.Combine(binDirAbs, "sherpa-onnx-v1.10.32-linux-x64");
-                string targetSherpaDir = global::System.IO.Path.Combine(binDirAbs, "sherpa-onnx");
-                if (global::System.IO.Directory.Exists(extractedSherpaDir))
+                bool success = await _downloadManager.DownloadFileAsync(SherpaServerUrl, "user://bin", "sherpa-onnx-linux.tar.bz2");
+
+                if (!success)
                 {
-                    if (global::System.IO.Directory.Exists(targetSherpaDir)) global::System.IO.Directory.Delete(targetSherpaDir, true);
-                    global::System.IO.Directory.Move(extractedSherpaDir, targetSherpaDir);
+                    GD.PrintErr("SetupWizard: Fatal network error downloading Sherpa-ONNX engine.");
+                    if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center][color=red]Error de red descargando motor de voz.[/color][/center]";
+                    return; 
                 }
-                OS.Execute("chmod", new string[] { "+x", sherpaBinPath }, new Godot.Collections.Array(), true);
+
+                // Orchestrates directory normalization by identifying and renaming the extracted payload discarding semver suffixes.
+                string[] extractedDirs = global::System.IO.Directory.GetDirectories(binDirAbs, "sherpa-onnx*");
+                foreach (string dir in extractedDirs)
+                {
+                    if (dir != sherpaBaseDir)
+                    {
+                        if (global::System.IO.Directory.Exists(sherpaBaseDir)) global::System.IO.Directory.Delete(sherpaBaseDir, true);
+                        global::System.IO.Directory.Move(dir, sherpaBaseDir);
+                        break;
+                    }
+                }
+
+                // Iterates through the shared library directory allocating read permissions to guarantee LD_LIBRARY_PATH loading.
+                string libDir = global::System.IO.Path.Combine(sherpaBaseDir, "lib");
+                if (global::System.IO.Directory.Exists(libDir))
+                {
+                    string[] sharedLibs = global::System.IO.Directory.GetFiles(libDir, "*.so*", global::System.IO.SearchOption.AllDirectories);
+                    foreach (string lib in sharedLibs)
+                    {
+                        OS.Execute("chmod", new string[] { "a+r", lib }, new Godot.Collections.Array(), true);
+                    }
+                    GD.Print("SetupWizard: Read permissions successfully applied to Sherpa shared libraries.");
+                }
             }
 
             string piperDir = ProjectSettings.GlobalizePath("user://models");
@@ -351,16 +380,16 @@ namespace Logic.Utils
 
                 string safeFileName = preset.Name.Replace(" ", "_");
                 
-                // Extrae los descriptores de archivo basándose en la clase de modelo y su topología de red de origen.
+                // Maps the file extension incorporating conditional parsing logic for specific engine compatibility.
                 if (preset.Name.Contains("Whisper")) safeFileName += ".bin";
-                else if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa")) 
+                else if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa") || preset.Name.Contains("Kokoro")) 
                 {
                     safeFileName = global::System.IO.Path.GetFileName(new global::System.Uri(preset.DownloadLinks[0]).LocalPath);
                 }
                 else safeFileName += ".gguf";
 
-                // Delega las asignaciones persistentes en el gestor de configuración evaluando las clasificaciones semánticas.
-                if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa"))
+                // Delegates routing states to the configuration manager tracking active sub-models based on domain context.
+                if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa") || preset.Name.Contains("Kokoro"))
                 {
                     _configManager.ActiveTTSEngine = "sherpa-onnx";
                     _configManager.ActiveTTSModel = safeFileName.Replace(".tar.bz2", ""); 
@@ -378,11 +407,11 @@ namespace Logic.Utils
                 _configManager.ActiveModelUrl = preset.DownloadLinks[0];
                 _configManager.SaveConfiguration();
 
-                // Implementa resolución de caché dinámico diferenciando entre contenedores simples y directorios extraídos.
+                // Implements cache resolution validating the structural integrity of locally extracted paths for bypass logic.
                 string globalPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
                 bool isAlreadyExtracted = false;
                 
-                if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa"))
+                if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa") || preset.Name.Contains("Kokoro"))
                 {
                     string extractedFolderPath = ProjectSettings.GlobalizePath("user://models/" + _configManager.ActiveTTSModel);
                     if (global::System.IO.Directory.Exists(extractedFolderPath)) isAlreadyExtracted = true;
@@ -390,7 +419,7 @@ namespace Logic.Utils
 
                 if (global::System.IO.File.Exists(globalPath) || isAlreadyExtracted)
                 {
-                    GD.Print($"SetupWizard: Cache local validado para {safeFileName}");
+                    GD.Print($"SetupWizard: Local cache validated for {safeFileName}");
                     if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]El modelo {preset.Name} ya está listo. Omitiendo...[/center]";
                     await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout); 
                     continue; 
@@ -400,10 +429,9 @@ namespace Logic.Utils
 
                 bool success = await _downloadManager.DownloadFileAsync(preset.DownloadLinks[0], "user://models", safeFileName);
 
-                // Rompe el ciclo e interrumpe la transición de arranque si la transferencia binaria arroja falsos positivos.
                 if (!success)
                 {
-                    GD.PrintErr($"SetupWizard: Fallo de red con {preset.Name}");
+                    GD.PrintErr($"SetupWizard: Network failure with {preset.Name}");
                     if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center][color=red]Error de red descargando {preset.Name}.[/color][/center]";
                     return;
                 }
@@ -434,7 +462,6 @@ namespace Logic.Utils
 
         /// <summary>
         /// Transitions the internal UI state and subscribes to the BackendLauncher singleton events.
-        /// Instantiates the monitoring phase for the Docker container and the Llama server instances.
         /// </summary>
         private void StartLlamaServer()
         {
@@ -517,7 +544,7 @@ namespace Logic.Utils
 
             if (ModelDownloadStatus != null)
             {
-                ModelDownloadStatus.Text = "Error crítico al iniciar Docker o Llama Server.\nRevisa la consola o asegúrate de que Docker esté corriendo.";
+                ModelDownloadStatus.Text = "Error crítico al iniciar.";
                 ModelDownloadStatus.AddThemeColorOverride("font_color", new Color(1, 0, 0));
             }
             if (ModelDownloadProgress != null)

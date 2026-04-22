@@ -1,5 +1,3 @@
-// Archivo: ChatManager.cs
-
 using Godot;
 using System.Collections.Generic;
 using System.Text;
@@ -86,6 +84,7 @@ namespace Logic.Lite
         private string _uiBuffer = string.Empty;
         private string _ttsBuffer = string.Empty;
         private Logic.Network.NetworkManager _networkManager;
+        private Logic.Backend.NativeTTSManager _ttsManager;
 
         public override void _Ready()
         {
@@ -101,9 +100,10 @@ namespace Logic.Lite
                 _networkManager.TokenReceived += HandleTokenReceived;
             }
 
+            _ttsManager = GetNodeOrNull<Logic.Backend.NativeTTSManager>("/root/NativeTTSManager");
+
             InitializeNewSession("Chat_Default");
         }
-
         /// <summary>
         /// Instantiates a new context window and writes the initial structured payload to the OS filesystem.
         /// </summary>
@@ -169,7 +169,7 @@ namespace Logic.Lite
                 string safeText = CleanResponseForTTS(_ttsBuffer);
                 if (!string.IsNullOrWhiteSpace(safeText))
                 {
-                    _ = _networkManager.RequestTTSWebSocket(safeText);
+                    _ttsManager?.Speak(safeText);
                 }
                 _ttsBuffer = string.Empty;
             }
@@ -196,11 +196,10 @@ namespace Logic.Lite
                 var matchName = global::System.Text.RegularExpressions.Regex.Match(thoughtProcess, @"\[SESSION_NAME:\s*(.+?)\]");
                 if (matchName.Success) 
                 {
-                    string oldFilePath = _currentFilePath; // Guardar ruta vieja
+                    string oldFilePath = _currentFilePath; 
                     _currentSession.SessionName = matchName.Groups[1].Value.Trim();
                     _currentFilePath = global::System.IO.Path.Combine(_historyDirectory, $"{_currentSession.SessionName}.json");
                     
-                    // Borrar el archivo viejo si el nombre cambió
                     if (global::System.IO.File.Exists(oldFilePath) && oldFilePath != _currentFilePath)
                     {
                         global::System.IO.File.Delete(oldFilePath);
@@ -233,7 +232,7 @@ namespace Logic.Lite
 
         /// <summary>
         /// Operates as real-time evaluation middleware traversing the token streaming pipeline.
-        /// Enforces semantic chunking on visible text fragments and dynamically triggers WebSocket TTS streaming.
+        /// Enforces semantic chunking on visible text fragments and dynamically triggers native TTS integration.
         /// Resets visual buffer state upon concluding the reasoning phase to prevent length miscalculation.
         /// </summary>
         private void HandleTokenReceived(string token)
@@ -295,7 +294,7 @@ namespace Logic.Lite
                     string cleanChunk = CleanResponseForTTS(_ttsBuffer);
                     if (!string.IsNullOrWhiteSpace(cleanChunk))
                     {
-                        _ = _networkManager?.RequestTTSWebSocket(cleanChunk);
+                        _ttsManager?.Speak(cleanChunk);
                     }
                     _ttsBuffer = string.Empty;
                 }

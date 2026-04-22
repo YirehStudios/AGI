@@ -30,17 +30,18 @@ namespace Logic.Backend
         private bool _isRunning = false;
         private int _retryCount = 0;
         private const int MaxRetries = 3;
-
         private Logic.System.Config.ConfigManager _configManager;
+        private Logic.Backend.NativeTTSManager _ttsManager;
 
         public override void _Ready()
         {
             _configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+            _ttsManager = GetNodeOrNull<Logic.Backend.NativeTTSManager>("/root/NativeTTSManager");
         }
 
         public void StartBackend()
         {
-            _retryCount = 0;
+            //_retryCount = 0;
             _isPanicking = false;
             
             // Enforces a sterile execution environment prior to instantiation.
@@ -113,10 +114,10 @@ namespace Logic.Backend
         }
 
         /// <summary>
-        /// Orchestrates the asynchronous initialization sequence for the persistent local C++ servers.
-        /// Computes absolute file paths dynamically leveraging the serialized configuration properties
-        /// to allocate memory environments for Llama, Whisper, and Sherpa processes natively.
-        /// Dynamically injects conditional data directories depending on the acoustic model's requirement for espeak-ng.
+        /// Orchestrates the asynchronous allocation and binding of persistent C++ inference servers.
+        /// Maps absolute runtime environment paths processing user-defined configuration payloads.
+        /// Executes preemptive binary dependency validations to trigger panic protocols prior to allocation sequences.
+        /// Resolves shared library constraints by physically mirroring required components across execution directories and enforcing strict soname bindings.
         /// </summary>
         private async Task ManageBackendLifecycle(string modelsDir, string safeFileName)
         {
@@ -133,26 +134,63 @@ namespace Logic.Backend
                 string llamaBinPath = global::System.IO.Path.Combine(llamaBinDir, "llama-server");
                 string whisperBinPath = global::System.IO.Path.Combine(binDir, "whisper-server");
 
-                string sherpaBinDir = global::System.IO.Path.Combine(binDir, "sherpa-onnx");
-                string sherpaBinPath = global::System.IO.Path.Combine(sherpaBinDir, "sherpa-onnx-tts-server");
-                
-                // Extrae dinámicamente el directorio del modelo Kokoro desde la configuración activa.
-                string ttsFolder = _configManager?.ActiveTTSModel ?? "kokoro-multi-lang-v1_1";
-                
-                // Construye las estructuras de sistema de archivos base esperadas por la integración Kokoro en Sherpa-ONNX.
-                string kokoroModelPath = global::System.IO.Path.Combine(modelsDir, ttsFolder, "model.onnx");
-                string kokoroVoicesPath = global::System.IO.Path.Combine(modelsDir, ttsFolder, "voices.bin");
-                string kokoroTokensPath = global::System.IO.Path.Combine(modelsDir, ttsFolder, "tokens.txt");
-                
-                // Mapea la ruta del diccionario espeak-ng-data e inyecta la bandera correspondiente de forma heurística.
-                string kokoroDataDir = global::System.IO.Path.Combine(modelsDir, ttsFolder, "espeak-ng-data");
-                string dataDirFlag = global::System.IO.Directory.Exists(kokoroDataDir) ? $"--kokoro-data-dir=\"{kokoroDataDir}\"" : "";
-
-                if (!global::System.IO.File.Exists(sherpaBinPath))
+                // Evaluates the physical presence of the LLM host container before process formulation.
+                if (!global::System.IO.File.Exists(llamaBinPath))
                 {
-                    GD.PrintErr("BackendLauncher: Fatal - Native C++ TTS Server (sherpa-onnx-tts-server) not found.");
-                    HandleCrash();
+                    GD.PrintErr("BackendLauncher: Fatal - Native C++ Server (llama-server) not found.");
+                    CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
                     return;
+                }
+
+                // Evaluates the physical presence of the STT host container before process formulation.
+                if (!global::System.IO.File.Exists(whisperBinPath))
+                {
+                    GD.PrintErr("BackendLauncher: Fatal - Native C++ Server (whisper-server) not found.");
+                    CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
+                    return;
+                }
+
+                // Mirrors dynamically linked libraries and automatically generates strict soname bindings (.so.0)
+                try
+                {
+                    string[] ggmlLibs = global::System.IO.Directory.GetFiles(llamaBinDir, "libggml*.so*");
+                    foreach (string libPath in ggmlLibs)
+                    {
+                        string fileName = global::System.IO.Path.GetFileName(libPath);
+                        string destPath = global::System.IO.Path.Combine(binDir, fileName);
+                        
+                        // 1. Copia la librería base
+                        if (!global::System.IO.File.Exists(destPath))
+                        {
+                            global::System.IO.File.Copy(libPath, destPath, false);
+                        }
+
+                        // 2. AUTO-PATCH: Si la librería original termina en ".so", crea inmediatamente la versión ".so.0" que exige Whisper.
+                        if (fileName.EndsWith(".so"))
+                        {
+                            string versionedFileName = fileName + ".0";
+                            string versionedDestPath = global::System.IO.Path.Combine(binDir, versionedFileName);
+                            if (!global::System.IO.File.Exists(versionedDestPath))
+                            {
+                                global::System.IO.File.Copy(libPath, versionedDestPath, false);
+                            }
+                        }
+                    }
+
+                    // 3. HARD-PATCH: Whisper asume que siempre existe un fallback genérico de CPU con nombre estricto.
+                    string targetWhisperCpuLib = global::System.IO.Path.Combine(binDir, "libggml-cpu.so.0");
+                    if (!global::System.IO.File.Exists(targetWhisperCpuLib))
+                    {
+                        string fallbackCpu = global::System.IO.Path.Combine(binDir, "libggml-cpu-x64.so");
+                        if (global::System.IO.File.Exists(fallbackCpu)) 
+                        {
+                            global::System.IO.File.Copy(fallbackCpu, targetWhisperCpuLib, false);
+                        }
+                    }
+                }
+                catch (Exception copyEx)
+                {
+                    GD.PrintErr($"BackendLauncher: Failure synchronizing shared libraries for native instances. {copyEx.Message}");
                 }
 
                 ProcessStartInfo whisperInfo = new ProcessStartInfo
@@ -175,28 +213,15 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
-                // Asigna las directivas CLI exigidas por la implementación nativa C++ interpolando las rutas pre-evaluadas y la bandera condicional.
-                ProcessStartInfo ttsEngineInfo = new ProcessStartInfo
-                {
-                    FileName = sherpaBinPath,
-                    Arguments = $"--kokoro-model=\"{kokoroModelPath}\" --kokoro-voices=\"{kokoroVoicesPath}\" --kokoro-tokens=\"{kokoroTokensPath}\" {dataDirFlag} --port={SherpaPort}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-                whisperInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = binDir;
+                // Concatenates multiple library paths resolving segmentation faults natively triggered by CPU compilation bindings.
+                whisperInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = $"{binDir}:{llamaBinDir}";
                 whisperInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = "1";
                 
                 llamaInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = llamaBinDir;
                 llamaInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = "1";
 
-                ttsEngineInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = sherpaBinDir;
-
                 _whisperProcess = new Process { StartInfo = whisperInfo, EnableRaisingEvents = true };
                 _llamaProcess = new Process { StartInfo = llamaInfo, EnableRaisingEvents = true };
-                _sherpaProcess = new Process { StartInfo = ttsEngineInfo, EnableRaisingEvents = true };
 
                 _whisperProcess.OutputDataReceived += (sender, e) => 
                 { 
@@ -243,6 +268,7 @@ namespace Logic.Backend
                         
                         if (e.Data.Contains("server is listening on") || e.Data.Contains("HTTP server listening"))
                         {
+                            _retryCount = 0; 
                             GD.Print("BackendLauncher: Llama Server natively loaded into memory successfully.");
                             CallDeferred(MethodName.EmitSignal, SignalName.BackendReady);
                         }
@@ -250,51 +276,39 @@ namespace Logic.Backend
                 };
                 _llamaProcess.Exited += OnProcessExited;
 
-                _sherpaProcess.OutputDataReceived += (sender, e) =>
+                // Explicitly resolves and binds the TTS unmanaged engine sequence strictly prior to process execution contexts.
+                GD.Print("[DEBUG] BackendLauncher: Solicitando inicialización nativa de Sherpa-ONNX (TTS)...");
+                if (_ttsManager != null) 
                 {
-                    if (!string.IsNullOrEmpty(e.Data))
-                    {
-                        GD.Print($"[Sherpa-ONNX] {e.Data}");
-                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Sherpa-ONNX] {e.Data}");
-                    }
-                };
-
-                _sherpaProcess.ErrorDataReceived += (sender, e) =>
+                    bool ttsReady = _ttsManager.InitializeNativeEngine();
+                    if (ttsReady) GD.Print("[DEBUG] BackendLauncher: Motor TTS Nativo enlazado correctamente a la memoria.");
+                    else GD.PrintErr("[DEBUG] BackendLauncher: FALLO Crítico al enlazar Motor TTS Nativo.");
+                } 
+                else 
                 {
-                    if (!string.IsNullOrEmpty(e.Data))
-                    {
-                        GD.PrintErr($"[Sherpa-ONNX ERR] {e.Data}");
-                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Sherpa-ONNX ERR] {e.Data}");
+                    GD.PrintErr("[DEBUG] BackendLauncher: NativeTTSManager no fue encontrado en el SceneTree.");
+                }
 
-                        string lowerData = e.Data.ToLower();
-                        bool isFatalError = lowerData.Contains("out of memory") || lowerData.Contains("bad allocation") || lowerData.Contains("segmentation fault");
-                        if (isFatalError) PanicKill($"Critical memory fault: {e.Data}");
-                    }
-                };
-                _sherpaProcess.Exited += OnProcessExited;
-
+                GD.Print($"[DEBUG] BackendLauncher: Arrancando motor STT (Whisper) con PID asignado por el OS...");
                 _whisperProcess.Start();
                 _whisperProcess.BeginOutputReadLine();
                 _whisperProcess.BeginErrorReadLine();
 
+                GD.Print($"[DEBUG] BackendLauncher: Arrancando motor LLM (Llama) en puerto {LlamaPort}...");
                 _llamaProcess.Start();
                 _llamaProcess.BeginOutputReadLine();
                 _llamaProcess.BeginErrorReadLine();
 
-                _sherpaProcess.Start();
-                _sherpaProcess.BeginOutputReadLine();
-                _sherpaProcess.BeginErrorReadLine();
-
                 _isRunning = true;
 
-                GD.Print($"BackendLauncher: Natives initialized. Llama PID: {_llamaProcess.Id}, Whisper PID: {_whisperProcess.Id}, Sherpa PID: {_sherpaProcess.Id}");
+                GD.Print($"BackendLauncher: Natives initialized. Llama PID: {_llamaProcess.Id}, Whisper wrapper initialized. TTS is mapped via Unmanaged P/Invoke.");
                 
                 await MonitorProcessHealth();
             }
             catch (Exception ex)
             {
                 GD.PrintErr($"BackendLauncher: General fault instantiating native binaries. {ex.Message}");
-                HandleCrash();
+                CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
             }
         }
 
@@ -392,14 +406,26 @@ namespace Logic.Backend
             await Task.Delay(5000);
         }
 
+        /// <summary>
+        /// Intercepts termination events emitted by attached operating system child processes.
+        /// Computes runtime boolean evaluations to dispatch immediate teardown instructions, preventing main thread deadlocks.
+        /// </summary>
         private void OnProcessExited(object sender, EventArgs e)
         {
-            // Bypasses the standardized crash handler route if the lifecycle is actively managed by the Panic Controller.
+            // Aborts processing flow ensuring no interference occurs against ongoing structural purge cycles.
             if (_isPanicking) return;
             
-            _isRunning = false;
-            GD.PrintErr("BackendLauncher: Cese inesperado de la ejecución en uno de los motores nativos.");
-            HandleCrash();
+            // Evaluates active states redirecting unhandled process failures towards forced panic cycles rather than endless recovery matrices.
+            if (_isRunning)
+            {
+                PanicKill("Motor nativo terminó inesperadamente. Abortando para evitar UI congelada.");
+            }
+            else
+            {
+                _isRunning = false;
+                GD.PrintErr("BackendLauncher: Cese inesperado de la ejecución en uno de los motores nativos.");
+                HandleCrash();
+            }
         }
 
         private void HandleCrash()
@@ -417,14 +443,6 @@ namespace Logic.Backend
             }
         }
 
-        /// <summary>
-        /// Ensures structural memory hygiene by forcefully dispatching termination signals to active
-        /// child processes synchronously during the Godot node tree deallocation sequence.
-        /// </summary>
-        /// <summary>
-        /// Ensures structural memory hygiene by forcefully dispatching termination signals to active
-        /// child processes synchronously during the Godot node tree deallocation sequence.
-        /// </summary>
         /// <summary>
         /// Ensures structural memory hygiene by forcefully dispatching termination signals to active
         /// child processes synchronously during the Godot node tree deallocation sequence.
