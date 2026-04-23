@@ -8,19 +8,20 @@
 [ext_resource type="Texture2D" uid="uid://b5w5qmdk33hhg" path="res://Resources/img4.png" id="5_675c4"]
 [ext_resource type="Texture2D" uid="uid://b0gc5q4xau83j" path="res://Resources/flecha_enviar.png" id="5_ug3aw"]
 [ext_resource type="VideoStream" uid="uid://vvnb5vwgivbh" path="res://Resources/Carro.ogv" id="6_jta4j"]
-[ext_resource type="Texture2D" uid="uid://66jgraj87ae3" path="res://Resources/Leftbasewing.png" id="6_q3ipm"]
+[ext_resource type="Texture2D" uid="uid://66jgraj87ae3" path="res://Resources/Leftbasewing.png" id="6_rok2p"]
 [ext_resource type="VideoStream" uid="uid://0esyq17ynyll" path="res://Resources/Farming-Simulator.ogv" id="7_amhcu"]
-[ext_resource type="Texture2D" uid="uid://dtqa07hv42cfu" path="res://Resources/Rightbasewing.png" id="7_jgyfx"]
+[ext_resource type="Texture2D" uid="uid://dtqa07hv42cfu" path="res://Resources/Rightbasewing.png" id="7_rn0hu"]
 [ext_resource type="VideoStream" uid="uid://bc7xtarwn1qiv" path="res://Resources/Paisaje.ogv" id="8_675c4"]
+[ext_resource type="Texture2D" uid="uid://bwewlane66cuh" path="res://Resources/Images/Icons/Util/Thinking.svg" id="9_think"]
 [ext_resource type="VideoStream" uid="uid://b7hhl2fcqhlrl" path="res://Resources/Super-Tux.ogv" id="9_u6rn7"]
-[ext_resource type="FontFile" uid="uid://ogy7poywqv0f" path="res://Resources/Fonts/Inter/Inter-VariableFont_opsz,wght.ttf" id="12_b06b1"]
+[ext_resource type="FontFile" uid="uid://bb0i23286h1cm" path="res://Resources/Fonts/Roboto/static/Roboto-Regular.ttf" id="10_hdi2b"]
+[ext_resource type="FontFile" uid="uid://b8trggl68kbtb" path="res://Resources/Fonts/Roboto/static/Roboto-Bold.ttf" id="11_hoj42"]
+[ext_resource type="FontFile" uid="uid://d1fr2tsx3xusl" path="res://Resources/Fonts/Roboto/static/Roboto-BoldItalic.ttf" id="12_rok2p"]
 [ext_resource type="Script" uid="uid://dbap0gqox0ty1" path="res://addons/markdownlabel/markdownlabel.gd" id="12_w5qr0"]
 [ext_resource type="Script" uid="uid://dcx7crs23nf4" path="res://addons/markdownlabel/header_formats/h1_format.gd" id="13_ogl8u"]
-[ext_resource type="FontFile" uid="uid://dh2m6i0ene4mw" path="res://Resources/Fonts/Inter/static/Inter_18pt-Bold.ttf" id="13_rq6ts"]
+[ext_resource type="FontFile" uid="uid://c7c1al7wx066o" path="res://Resources/Fonts/Roboto/static/Roboto-Italic.ttf" id="13_rn0hu"]
 [ext_resource type="Script" uid="uid://d0sin64i4v3op" path="res://addons/markdownlabel/header_formats/h2_format.gd" id="14_2d4k7"]
-[ext_resource type="FontFile" uid="uid://cnn7lrla24g7y" path="res://Resources/Fonts/Inter/static/Inter_18pt-BoldItalic.ttf" id="14_cae2h"]
 [ext_resource type="Script" uid="uid://dlok0dv1tq2bf" path="res://addons/markdownlabel/header_formats/h3_format.gd" id="15_143c2"]
-[ext_resource type="FontFile" uid="uid://c2w5e8cbsm7yt" path="res://Resources/Fonts/Inter/Inter-Italic-VariableFont_opsz,wght.ttf" id="15_js05h"]
 [ext_resource type="Script" uid="uid://bayuh2vafablg" path="res://addons/markdownlabel/header_formats/h4_format.gd" id="16_b06b1"]
 [ext_resource type="Script" uid="uid://dfr1w7u3jgni3" path="res://addons/markdownlabel/header_formats/h5_format.gd" id="17_rq6ts"]
 [ext_resource type="Script" uid="uid://bsi6dexoofpe6" path="res://addons/markdownlabel/header_formats/h6_format.gd" id="18_cae2h"]
@@ -32,6 +33,10 @@
 [ext_resource type="Texture2D" uid="uid://cry5kfdoig0ql" path="res://Resources/rightpupil.png" id="29_rn0hu"]
 [ext_resource type="Texture2D" uid="uid://bvcyg68deuuto" path="res://Resources/Xleft.png" id="30_dcuh6"]
 [ext_resource type="Texture2D" uid="uid://4qk6xhms8a2j" path="res://Resources/Xright.png" id="31_7532l"]
+[ext_resource type="LabelSettings" uid="uid://bbapk8dj7k1dh" path="res://Resources/Components/LetterIA.tres" id="31_q3ipm"]
+[ext_resource type="Texture2D" uid="uid://bm4yy3xsabxce" path="res://Resources/Images/Icons/Util/Copy.svg" id="32_copy"]
+[ext_resource type="Texture2D" uid="uid://cugiricf6tyld" path="res://Resources/Images/Icons/Util/Dowland.svg" id="33_down"]
+[ext_resource type="Texture2D" uid="uid://bqiks5vswd3pi" path="res://Resources/Images/Icons/Util/SaveFile.svg" id="34_save"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_popup_hover"]
 content_margin_left = 12.0
@@ -154,23 +159,17 @@ code = "shader_type canvas_item;
 uniform float glow_intensity : hint_range(0.0, 1.0) = 0.0;
 void fragment() {
     vec4 c = texture(TEXTURE, UV);
-    
-    // Leemos los pixeles vecinos para crear el aura hacia afuera
     vec2 spread = TEXTURE_PIXEL_SIZE * 8.0 * glow_intensity;
     float aura = texture(TEXTURE, UV + vec2(spread.x, 0.0)).a;
     aura += texture(TEXTURE, UV + vec2(-spread.x, 0.0)).a;
     aura += texture(TEXTURE, UV + vec2(0.0, spread.y)).a;
     aura += texture(TEXTURE, UV + vec2(0.0, -spread.y)).a;
-    
-    // Si estamos en la parte transparente, pintamos el resplandor neón
     if (c.a < 0.1 && aura > 0.0) {
         COLOR = vec4(0.4, 0.8, 1.0, (aura / 4.0) * glow_intensity * 0.6);
-    } 
-    // Si es la parte blanca o negra de la cara, la mantenemos intacta
+    }
     else if (distance(c.rgb, vec3(1.0)) < 0.2 || distance(c.rgb, vec3(0.0)) < 0.2) {
         COLOR = c;
-    } 
-    // Si son las alas de color, las iluminamos ligeramente
+    }
     else {
         COLOR = vec4(mix(c.rgb, vec3(1.0), glow_intensity * 0.3), c.a);
     }
@@ -199,6 +198,42 @@ shadow_color = Color(0, 0, 0, 0.05)
 shadow_size = 10
 shadow_offset = Vector2(0, 2)
 anti_aliasing_size = 1.5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_code_bg"]
+bg_color = Color(0.12, 0.12, 0.14, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_code_header"]
+content_margin_left = 16.0
+content_margin_right = 16.0
+bg_color = Color(0.18, 0.18, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_clear"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_icon_btn"]
+bg_color = Color(0, 0, 0, 0)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_icon_btn_hover"]
+bg_color = Color(1, 1, 1, 0.1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="CodeHighlighter" id="CodeHighlighter_main"]
+number_color = Color(0.5, 0.5, 0.5, 1)
+symbol_color = Color(0.8, 0.8, 0.8, 1)
+function_color = Color(0.3, 0.6, 0.9, 1)
+member_variable_color = Color(0.4, 0.8, 0.8, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_input_bg"]
 content_margin_left = 24.0
@@ -249,6 +284,13 @@ corner_radius_bottom_right = 25
 corner_radius_bottom_left = 25
 anti_aliasing_size = 1.5
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rok2p"]
+bg_color = Color(0, 0.34901962, 0.8, 1)
+corner_radius_top_left = 25
+corner_radius_top_right = 25
+corner_radius_bottom_right = 25
+corner_radius_bottom_left = 25
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_send_hover"]
 bg_color = Color(0.2, 0.6, 1, 1)
 corner_radius_top_left = 25
@@ -257,7 +299,69 @@ corner_radius_bottom_right = 25
 corner_radius_bottom_left = 25
 anti_aliasing_size = 1.5
 
-[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "UserMessageTemplate", "BotMessageTemplate", "UserMessageMarkdownNode", "BotMessageMarkdownNode", "BotMessageLayoutNode", "ToolSelector")]
+[sub_resource type="Animation" id="Animation_q3ipm"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer/Thinking:modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(0.5411765, 0.5411765, 0.5411765, 1)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer/BotActions:label_settings:font_color")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(0.5409905, 0.5409905, 0.5409905, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_jgyfx"]
+resource_name = "Thinking"
+length = 1.5
+loop_mode = 2
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer/Thinking:modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 1.5),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(0.7137255, 0.7137255, 0.7137255, 1), Color(0.4045111, 0.40451115, 0.4045111, 1)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer/BotActions:label_settings:font_color")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 1.5),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(0.7121294, 0.7121294, 0.71212935, 1), Color(0.40392157, 0.40392157, 0.40392157, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_rpmow"]
+_data = {
+&"RESET": SubResource("Animation_q3ipm"),
+&"Thinking": SubResource("Animation_jgyfx")
+}
+
+[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "UserMessageTemplate", "BotMessageTemplate", "UserMessageMarkdownNode", "BotMessageMarkdownNode", "BotMessageLayoutNode", "ToolSelector", "CodeBlockTemplate", "BotActionsContainer", "BotActions", "BotAvatarContainer", "LanguageLabel", "CodeEditor", "CopyBtn", "GotaCuerpo", "AlaIzquierda", "AlaDerecha", "Pupilas", "Equis")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -276,16 +380,28 @@ UserMessageMarkdownNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollCo
 BotMessageMarkdownNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/MessageBody")
 BotMessageLayoutNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout")
 ToolSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolSelector")
+CodeBlockTemplate = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/CodeBlockTemplate")
 RandomImage1 = ExtResource("2_q7f8p")
 RandomImage2 = ExtResource("3_jta4j")
 RandomImage3 = ExtResource("4_amhcu")
 RandomImage4 = ExtResource("5_675c4")
-WingLeftBaseTexture = ExtResource("6_q3ipm")
-WingRightBaseTexture = ExtResource("7_jgyfx")
+WingLeftBaseTexture = ExtResource("6_rok2p")
+WingRightBaseTexture = ExtResource("7_rn0hu")
 RandomVideo1 = ExtResource("6_jta4j")
 RandomVideo2 = ExtResource("7_amhcu")
 RandomVideo3 = ExtResource("8_675c4")
 RandomVideo4 = ExtResource("9_u6rn7")
+BotActionsContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer")
+BotActions = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer/BotActions")
+BotAvatarContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer")
+LanguageLabel = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/CodeBlockTemplate/Layout/HeaderPanel/HeaderRow/LanguageLabel")
+CodeEditor = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/CodeBlockTemplate/Layout/CodeEditor")
+CopyBtn = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/CodeBlockTemplate/Layout/HeaderPanel/HeaderRow/CopyBtn")
+GotaCuerpo = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/GotaCuerpo")
+AlaIzquierda = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/AlaIzquierda")
+AlaDerecha = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/AlaDerecha")
+Pupilas = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/Pupilas")
+Equis = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/Equis")
 
 [node name="MainContainer" type="HBoxContainer" parent="." unique_id=2091277489]
 layout_mode = 1
@@ -320,6 +436,7 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 25
 
 [node name="UserMessageTemplate" type="HBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer" unique_id=1840614817]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 15
 alignment = 2
@@ -341,10 +458,10 @@ layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 2
 theme_override_colors/default_color = Color(1, 1, 1, 1)
-theme_override_fonts/normal_font = ExtResource("12_b06b1")
-theme_override_fonts/bold_font = ExtResource("13_rq6ts")
-theme_override_fonts/bold_italics_font = ExtResource("14_cae2h")
-theme_override_fonts/italics_font = ExtResource("15_js05h")
+theme_override_fonts/normal_font = ExtResource("10_hdi2b")
+theme_override_fonts/bold_font = ExtResource("11_hoj42")
+theme_override_fonts/bold_italics_font = ExtResource("12_rok2p")
+theme_override_fonts/italics_font = ExtResource("13_rn0hu")
 theme_override_fonts/mono_font = ExtResource("23_rq6ts")
 bbcode_enabled = true
 fit_content = true
@@ -375,6 +492,7 @@ expand_mode = 1
 stretch_mode = 6
 
 [node name="BotMessageTemplate" type="HBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer" unique_id=761105983]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 15
 
@@ -492,22 +610,40 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
 
 [node name="MessageLayout" type="VBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble" unique_id=721234975]
 layout_mode = 2
+theme_override_constants/separation = 12
 
-[node name="MessageBody" type="RichTextLabel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout" unique_id=2066634006]
+[node name="BotActionsContainer" type="HBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout" unique_id=645629167]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Thinking" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer" unique_id=1390650069]
+modulate = Color(0.5411765, 0.5411765, 0.5411765, 1)
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+texture = ExtResource("9_think")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BotActions" type="Label" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer" unique_id=1088014473]
+layout_mode = 2
+text = "Pensando"
+label_settings = ExtResource("31_q3ipm")
+vertical_alignment = 1
+
+[node name="MessageBody" type="RichTextLabel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout" unique_id=1475973342]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 2
-theme_override_colors/default_color = Color(0.11, 0.11, 0.118, 1)
-theme_override_fonts/normal_font = ExtResource("12_b06b1")
-theme_override_fonts/bold_font = ExtResource("13_rq6ts")
-theme_override_fonts/bold_italics_font = ExtResource("14_cae2h")
-theme_override_fonts/italics_font = ExtResource("15_js05h")
+theme_override_colors/default_color = Color(0, 0, 0, 1)
+theme_override_fonts/normal_font = ExtResource("10_hdi2b")
+theme_override_fonts/bold_font = ExtResource("11_hoj42")
+theme_override_fonts/bold_italics_font = ExtResource("12_rok2p")
+theme_override_fonts/italics_font = ExtResource("13_rn0hu")
 theme_override_fonts/mono_font = ExtResource("23_rq6ts")
 bbcode_enabled = true
 fit_content = true
 scroll_following = true
-scroll_following_visible_characters = true
 autowrap_mode = 2
 context_menu_enabled = true
 selection_enabled = true
@@ -518,6 +654,89 @@ h3 = SubResource("Resource_2c06c")
 h4 = SubResource("Resource_wyifx")
 h5 = SubResource("Resource_cdhtr")
 h6 = SubResource("Resource_8f5ok")
+
+[node name="CodeBlockTemplate" type="PanelContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer" unique_id=1183159831]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_code_bg")
+
+[node name="Layout" type="VBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/CodeBlockTemplate" unique_id=2057107237]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="HeaderPanel" type="PanelContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/CodeBlockTemplate/Layout" unique_id=1962329011]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_code_header")
+
+[node name="HeaderRow" type="HBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/CodeBlockTemplate/Layout/HeaderPanel" unique_id=325871757]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LanguageLabel" type="Label" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/CodeBlockTemplate/Layout/HeaderPanel/HeaderRow" unique_id=728538106]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 14
+text = "csharp"
+vertical_alignment = 1
+
+[node name="Spacer" type="Panel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/CodeBlockTemplate/Layout/HeaderPanel/HeaderRow" unique_id=753649030]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxEmpty_clear")
+
+[node name="SaveBtn" type="Button" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/CodeBlockTemplate/Layout/HeaderPanel/HeaderRow" unique_id=1258088291]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Guardar Archivo"
+theme_override_styles/normal = SubResource("StyleBoxFlat_icon_btn")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_icon_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_icon_btn_hover")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_clear")
+icon = ExtResource("34_save")
+expand_icon = true
+
+[node name="DownloadBtn" type="Button" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/CodeBlockTemplate/Layout/HeaderPanel/HeaderRow" unique_id=1255822741]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Descargar"
+theme_override_styles/normal = SubResource("StyleBoxFlat_icon_btn")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_icon_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_icon_btn_hover")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_clear")
+icon = ExtResource("33_down")
+expand_icon = true
+
+[node name="CopyBtn" type="Button" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/CodeBlockTemplate/Layout/HeaderPanel/HeaderRow" unique_id=840010217]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Copiar Código"
+theme_override_styles/normal = SubResource("StyleBoxFlat_icon_btn")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_icon_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_icon_btn_hover")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_clear")
+icon = ExtResource("32_copy")
+expand_icon = true
+
+[node name="CodeEditor" type="CodeEdit" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/CodeBlockTemplate/Layout" unique_id=1179718756]
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+theme_override_colors/background_color = Color(0.12, 0.12, 0.14, 1)
+theme_override_fonts/font = ExtResource("23_rq6ts")
+editable = false
+context_menu_enabled = false
+shortcut_keys_enabled = false
+scroll_fit_content_height = true
+syntax_highlighter = SubResource("CodeHighlighter_main")
+draw_tabs = true
+draw_spaces = true
+line_folding = true
+gutters_draw_line_numbers = true
+gutters_draw_fold_gutter = true
 
 [node name="InputAreaMargin" type="MarginContainer" parent="MainContainer/ChatAreaContainer" unique_id=1181423697]
 layout_mode = 2
@@ -573,8 +792,13 @@ layout_mode = 2
 size_flags_vertical = 4
 theme_override_styles/normal = SubResource("StyleBoxFlat_send_normal")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_send_pressed")
+theme_override_styles/pressed_mirrored = SubResource("StyleBoxFlat_rok2p")
 theme_override_styles/hover = SubResource("StyleBoxFlat_send_hover")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 icon = ExtResource("5_ug3aw")
 icon_alignment = 1
 expand_icon = true
+
+[node name="ChatAnimation" type="AnimationPlayer" parent="." unique_id=993789036]
+libraries/ = SubResource("AnimationLibrary_rpmow")
+autoplay = &"Thinking"
