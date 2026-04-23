@@ -4,21 +4,26 @@ using System.Threading.Tasks;
 
 namespace Logic.UI
 {
+    /// <summary>
+    /// Core controller for the Chatbot user interface. Handles user input, network communication formatting,
+    /// audio recording for Speech-to-Text, UI animations, and dynamic markdown/code-block rendering.
+    /// </summary>
     public partial class ChatbotMain : Control
     {
         [Export] public ScrollContainer ChatScrollContainer;
+        
         [Export] public VBoxContainer MessagesContainer;
         [Export] public LineEdit TextInputField;
         [Export] public Button SendButton;
         [Export] public HBoxContainer UserMessageTemplate;
         [Export] public HBoxContainer BotMessageTemplate;
-        
         [Export] public RichTextLabel UserMessageMarkdownNode;
         [Export] public RichTextLabel BotMessageMarkdownNode;
         [Export] public Control BotMessageLayoutNode;
-        
         [Export] public OptionButton ToolSelector; 
+        [Export] public PanelContainer CodeBlockTemplate;
         
+        // --- Mock Media Resources ---
         [Export] public Texture2D RandomImage1;
         [Export] public Texture2D RandomImage2;
         [Export] public Texture2D RandomImage3;
@@ -32,7 +37,19 @@ namespace Logic.UI
         [Export] public VideoStream RandomVideo3;
         [Export] public VideoStream RandomVideo4;
         [Export] public AudioStreamPlayer MicroRecorderPlayer; 
+        [Export] public HBoxContainer BotActionsContainer;
+        [Export] public Label BotActions;
+        [Export] public Control BotAvatarContainer;
+        [Export] public Label LanguageLabel;
+        [Export] public CodeEdit CodeEditor;
+        [Export] public Button CopyBtn;
+        [Export] public TextureRect GotaCuerpo;
+        [Export] public TextureRect AlaIzquierda;
+        [Export] public TextureRect AlaDerecha;
+        [Export] public Control Pupilas;
+        [Export] public Control Equis;
 
+        // Internal State Variables
         private AudioEffectRecord _recorder;
         private float _silenceTimer = 0.0f;
         private const float SilenceThreshold = 0.05f;
@@ -41,12 +58,16 @@ namespace Logic.UI
         private HBoxContainer _currentBotMessageNode;
         private bool _isLiveModeEnabled = true;
         private bool _isWaitingForResponse = false;
-        private Godot.Timer _typingAnimationTimer;
+        private Godot.Timer _dotsAnimationTimer;
         
         private string _ttsBuffer = string.Empty;
         private string _fullMessageBuffer = string.Empty;
         private Random _randomGenerator = new Random();
 
+        /// <summary>
+        /// Called when the node enters the scene tree for the first time.
+        /// Initializes UI components, hides templates, and subscribes to required event streams from Chat and Network managers.
+        /// </summary>
         public override void _Ready()
         {
             if (TextInputField == null) return;
@@ -56,6 +77,7 @@ namespace Logic.UI
             
             if (UserMessageTemplate != null) UserMessageTemplate.Visible = false;
             if (BotMessageTemplate != null) BotMessageTemplate.Visible = false;
+            if (CodeBlockTemplate != null) CodeBlockTemplate.Visible = false;
 
             var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
             if (chatManager != null) 
@@ -72,6 +94,10 @@ namespace Logic.UI
             }
         }
 
+        /// <summary>
+        /// Called every frame. 
+        /// Processes audio input levels continuously to detect voice activity and triggers Speech-to-Text payload generation upon silence detection.
+        /// </summary>
         public override void _Process(double delta)
         {
             if (!_isLiveModeEnabled || _recorder == null) return;
@@ -95,13 +121,18 @@ namespace Logic.UI
             }
         }
 
+        /// <summary>
+        /// Activates the audio recorder effect when voice is detected over the threshold.
+        /// </summary>
         private void StartRecording()
         {
             _isRecording = true;
             _recorder.SetRecordingActive(true);
-            GD.Print("ChatBot: Voice detected, recording...");
         }
 
+        /// <summary>
+        /// Deactivates the audio recorder effect, saves the buffer to a local WAV file, and dispatches an STT request.
+        /// </summary>
         private void StopAndSendRecording()
         {
             _isRecording = false;
@@ -122,23 +153,34 @@ namespace Logic.UI
             _silenceTimer = 0.0f;
         }
 
+        /// <summary>
+        /// Callback invoked upon successful transcription of the recorded audio. Triggers the standard message processing pipeline.
+        /// </summary>
         private void OnSTTCompleted(string recognizedText)
         {
             if (string.IsNullOrWhiteSpace(recognizedText)) return;
-            GD.Print("[FLOW] Initiating LLM response chain...");
             _ = ProcessMessage(recognizedText);
         }
 
+        /// <summary>
+        /// Handles the UI event when the user clicks the physical send button.
+        /// </summary>
         private void OnSendPressed()
         {
             _ = ProcessMessage(TextInputField.Text);
         }
 
+        /// <summary>
+        /// Handles the UI event when the user submits text via the 'Enter' key.
+        /// </summary>
         private void OnTextSubmitted(string newText)
         {
             _ = ProcessMessage(newText);
         }
 
+        /// <summary>
+        /// Orchestrates the instantiation of the user message UI node, blocks input to prevent race conditions, and routes the query.
+        /// </summary>
         private async Task ProcessMessage(string text)
         {
             if (string.IsNullOrWhiteSpace(text) || _isWaitingForResponse) return;
@@ -148,33 +190,23 @@ namespace Logic.UI
             SendButton.Disabled = true;
 
             HBoxContainer newUserMsg = (HBoxContainer)UserMessageTemplate.Duplicate();
-            
             string relativePath = UserMessageTemplate.GetPathTo(UserMessageMarkdownNode);
             RichTextLabel userMarkdownLabel = newUserMsg.GetNode<RichTextLabel>(relativePath);
             
             userMarkdownLabel.Set("markdown_text", text);
-            
             newUserMsg.Visible = true;
             MessagesContainer.AddChild(newUserMsg);
             ScrollToBottom();
 
-            // =========================================================
-            // 🛠️ MODO DE PRUEBA: COMANDO SECRETO PARA VER EL ERROR
-            // =========================================================
             if (text.Trim().ToLower() == "/error")
             {
-                OnBotStartedThinking(); // Aparece Eden en pantalla
-                
-                // Esperamos 1.5 segundos para crear suspenso
+                OnBotStartedThinking(); 
                 await ToSignal(GetTree().CreateTimer(1.5f), SceneTreeTimer.SignalName.Timeout);
-                
-                // ¡PUM! Detonamos la animación
                 TriggerConnectionErrorAnimation(); 
-                
                 _isWaitingForResponse = false;
                 SendButton.Disabled = false;
                 TextInputField.Editable = true;
-                return; // Cortamos aquí para que no intente buscar a la IA
+                return; 
             }
 
             int selectedTool = ToolSelector != null ? ToolSelector.Selected : 0;
@@ -202,51 +234,73 @@ namespace Logic.UI
             }
         }
 
+        /// <summary>
+        /// Prepares the UI for incoming AI tokens by creating a new Bot message layout and starting the idle "Thinking" animation.
+        /// </summary>
         private void OnBotStartedThinking()
         {
             _fullMessageBuffer = string.Empty;
 
             HBoxContainer newBotMsg = (HBoxContainer)BotMessageTemplate.Duplicate();
-            
             string relativePath = BotMessageTemplate.GetPathTo(BotMessageMarkdownNode);
             RichTextLabel botTextLabel = newBotMsg.GetNode<RichTextLabel>(relativePath);
             
-            botTextLabel.Set("markdown_text", ".");
+            botTextLabel.Set("markdown_text", "");
             newBotMsg.Visible = true;
             MessagesContainer.AddChild(newBotMsg);
             
             _currentBotMessageNode = newBotMsg;
-            ScrollToBottom();
-            StartTypingAnimation(botTextLabel);
 
-            // ANIMACIONES VIEJAS ELIMINADAS: Ahora el logo es estático y profesional.
+            if (BotActions != null)
+            {
+                string path = BotMessageTemplate.GetPathTo(BotActions);
+                Label actionsLabel = newBotMsg.GetNodeOrNull<Label>(path);
+                if (actionsLabel != null)
+                {
+                    actionsLabel.Text = "Pensando";
+                    StartDotsAnimation(actionsLabel, "Pensando");
+                }
+            }
+            
+            ScrollToBottom();
         }
 
+        /// <summary>
+        /// Simulates media generation processes locally (image or video generation) based on the user's prompt tool selection.
+        /// </summary>
         private async Task GenerateMockMediaResponse(string prompt, bool isVideo)
         {
             HBoxContainer newBotMsg = (HBoxContainer)BotMessageTemplate.Duplicate();
-            
             string mdRelativePath = BotMessageTemplate.GetPathTo(BotMessageMarkdownNode);
             RichTextLabel botTextLabel = newBotMsg.GetNode<RichTextLabel>(mdRelativePath);
-            
             string layoutRelativePath = BotMessageTemplate.GetPathTo(BotMessageLayoutNode);
             Control messageLayout = newBotMsg.GetNode<Control>(layoutRelativePath);
 
-            botTextLabel.Set("markdown_text", isVideo ? "Generando video para: " + prompt : "Generando imagen para: " + prompt);
-            
+            Label actionsLabel = null;
+            if (BotActions != null)
+            {
+                string path = BotMessageTemplate.GetPathTo(BotActions);
+                actionsLabel = newBotMsg.GetNodeOrNull<Label>(path);
+                if (actionsLabel != null)
+                {
+                    string baseText = isVideo ? "Generando video" : "Generando imagen";
+                    actionsLabel.Text = baseText;
+                    StartDotsAnimation(actionsLabel, baseText);
+                }
+            }
+
+            botTextLabel.Set("markdown_text", "");
             newBotMsg.Visible = true;
             MessagesContainer.AddChild(newBotMsg);
             ScrollToBottom();
-            StartTypingAnimation(botTextLabel);
 
             await ToSignal(GetTree().CreateTimer(3.0f), SceneTreeTimer.SignalName.Timeout);
 
-            StopTypingAnimation();
-            botTextLabel.Set("markdown_text", isVideo ? "¡Aquí tienes tu video!" : "¡Aquí tienes tu imagen!");
+            StopDotsAnimation();
+            if (actionsLabel != null) actionsLabel.Text = string.Empty;
 
             if (isVideo)
             {
-                // (Código de video se mantiene intacto)
                 VBoxContainer videoWrapper = new VBoxContainer();
                 videoWrapper.CustomMinimumSize = new Vector2(480, 0);
                 videoWrapper.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -330,6 +384,9 @@ namespace Logic.UI
             TextInputField.GrabFocus();
         }
 
+        /// <summary>
+        /// Real-time stream handler appending parsed language tokens dynamically onto the designated RichTextLabel node.
+        /// </summary>
         private void OnTokenReceived(string token)
         {
             if (_currentBotMessageNode == null) return;
@@ -337,35 +394,134 @@ namespace Logic.UI
             string relativePath = BotMessageTemplate.GetPathTo(BotMessageMarkdownNode);
             RichTextLabel messageBody = _currentBotMessageNode.GetNode<RichTextLabel>(relativePath);
             
-            if (_typingAnimationTimer != null)
-            {
-                StopTypingAnimation();
-                _fullMessageBuffer = string.Empty;
-            }
-
             _fullMessageBuffer += token;
             messageBody.Set("markdown_text", _fullMessageBuffer);
             
             ScrollToBottom();
         }
 
+        /// <summary>
+        /// Finalizes the AI conversation turn, halts asynchronous animations, evaluates custom markdown blocks, 
+        /// hides the entire bot actions container, and restores user controls.
+        /// </summary>
         private void OnBotFinishedSpeaking(string fullResponse)
         {
             _isWaitingForResponse = false;
             TextInputField.Editable = true;
             SendButton.Disabled = false;
 
+            StopDotsAnimation();
+
             if (_currentBotMessageNode != null)
             {
-                Control avatarNode = _currentBotMessageNode.GetNodeOrNull<Control>("AvatarPanel/BotAvatarContainer");
-                if (avatarNode != null)
+                if (BotActionsContainer != null)
                 {
-                    avatarNode.Scale = new Vector2(1.0f, 1.0f);
-                    avatarNode.Modulate = new Color(1.0f, 1.0f, 1.0f, 1.0f);
+                    string path = BotMessageTemplate.GetPathTo(BotActionsContainer);
+                    HBoxContainer actionsContainer = _currentBotMessageNode.GetNodeOrNull<HBoxContainer>(path);
+                    if (actionsContainer != null) actionsContainer.Visible = false;
+                }
+
+                if (BotAvatarContainer != null)
+                {
+                    string path = BotMessageTemplate.GetPathTo(BotAvatarContainer);
+                    Control avatarNode = _currentBotMessageNode.GetNodeOrNull<Control>(path);
+                    if (avatarNode != null)
+                    {
+                        avatarNode.Scale = new Vector2(1.0f, 1.0f);
+                        avatarNode.Modulate = new Color(1.0f, 1.0f, 1.0f, 1.0f);
+                    }
+                }
+
+                InjectCodeBlocks(_fullMessageBuffer);
+            }
+        }
+
+        /// <summary>
+        /// Parses the final message buffer for markdown code segments.
+        /// Splits the content by block delimiters and dynamically injects interactive UI Godot panels for code, while reconstructing standard markdown nodes.
+        /// </summary>
+        private void InjectCodeBlocks(string rawText)
+        {
+            if (string.IsNullOrWhiteSpace(rawText) || !rawText.Contains("```")) return;
+            if (_currentBotMessageNode == null || CodeBlockTemplate == null) return;
+
+            string layoutRelativePath = BotMessageTemplate.GetPathTo(BotMessageLayoutNode);
+            Control messageLayout = _currentBotMessageNode.GetNode<Control>(layoutRelativePath);
+            
+            string mdRelativePath = BotMessageTemplate.GetPathTo(BotMessageMarkdownNode);
+            RichTextLabel originalMarkdownNode = _currentBotMessageNode.GetNode<RichTextLabel>(mdRelativePath);
+            originalMarkdownNode.Visible = false; 
+
+            string[] blocks = rawText.Split(new string[] { "```" }, StringSplitOptions.None);
+            
+            for (int i = 0; i < blocks.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(blocks[i])) continue;
+
+                // Even indices represent normal text outside code blocks.
+                if (i % 2 == 0) 
+                {
+                    RichTextLabel textBlock = (RichTextLabel)originalMarkdownNode.Duplicate();
+                    textBlock.Visible = true;
+                    textBlock.Set("markdown_text", blocks[i].Trim());
+                    messageLayout.AddChild(textBlock);
+                }
+                // Odd indices represent content inside a code block.
+                else 
+                {
+                    string codeContent = blocks[i];
+                    string language = "code";
+                    int firstNewline = codeContent.IndexOf('\n');
+                    if (firstNewline != -1)
+                    {
+                        language = codeContent.Substring(0, firstNewline).Trim();
+                        codeContent = codeContent.Substring(firstNewline + 1);
+                    }
+
+                    PanelContainer newCodeBlock = (PanelContainer)CodeBlockTemplate.Duplicate();
+                    newCodeBlock.Visible = true;
+
+                    if (LanguageLabel != null)
+                    {
+                        string langPath = CodeBlockTemplate.GetPathTo(LanguageLabel);
+                        Label langLabel = newCodeBlock.GetNode<Label>(langPath);
+                        if (langLabel != null) langLabel.Text = language.ToUpper();
+                    }
+
+                    if (CodeEditor != null)
+                    {
+                        string editorPath = CodeBlockTemplate.GetPathTo(CodeEditor);
+                        CodeEdit codeEditor = newCodeBlock.GetNode<CodeEdit>(editorPath);
+                        if (codeEditor != null) codeEditor.Text = codeContent.TrimEnd();
+                    }
+
+                    if (CopyBtn != null)
+                    {
+                        string copyBtnPath = CodeBlockTemplate.GetPathTo(CopyBtn);
+                        Button copyBtn = newCodeBlock.GetNode<Button>(copyBtnPath);
+                        if (copyBtn != null)
+                        {
+                            string finalCopyContent = codeContent;
+                            copyBtn.Pressed += async () => {
+                                DisplayServer.ClipboardSet(finalCopyContent);
+                                copyBtn.Modulate = new Color(0, 1, 0, 1);
+                                await ToSignal(GetTree().CreateTimer(0.5f), SceneTreeTimer.SignalName.Timeout);
+                                if (GodotObject.IsInstanceValid(copyBtn))
+                                {
+                                    copyBtn.Modulate = new Color(1, 1, 1, 1);
+                                }
+                            };
+                        }
+                    }
+
+                    messageLayout.AddChild(newCodeBlock);
                 }
             }
         }
 
+        /// <summary>
+        /// Enqueues an execution frame to ensure the UI has resolved node heights before forcing the ScrollContainer to the bottom limit.
+        /// </summary>
         private async void ScrollToBottom()
         {
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -376,86 +532,116 @@ namespace Logic.UI
             }
         }
 
-        private void StartTypingAnimation(RichTextLabel label)
+        /// <summary>
+        /// Instantiates and loops a dynamically generated timer to append trailing dots to a label string asynchronously.
+        /// </summary>
+        private void StartDotsAnimation(Label label, string baseText)
         {
-            if (_typingAnimationTimer != null) return; 
+            if (_dotsAnimationTimer != null) return; 
 
-            _typingAnimationTimer = new Godot.Timer();
-            _typingAnimationTimer.WaitTime = 0.4f;
-            _typingAnimationTimer.OneShot = false;
+            _dotsAnimationTimer = new Godot.Timer();
+            _dotsAnimationTimer.WaitTime = 0.4f;
+            _dotsAnimationTimer.OneShot = false;
             
-            _typingAnimationTimer.Timeout += () =>
+            int dotCount = 0;
+            _dotsAnimationTimer.Timeout += () =>
             {
-                string currentText = label.Get("markdown_text").AsString();
-                if (currentText.EndsWith("...")) label.Set("markdown_text", currentText.Substring(0, currentText.Length - 3) + ".");
-                else if (currentText.EndsWith("..")) label.Set("markdown_text", currentText.Substring(0, currentText.Length - 2) + "...");
-                else if (currentText.EndsWith(".")) label.Set("markdown_text", currentText.Substring(0, currentText.Length - 1) + "..");
+                if (!GodotObject.IsInstanceValid(label)) return;
+                dotCount = (dotCount + 1) % 4;
+                string dots = new string('.', dotCount);
+                label.Text = baseText + dots;
             };
             
-            AddChild(_typingAnimationTimer);
-            _typingAnimationTimer.Start();
+            AddChild(_dotsAnimationTimer);
+            _dotsAnimationTimer.Start();
         }
 
-        private void StopTypingAnimation()
+        /// <summary>
+        /// Disposes the dots animation timer safely and releases resources from the scene tree.
+        /// </summary>
+        private void StopDotsAnimation()
         {
-            if (_typingAnimationTimer != null)
+            if (_dotsAnimationTimer != null)
             {
-                _typingAnimationTimer.Stop();
-                _typingAnimationTimer.QueueFree();
-                _typingAnimationTimer = null;
+                _dotsAnimationTimer.Stop();
+                _dotsAnimationTimer.QueueFree();
+                _dotsAnimationTimer = null;
             }
         }
 
+        /// <summary>
+        /// Executes a complex visual tween sequence updating textures, scale, and color modulation natively to reflect a critical systemic error state.
+        /// </summary>
         public void TriggerConnectionErrorAnimation()
         {
-            if (_currentBotMessageNode == null) return;
+            if (_currentBotMessageNode == null || BotAvatarContainer == null) return;
 
-            Control avatarContainer = _currentBotMessageNode.GetNodeOrNull<Control>("AvatarPanel/BotAvatarContainer");
+            string avatarPath = BotMessageTemplate.GetPathTo(BotAvatarContainer);
+            Control avatarContainer = _currentBotMessageNode.GetNodeOrNull<Control>(avatarPath);
             if (avatarContainer == null) return;
 
-            TextureRect gotaCuerpo = avatarContainer.GetNode<TextureRect>("GotaCuerpo");
-            TextureRect alaIzquierda = avatarContainer.GetNode<TextureRect>("AlaIzquierda");
-            TextureRect alaDerecha = avatarContainer.GetNode<TextureRect>("AlaDerecha");
-            Control pupilas = avatarContainer.GetNode<Control>("Pupilas");
-            Control equis = avatarContainer.GetNode<Control>("Equis");
+            TextureRect gotaCuerpo = GotaCuerpo != null ? _currentBotMessageNode.GetNodeOrNull<TextureRect>(BotMessageTemplate.GetPathTo(GotaCuerpo)) : null;
+            TextureRect alaIzquierda = AlaIzquierda != null ? _currentBotMessageNode.GetNodeOrNull<TextureRect>(BotMessageTemplate.GetPathTo(AlaIzquierda)) : null;
+            TextureRect alaDerecha = AlaDerecha != null ? _currentBotMessageNode.GetNodeOrNull<TextureRect>(BotMessageTemplate.GetPathTo(AlaDerecha)) : null;
+            Control pupilas = Pupilas != null ? _currentBotMessageNode.GetNodeOrNull<Control>(BotMessageTemplate.GetPathTo(Pupilas)) : null;
+            Control equis = Equis != null ? _currentBotMessageNode.GetNodeOrNull<Control>(BotMessageTemplate.GetPathTo(Equis)) : null;
 
-            if (WingLeftBaseTexture != null) alaIzquierda.Texture = WingLeftBaseTexture;
-            if (WingRightBaseTexture != null) alaDerecha.Texture = WingRightBaseTexture;
+            if (alaIzquierda != null && WingLeftBaseTexture != null) alaIzquierda.Texture = WingLeftBaseTexture;
+            if (alaDerecha != null && WingRightBaseTexture != null) alaDerecha.Texture = WingRightBaseTexture;
 
             Tween sequence = GetTree().CreateTween();
 
             sequence.TweenCallback(Callable.From(() => {
-                pupilas.Visible = false;
-                equis.Visible = true;
+                if (pupilas != null) pupilas.Visible = false;
+                if (equis != null) equis.Visible = true;
             }));
 
             sequence.TweenInterval(0.2f); 
-            sequence.TweenProperty(gotaCuerpo, "position", gotaCuerpo.Position + new Vector2(0, 15f), 0.5f)
-                .SetTrans(Tween.TransitionType.Bounce).SetEase(Tween.EaseType.Out);
+            if (gotaCuerpo != null)
+            {
+                sequence.TweenProperty(gotaCuerpo, "position", gotaCuerpo.Position + new Vector2(0, 15f), 0.5f)
+                    .SetTrans(Tween.TransitionType.Bounce).SetEase(Tween.EaseType.Out);
+            }
 
             sequence.TweenInterval(0.1f);
             sequence.SetParallel(true);
             
-            sequence.TweenProperty(alaIzquierda, "modulate", new Color(1.0f, 0.2f, 0.2f, 1.0f), 0.4f);
-            sequence.TweenProperty(alaIzquierda, "position", alaIzquierda.Position + new Vector2(0, 20f), 0.6f)
-                .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
-            sequence.TweenProperty(alaIzquierda, "rotation_degrees", -75f, 0.6f)
-                .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+            if (alaIzquierda != null)
+            {
+                sequence.TweenProperty(alaIzquierda, "modulate", new Color(1.0f, 0.2f, 0.2f, 1.0f), 0.4f);
+                sequence.TweenProperty(alaIzquierda, "position", alaIzquierda.Position + new Vector2(0, 20f), 0.6f)
+                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
+                sequence.TweenProperty(alaIzquierda, "rotation_degrees", -75f, 0.6f)
+                    .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+            }
 
-            sequence.TweenProperty(alaDerecha, "modulate", new Color(1.0f, 0.2f, 0.2f, 1.0f), 0.4f);
-            sequence.TweenProperty(alaDerecha, "position", alaDerecha.Position + new Vector2(0, 20f), 0.6f)
-                .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
-            sequence.TweenProperty(alaDerecha, "rotation_degrees", 75f, 0.6f)
-                .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+            if (alaDerecha != null)
+            {
+                sequence.TweenProperty(alaDerecha, "modulate", new Color(1.0f, 0.2f, 0.2f, 1.0f), 0.4f);
+                sequence.TweenProperty(alaDerecha, "position", alaDerecha.Position + new Vector2(0, 20f), 0.6f)
+                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
+                sequence.TweenProperty(alaDerecha, "rotation_degrees", 75f, 0.6f)
+                    .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+            }
 
             sequence.SetParallel(false);
             
             string relativePath = BotMessageTemplate.GetPathTo(BotMessageMarkdownNode);
             RichTextLabel botTextLabel = _currentBotMessageNode.GetNode<RichTextLabel>(relativePath);
             botTextLabel.Set("markdown_text", "[color=red]Error de conexión crítico con Eden Core...[/color]");
-            StopTypingAnimation();
+            StopDotsAnimation();
+            
+            if (BotActions != null)
+            {
+                string actionsPath = BotMessageTemplate.GetPathTo(BotActions);
+                Label actionsLabel = _currentBotMessageNode.GetNodeOrNull<Label>(actionsPath);
+                if (actionsLabel != null) actionsLabel.Text = "Error";
+            }
         }
 
+        /// <summary>
+        /// Safely unsubscribes event handlers before the node is disposed from the memory tree to prevent GC memory leakages.
+        /// </summary>
         public override void _ExitTree()
         {
             var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");

@@ -1,0 +1,8 @@
+[gd_resource type="LabelSettings" format=3 uid="uid://bbapk8dj7k1dh"]
+
+[ext_resource type="FontFile" uid="uid://x4rjjlnt07pu" path="res://Resources/Fonts/Roboto/static/Roboto_SemiCondensed-MediumItalic.ttf" id="1_c6cko"]
+
+[resource]
+font = ExtResource("1_c6cko")
+font_size = 20
+font_color = Color(0.7121294, 0.7121294, 0.71212935, 1)

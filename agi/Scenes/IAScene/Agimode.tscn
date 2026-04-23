@@ -8,7 +8,7 @@
 sky_material = SubResource("ProceduralSkyMaterial_caoo8")
 
 [sub_resource type="Environment" id="Environment_bx7mt"]
-background_mode = 2
+background_mode = 1
 sky = SubResource("Sky_0oggk")
 ambient_light_color = Color(1, 1, 1, 1)
 ambient_light_energy = 2.5
@@ -26,7 +26,7 @@ environment = SubResource("Environment_bx7mt")
 camera_attributes = SubResource("CameraAttributesPractical_hfeav")
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=412546678]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.18984678, 0.5451211, 3.4267056)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.065, 1.125)
 fov = 41.3
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1056515601]
@@ -42,6 +42,4 @@ collision_mask = 3
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.428261, -0.8864577, -17.288147)
 shape = SubResource("BoxShape3D_0oggk")
 
-[node name="Kipfel" parent="." unique_id=1718872066 node_paths=PackedStringArray("CamaraNodo") instance=ExtResource("1_0oggk")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.13291354, 0.057102144, -0.010699689)
-CamaraNodo = NodePath("../Camera3D")
+[node name="Kipfel" parent="." unique_id=1831635054 instance=ExtResource("1_0oggk")]
