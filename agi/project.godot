@@ -31,7 +31,9 @@ NetworkManager="*uid://dd0kvqdfb8yt5"
 ChatManager="*uid://dkwmatdh8pqge"
 BackendLauncher="*uid://d2ggr6q7smtv6"
 ConfigManager="*uid://r3isoxio4wpf"
-NativeTTSManager="*uid://08smmxwddlxm"
+EnvironmentManager="*uid://cs671kefxiink"
+PackageManager="*uid://byupl1skovdap"
+DownloadManager="*uid://cqsbifwhnnad8"
 
 [display]
 

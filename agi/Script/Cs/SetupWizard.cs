@@ -49,9 +49,13 @@ namespace Logic.Utils
         [Export] public Button BtnAdvancedSettings;
         [Export] public VBoxContainer AdvancedContainer;
         [Export] public LineEdit TxtCustomPort;
-        [Export] private string LlamaServerUrl = "https://github.com/ggml-org/llama.cpp/releases/download/b8770/llama-b8770-bin-ubuntu-vulkan-x64.tar.gz";
-        [Export] private string WhisperServerUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/refs/heads/main/whisper-server-vulkan-linux/whisper-server-vulkan-linux.tar.gz";
-        [Export] private string SherpaServerUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.12.39/sherpa-onnx-v1.12.39-linux-x64-shared.tar.bz2";
+        // Configuración de enrutamiento para motores de inferencia (Linux/Windows)
+        [Export] public string LlamaLinuxUrl = "https://github.com/ggml-org/llama.cpp/releases/download/b8966/llama-b8966-bin-ubuntu-vulkan-x64.tar.gz";
+        [Export] public string LlamaWindowsUrl = "https://github.com/ggml-org/llama.cpp/releases/download/b8966/llama-b8966-bin-win-vulkan-x64.zip";
+        [Export] public string WhisperLinuxUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/refs/heads/main/whisper-server-vulkan-linux/whisper-server-vulkan-linux.tar.gz";
+        [Export] public string WhisperWindowsUrl = "";
+        [Export] public string SherpaLinuxUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.0/sherpa-onnx-v1.13.0-linux-x64-shared.tar.bz2";
+        [Export] public string SherpaWindowsUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.0/sherpa-onnx-v1.13.0-win-x64-shared-MD-Release.tar.bz2";
         private ConfigManager.ModelPreset _selectedLLM;
         private ConfigManager.ModelPreset _selectedSTT;
         private ConfigManager.ModelPreset _selectedTTS;
@@ -62,6 +66,8 @@ namespace Logic.Utils
         private WizardState _currentState;
         private DependencyInstaller _dependencyInstaller;
         private ConfigManager _configManager;
+        private PackageManager _packageManager;
+        private EnvironmentManager _environmentManager;
 
         //Delete
         private List<ConfigManager.ModelPreset> _debugSelectedList = new List<ConfigManager.ModelPreset>();
@@ -73,12 +79,13 @@ namespace Logic.Utils
         public override void _Ready()
         {
             _configManager = GetNode<ConfigManager>("/root/ConfigManager");
+            _packageManager = GetNode<PackageManager>("/root/PackageManager");
+            _environmentManager = GetNode<EnvironmentManager>("/root/EnvironmentManager");
 
             _dependencyInstaller = new DependencyInstaller();
             AddChild(_dependencyInstaller);
 
-            _downloadManager = new DownloadManager();
-            AddChild(_downloadManager);
+            _downloadManager = GetNode<DownloadManager>("/root/DownloadManager");
 
             // Subscribes local handlers to the real-time progress events emitted by DownloadManager.
             _downloadManager.DownloadCompleted += OnModelDownloadCompleted;
@@ -296,81 +303,44 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Orchestrates the asynchronous retrieval, extraction, and initialization of native C++ engines.
-        /// Isolates binary dependency validation leveraging the DownloadManager for native archive extraction.
-        /// Resolves execution permissions dynamically for shared libraries traversing the file system.
+        /// Orquesta la recuperación asíncrona, extracción e inicialización de los motores nativos.
+        /// Implementa un enrutamiento dinámico de URLs y extensiones basado en el sistema operativo detectado.
         /// </summary>
         private async void StartModelDownload()
         {
             SwitchState(WizardState.Downloading);
 
-            string binDir = ProjectSettings.GlobalizePath("user://bin");
-            global::System.IO.Directory.CreateDirectory(binDir);
+            // Determinación de parámetros de plataforma para la selección de paquetes binarios.
+            bool isWindows = _environmentManager.IsWindows;
 
-            string llamaBinPath = global::System.IO.Path.Combine(binDir, "llama-b8770/llama-server");
-            string whisperBinPath = global::System.IO.Path.Combine(binDir, "whisper-server");
-            string binDirAbs = ProjectSettings.GlobalizePath("user://bin");
+            string currentLlamaUrl = isWindows ? LlamaWindowsUrl : LlamaLinuxUrl;
+            string llamaArchive = isWindows ? "llama-server.zip" : "llama-server.tar.gz";
 
-            // Validates the local file system for the Llama container, delegating extraction to the DownloadManager.
-            if (!global::System.IO.File.Exists(llamaBinPath))
+            string currentWhisperUrl = isWindows ? WhisperWindowsUrl : WhisperLinuxUrl;
+            string whisperArchive = isWindows ? "whisper-server.zip" : "whisper-server.tar.gz";
+
+            string currentSherpaUrl = isWindows ? SherpaWindowsUrl : SherpaLinuxUrl;
+            string sherpaArchive = isWindows ? "sherpa-onnx.zip" : "sherpa-onnx-linux.tar.bz2";
+
+            // Ejecución de la descarga y preparación de motores base con validación de integridad.
+            if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Llama Server...[/center]";
+            bool llamaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentLlamaUrl, llamaArchive, "llama");
+
+            if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Whisper Server...[/center]";
+            bool whisperOk = await _packageManager.DownloadAndPrepareEngineAsync(currentWhisperUrl, whisperArchive, "whisper");
+
+            if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Sherpa-ONNX Server...[/center]";
+            bool sherpaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentSherpaUrl, sherpaArchive, "sherpa");
+
+            if (!llamaOk || !whisperOk || !sherpaOk)
             {
-                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando Llama Server...[/center]";
-                await _downloadManager.DownloadFileAsync(LlamaServerUrl, "user://bin", "llama-server.tar.gz");
-                OS.Execute("chmod", new string[] { "+x", llamaBinPath }, new Godot.Collections.Array(), true);
+                GD.PrintErr("SetupWizard: Error preparando los motores base.");
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center][color=red]Error crítico preparando motores de ejecución.[/color][/center]";
+                return;
             }
 
-            // Validates the local file system for the Whisper container, delegating extraction to the DownloadManager.
-            if (!global::System.IO.File.Exists(whisperBinPath))
-            {
-                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando Whisper Server...[/center]";
-                await _downloadManager.DownloadFileAsync(WhisperServerUrl, "user://bin", "whisper-server.tar.gz");
-                OS.Execute("chmod", new string[] { "+x", whisperBinPath }, new Godot.Collections.Array(), true);
-            }
-
-            // Evaluates the structural mapping for the Sherpa-ONNX engine to dynamically resolve the specific portable library directory.
-            string sherpaBaseDir = global::System.IO.Path.Combine(binDirAbs, "sherpa-onnx");
-            bool sherpaExists = global::System.IO.Directory.Exists(global::System.IO.Path.Combine(sherpaBaseDir, "lib"));
-
-            if (!sherpaExists)
-            {
-                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando Sherpa-ONNX Server...[/center]";
-                
-                bool success = await _downloadManager.DownloadFileAsync(SherpaServerUrl, "user://bin", "sherpa-onnx-linux.tar.bz2");
-
-                if (!success)
-                {
-                    GD.PrintErr("SetupWizard: Fatal network error downloading Sherpa-ONNX engine.");
-                    if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center][color=red]Error de red descargando motor de voz.[/color][/center]";
-                    return; 
-                }
-
-                // Orchestrates directory normalization by identifying and renaming the extracted payload discarding semver suffixes.
-                string[] extractedDirs = global::System.IO.Directory.GetDirectories(binDirAbs, "sherpa-onnx*");
-                foreach (string dir in extractedDirs)
-                {
-                    if (dir != sherpaBaseDir)
-                    {
-                        if (global::System.IO.Directory.Exists(sherpaBaseDir)) global::System.IO.Directory.Delete(sherpaBaseDir, true);
-                        global::System.IO.Directory.Move(dir, sherpaBaseDir);
-                        break;
-                    }
-                }
-
-                // Iterates through the shared library directory allocating read permissions to guarantee LD_LIBRARY_PATH loading.
-                string libDir = global::System.IO.Path.Combine(sherpaBaseDir, "lib");
-                if (global::System.IO.Directory.Exists(libDir))
-                {
-                    string[] sharedLibs = global::System.IO.Directory.GetFiles(libDir, "*.so*", global::System.IO.SearchOption.AllDirectories);
-                    foreach (string lib in sharedLibs)
-                    {
-                        OS.Execute("chmod", new string[] { "a+r", lib }, new Godot.Collections.Array(), true);
-                    }
-                    GD.Print("SetupWizard: Read permissions successfully applied to Sherpa shared libraries.");
-                }
-            }
-
-            string piperDir = ProjectSettings.GlobalizePath("user://models");
-            global::System.IO.Directory.CreateDirectory(piperDir);
+            string modelsDir = _environmentManager.ModelsPath;
+            global::System.IO.Directory.CreateDirectory(modelsDir);
 
             List<ConfigManager.ModelPreset> presetsToDownload = new List<ConfigManager.ModelPreset> { _selectedLLM, _selectedSTT, _selectedTTS };
 
@@ -379,20 +349,18 @@ namespace Logic.Utils
                 if (preset == null) continue;
 
                 string safeFileName = preset.Name.Replace(" ", "_");
-                
-                // Maps the file extension incorporating conditional parsing logic for specific engine compatibility.
+
                 if (preset.Name.Contains("Whisper")) safeFileName += ".bin";
-                else if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa") || preset.Name.Contains("Kokoro")) 
+                else if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa") || preset.Name.Contains("Kokoro"))
                 {
                     safeFileName = global::System.IO.Path.GetFileName(new global::System.Uri(preset.DownloadLinks[0]).LocalPath);
                 }
                 else safeFileName += ".gguf";
 
-                // Delegates routing states to the configuration manager tracking active sub-models based on domain context.
                 if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa") || preset.Name.Contains("Kokoro"))
                 {
                     _configManager.ActiveTTSEngine = "sherpa-onnx";
-                    _configManager.ActiveTTSModel = safeFileName.Replace(".tar.bz2", ""); 
+                    _configManager.ActiveTTSModel = safeFileName.Replace(".tar.bz2", "").Replace(".zip", "");
                 }
                 else if (preset.Name.Contains("Whisper"))
                 {
@@ -401,19 +369,18 @@ namespace Logic.Utils
                 else
                 {
                     _configManager.ActiveModelName = preset.Name;
-                    _configManager.ActiveModelPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
+                    _configManager.ActiveModelPath = global::System.IO.Path.Combine(modelsDir, safeFileName);
                 }
 
                 _configManager.ActiveModelUrl = preset.DownloadLinks[0];
                 _configManager.SaveConfiguration();
 
-                // Implements cache resolution validating the structural integrity of locally extracted paths for bypass logic.
-                string globalPath = ProjectSettings.GlobalizePath("user://models/" + safeFileName);
+                string globalPath = global::System.IO.Path.Combine(modelsDir, safeFileName);
                 bool isAlreadyExtracted = false;
-                
+
                 if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa") || preset.Name.Contains("Kokoro"))
                 {
-                    string extractedFolderPath = ProjectSettings.GlobalizePath("user://models/" + _configManager.ActiveTTSModel);
+                    string extractedFolderPath = global::System.IO.Path.Combine(modelsDir, _configManager.ActiveTTSModel);
                     if (global::System.IO.Directory.Exists(extractedFolderPath)) isAlreadyExtracted = true;
                 }
 
@@ -421,13 +388,13 @@ namespace Logic.Utils
                 {
                     GD.Print($"SetupWizard: Local cache validated for {safeFileName}");
                     if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]El modelo {preset.Name} ya está listo. Omitiendo...[/center]";
-                    await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout); 
-                    continue; 
+                    await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout);
+                    continue;
                 }
 
                 if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]Descargando tensores: {preset.Name}...[/center]";
 
-                bool success = await _downloadManager.DownloadFileAsync(preset.DownloadLinks[0], "user://models", safeFileName);
+                bool success = await _downloadManager.DownloadFileAsync(preset.DownloadLinks[0], modelsDir, safeFileName);
 
                 if (!success)
                 {
