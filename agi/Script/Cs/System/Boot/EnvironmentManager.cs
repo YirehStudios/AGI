@@ -29,25 +29,21 @@ public partial class EnvironmentManager : Node
     {
         string osName = OS.GetName();
 
-        // Evaluación de sistema operativo
-        // IsWindows = osName == "Windows";
-        // IsLinux = osName == "LinuxBSD";
-        // IsAndroid = osName == "Android";
+        //Evaluación de sistema operativo
+        IsWindows = osName == "Windows";
+        IsLinux = osName == "LinuxBSD";
+        IsAndroid = osName == "Android";
 
-        IsWindows = true; 
-        IsLinux = false;
-        IsAndroid = false;
+        // IsWindows = true; 
+        // IsLinux = false;
+        // IsAndroid = false;
 
         // Asignación de flags según reglas de negocio
         if (IsAndroid)
         {
-            // IsUIOnlyMode = true;
-            // CanRunLocalModels = false;
-            // CanRunLocalTTS = false;
-
-            IsUIOnlyMode = false;
-            CanRunLocalModels = true;
-            CanRunLocalTTS = true;
+            IsUIOnlyMode = true;
+            CanRunLocalModels = false;
+            CanRunLocalTTS = false;
         }
         else
         {

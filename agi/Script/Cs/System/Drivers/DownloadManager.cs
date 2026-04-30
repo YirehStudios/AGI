@@ -5,6 +5,7 @@ using System.IO.Compression;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
+using System.Linq;
 
 namespace Logic.Network
 {
@@ -21,7 +22,7 @@ namespace Logic.Network
         public delegate void DownloadCompletedEventHandler(string fileName, bool success);
 
         /// <summary>
-        /// Verifica la presencia del binario aria2c en las variables de entorno del sistema.
+        /// Verifica la presencia del binario aria2c en las variables de entorno del sistema.[cite: 5]
         /// </summary>
         private bool CheckAria2Availability()
         {
@@ -31,11 +32,10 @@ namespace Logic.Network
         }
 
         /// <summary>
-        /// Ejecuta el flujo de trabajo de descarga y extracción en un hilo secundario para preservar la reactividad de la interfaz.
+        /// Ejecuta la descarga y extracción en un hilo secundario para preservar la reactividad de la interfaz.[cite: 5]
         /// </summary>
         public async Task<bool> DownloadFileAsync(string url, string destinationFolder, string fileName)
         {
-            // Paso 1: Inicialización y normalización de rutas.
             url = url.Trim();
             bool hasAria2 = CheckAria2Availability();
             string globalDestination = ProjectSettings.GlobalizePath(destinationFolder);
@@ -47,7 +47,6 @@ namespace Logic.Network
 
             string filePath = Path.Combine(globalDestination, fileName);
 
-            // Paso 2 y 3: Ejecución de transferencia de datos y procesamiento de archivos en subproceso.
             bool finalSuccess = await Task.Run(async () =>
             {
                 bool downloadSuccess = false;
@@ -55,17 +54,14 @@ namespace Logic.Network
                 {
                     if (hasAria2)
                     {
-                        // Configuración del proceso aria2c para descarga segmentada y multi-hilo.
                         using Process process = new Process();
                         process.StartInfo.FileName = "aria2c";
-                        
                         process.StartInfo.ArgumentList.Add("-x");
                         process.StartInfo.ArgumentList.Add("16");
                         process.StartInfo.ArgumentList.Add("-s");
                         process.StartInfo.ArgumentList.Add("16");
-                        process.StartInfo.ArgumentList.Add("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                        process.StartInfo.ArgumentList.Add("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
                         process.StartInfo.ArgumentList.Add("--header=Accept: */*");
-                        process.StartInfo.ArgumentList.Add("--summary-interval=1");
                         process.StartInfo.ArgumentList.Add("--continue=true");
                         process.StartInfo.ArgumentList.Add("-d");
                         process.StartInfo.ArgumentList.Add(globalDestination);
@@ -78,7 +74,6 @@ namespace Logic.Network
                         process.StartInfo.UseShellExecute = false;
                         process.StartInfo.CreateNoWindow = true;
 
-                        // Captura y parseo de la salida estándar para reportar el progreso de descarga.
                         process.OutputDataReceived += (sender, e) =>
                         {
                             if (!string.IsNullOrEmpty(e.Data))
@@ -88,11 +83,7 @@ namespace Logic.Network
                                 {
                                     if (Godot.GodotObject.IsInstanceValid(this) && !this.IsQueuedForDeletion())
                                     {
-                                        try 
-                                        {
-                                            CallDeferred(Godot.GodotObject.MethodName.EmitSignal, SignalName.DownloadProgress, fileName, percentage);
-                                        }
-                                        catch (ObjectDisposedException) { }
+                                        CallDeferred(Godot.GodotObject.MethodName.EmitSignal, SignalName.DownloadProgress, fileName, percentage);
                                     }
                                 }
                             }
@@ -100,24 +91,16 @@ namespace Logic.Network
 
                         process.Start();
                         process.BeginOutputReadLine();
-                        process.BeginErrorReadLine();
                         process.WaitForExit();
-
                         downloadSuccess = (process.ExitCode == 0);
                     }
                     else
                     {
-                        // Implementación de respaldo mediante HttpClient en caso de ausencia de aria2c.
                         using global::System.Net.Http.HttpClient client = new global::System.Net.Http.HttpClient();
-                        
-                        client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
-                        client.DefaultRequestHeaders.Add("Accept", "*/*");
-
                         using global::System.Net.Http.HttpResponseMessage response = await client.GetAsync(url, global::System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
                         response.EnsureSuccessStatusCode();
 
                         long? totalBytes = response.Content.Headers.ContentLength;
-                        
                         using Stream contentStream = await response.Content.ReadAsStreamAsync();
                         using FileStream fileStream = new FileStream(filePath, FileMode.Create, global::System.IO.FileAccess.Write, FileShare.None, 8192, true);
 
@@ -136,17 +119,15 @@ namespace Logic.Network
                                 CallDeferred(MethodName.EmitSignal, SignalName.DownloadProgress, fileName, percentage);
                             }
                         }
-
                         downloadSuccess = true;
                     }
                 }
                 catch (Exception ex)
                 {
-                    GD.PrintErr($"DownloadManager: Fallo en la transferencia de {fileName}. Detalle: {ex.Message}");
+                    GD.PrintErr($"DownloadManager: Fallo en transferencia: {ex.Message}");
                     downloadSuccess = false;
                 }
 
-                // Paso 3: EXTRACCIÓN Y PROCESAMIENTO POST-DESCARGA.
                 if (downloadSuccess)
                 {
                     try
@@ -155,61 +136,103 @@ namespace Logic.Network
                         {
                             CallDeferred(Godot.GodotObject.MethodName.EmitSignal, SignalName.DownloadProgress, fileName + " (Extrayendo...)", 99f);
 
-                            // Gestión de extracción nativa para el formato ZIP mediante la librería System.IO.Compression.
                             if (fileName.EndsWith(".zip"))
                             {
                                 ZipFile.ExtractToDirectory(filePath, globalDestination, true);
-                                GD.Print($"DownloadManager: Extracción nativa de {fileName} completada.");
                             }
                             else
                             {
-                                // Delegación a utilidades del sistema operativo para formatos TAR comprimidos.
                                 using Process extractProcess = new Process();
                                 extractProcess.StartInfo.UseShellExecute = false;
                                 extractProcess.StartInfo.CreateNoWindow = true;
                                 extractProcess.StartInfo.FileName = "tar";
-
-                                if (fileName.EndsWith(".tar.gz"))
-                                {
-                                    extractProcess.StartInfo.Arguments = $"-xzf \"{filePath}\" -C \"{globalDestination}\"";
-                                }
-                                else if (fileName.EndsWith(".tar.bz2"))
-                                {
-                                    extractProcess.StartInfo.Arguments = $"-xjf \"{filePath}\" -C \"{globalDestination}\"";
-                                }
+                                extractProcess.StartInfo.Arguments = fileName.EndsWith(".tar.gz") 
+                                    ? $"-xzf \"{filePath}\" -C \"{globalDestination}\"" 
+                                    : $"-xjf \"{filePath}\" -C \"{globalDestination}\"";
 
                                 extractProcess.Start();
                                 extractProcess.WaitForExit();
-
-                                if (extractProcess.ExitCode != 0) 
-                                {
-                                    throw new Exception("El comando tar reportó un código de salida no exitoso.");
-                                }
-                                
-                                GD.Print($"DownloadManager: Extracción vía shell de {fileName} finalizada.");
+                                if (extractProcess.ExitCode != 0) throw new Exception("Fallo en el comando tar.");
                             }
+
+                            // Ejecuta la normalización de la estructura de directorios y la limpieza de archivos temporales.
+                            FlattenDirectoryIfNecessary(globalDestination, filePath);
                         }
                     }
                     catch (Exception ex)
                     {
-                        GD.PrintErr($"DownloadManager: Error crítico durante la descompresión de {fileName}. Detalle: {ex.Message}");
+                        GD.PrintErr($"DownloadManager: Error en extracción: {ex.Message}");
                         downloadSuccess = false;
                     }
                 }
-                
                 return downloadSuccess;
             });
 
-            // Paso 4: Notificación de finalización al hilo de ejecución de Godot.
             if (Godot.GodotObject.IsInstanceValid(this) && !this.IsQueuedForDeletion())
             {
-                try
-                {
-                    CallDeferred(MethodName.EmitSignal, SignalName.DownloadCompleted, fileName, finalSuccess);
-                }
-                catch (ObjectDisposedException) { }
+                CallDeferred(MethodName.EmitSignal, SignalName.DownloadCompleted, fileName, finalSuccess);
             }
             return finalSuccess;
+        }
+
+        /// <summary>
+        /// Examina la raíz destino y extrae el contenido al nivel superior si se detecta redundancia,
+        /// ignorando el archivo comprimido original durante el conteo y procediendo a su eliminación final.
+        /// </summary>
+        private void FlattenDirectoryIfNecessary(string targetDirectory, string archivePath)
+        {
+            try
+            {
+                if (!Directory.Exists(targetDirectory)) return;
+
+                string[] subdirectories = Directory.GetDirectories(targetDirectory);
+                string[] allFiles = Directory.GetFiles(targetDirectory);
+
+                // Filtra el conteo de archivos para ignorar el archivo comprimido descargado.
+                string normalizedArchivePath = Path.GetFullPath(archivePath);
+                int significantFilesCount = 0;
+                foreach (string file in allFiles)
+                {
+                    if (Path.GetFullPath(file) != normalizedArchivePath)
+                    {
+                        significantFilesCount++;
+                    }
+                }
+
+                // Identifica si existe una única carpeta contenedora sin otros archivos significativos en la raíz.
+                if (subdirectories.Length == 1 && significantFilesCount == 0)
+                {
+                    string loneDirectory = subdirectories[0];
+
+                    foreach (string file in Directory.GetFiles(loneDirectory))
+                    {
+                        string destFile = Path.Combine(targetDirectory, Path.GetFileName(file));
+                        if (File.Exists(destFile)) File.Delete(destFile);
+                        Directory.Move(file, destFile);
+                    }
+
+                    foreach (string dir in Directory.GetDirectories(loneDirectory))
+                    {
+                        string destDir = Path.Combine(targetDirectory, Path.GetFileName(dir));
+                        if (Directory.Exists(destDir)) Directory.Delete(destDir, true);
+                        Directory.Move(dir, destDir);
+                    }
+
+                    Directory.Delete(loneDirectory, true);
+                    GD.Print($"DownloadManager: Estructura de directorios aplanada con éxito en {targetDirectory}.");
+                }
+
+                // Elimina el archivo original para liberar almacenamiento tras completar la operación.
+                if (File.Exists(archivePath))
+                {
+                    File.Delete(archivePath);
+                    GD.Print($"DownloadManager: Limpieza completada. Archivo {Path.GetFileName(archivePath)} eliminado.");
+                }
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"DownloadManager: Error durante el proceso de aplanamiento o limpieza: {ex.Message}");
+            }
         }
     }
 }

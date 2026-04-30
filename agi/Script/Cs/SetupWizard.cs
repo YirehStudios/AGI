@@ -319,7 +319,7 @@ namespace Logic.Utils
             bool isWindows = _environmentManager.IsWindows;
 
             // Determinación de URLs y nombres de archivo según la plataforma detectada.
-            // Se asignan extensiones .zip para Windows y .tar.gz/.tar.bz2 para entornos basados en Unix.
+            // Se asignan extensiones .zip para motores estándar y .tar.gz/.tar.bz2 para entornos Unix.
             string currentLlamaUrl = isWindows ? engineConfigs.Llama.WindowsUrl : engineConfigs.Llama.LinuxUrl;
             string llamaArchive = isWindows ? "llama-server.zip" : "llama-server.tar.gz";
 
@@ -327,17 +327,20 @@ namespace Logic.Utils
             string whisperArchive = isWindows ? "whisper-server.zip" : "whisper-server.tar.gz";
 
             string currentSherpaUrl = isWindows ? engineConfigs.Sherpa.WindowsUrl : engineConfigs.Sherpa.LinuxUrl;
-            string sherpaArchive = isWindows ? "sherpa-onnx.zip" : "sherpa-onnx-linux.tar.bz2";
+            
+            // Se aplica una corrección en la extensión de Sherpa para Windows, utilizando .tar.bz2 en lugar de .zip
+            // para mantener la compatibilidad con el empaquetado del motor.
+            string sherpaArchive = isWindows ? "sherpa-onnx-win.tar.bz2" : "sherpa-onnx-linux.tar.bz2";
 
-            // Fase de preparación de motores base: Descarga, verificación de integridad y extracción.
+            // Fase de preparación de motores base: Descarga, verificación de integridad y extracción con identificación precisa de binarios.
             if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Llama Server...[/center]";
-            bool llamaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentLlamaUrl, llamaArchive, "llama");
+            bool llamaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentLlamaUrl, llamaArchive, "llama", "llama-server");
 
             if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Whisper Server...[/center]";
-            bool whisperOk = await _packageManager.DownloadAndPrepareEngineAsync(currentWhisperUrl, whisperArchive, "whisper");
+            bool whisperOk = await _packageManager.DownloadAndPrepareEngineAsync(currentWhisperUrl, whisperArchive, "whisper", "whisper-server");
 
             if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Sherpa-ONNX Server...[/center]";
-            bool sherpaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentSherpaUrl, sherpaArchive, "sherpa");
+            bool sherpaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentSherpaUrl, sherpaArchive, "sherpa", "sherpa-onnx");
 
             if (!llamaOk || !whisperOk || !sherpaOk)
             {
@@ -368,7 +371,6 @@ namespace Logic.Utils
                 else safeFileName += ".gguf";
 
                 // Actualización del estado global de configuración para el modelo activo.
-                // Se realiza el mapeo de motores específicos (STT/TTS) antes de la persistencia.
                 if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa") || preset.Name.Contains("Kokoro"))
                 {
                     _configManager.ActiveTTSEngine = "sherpa-onnx";
@@ -419,7 +421,6 @@ namespace Logic.Utils
                 }
             }
 
-            // Inicio de la secuencia de arranque del servidor local tras completar las dependencias de datos.
             StartLlamaServer();
         }
 

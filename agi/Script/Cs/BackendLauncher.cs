@@ -32,11 +32,13 @@ namespace Logic.Backend
         private const int MaxRetries = 3;
         private Logic.System.Config.ConfigManager _configManager;
         private Logic.Backend.NativeTTSManager _ttsManager;
+        private dynamic _environmentManager;
 
         public override void _Ready()
         {
             _configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
             _ttsManager = GetNodeOrNull<Logic.Backend.NativeTTSManager>("/root/NativeTTSManager");
+            _environmentManager = GetNodeOrNull("/root/EnvironmentManager");
         }
 
         public void StartBackend()
@@ -115,61 +117,69 @@ namespace Logic.Backend
 
         /// <summary>
         /// Orchestrates the asynchronous allocation and binding of persistent C++ inference servers.
-        /// Maps absolute runtime environment paths processing user-defined configuration payloads.
-        /// Executes preemptive binary dependency validations to trigger panic protocols prior to allocation sequences.
-        /// Resolves shared library constraints by physically mirroring required components across execution directories and enforcing strict soname bindings.
+        /// Resolves dynamic execution paths based on the host operating system and engine-specific directories.
+        /// Performs preemptive binary validation and synchronizes shared library dependencies to the global binary root.
         /// </summary>
+        /// <param name="modelsDir">The absolute path to the directory containing model tensors.</param>
+        /// <param name="safeFileName">The sanitized filename of the primary LLM model.</param>
         private async Task ManageBackendLifecycle(string modelsDir, string safeFileName)
         {
             try
             {
+                // 1. Resource Configuration and Model Path Resolution
+                // Calcula el paralelismo óptimo dividiendo los núcleos lógicos y establece las rutas absolutas para los archivos de tensores.
                 int threadCount = Math.Max(1, global::System.Environment.ProcessorCount / 2);
                 string modelLlamaPath = global::System.IO.Path.Combine(modelsDir, safeFileName);
                 
-                string binDir = ProjectSettings.GlobalizePath("user://bin");
                 string sttModel = _configManager?.ActiveSTTModel ?? "Whisper_Base.bin"; 
                 string modelWhisperPath = global::System.IO.Path.Combine(modelsDir, sttModel);
 
-                string llamaBinDir = global::System.IO.Path.Combine(binDir, "llama-b8770");
-                string llamaBinPath = global::System.IO.Path.Combine(llamaBinDir, "llama-server");
-                string whisperBinPath = global::System.IO.Path.Combine(binDir, "whisper-server");
+                // 2. Dynamic OS-Based Routing and Directory Definition
+                // Determina el subdirectorio de arquitectura basándose en la plataforma de ejecución para localizar los motores específicos.
+                string osFolder = _environmentManager.IsWindows ? "windows" : "linux";
+                string llamaDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "llama");
+                string whisperDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "whisper");
 
-                // Evaluates the physical presence of the LLM host container before process formulation.
+                // 3. Binary Discovery via Logic.Utils.FileResolver
+                // Ejecuta una búsqueda recursiva o directa para identificar los puntos de entrada de los servidores de inferencia.
+                string llamaBinPath = Logic.Utils.FileResolver.FindExecutable(llamaDir, _environmentManager.IsWindows, "llama-server");
+                string whisperBinPath = Logic.Utils.FileResolver.FindExecutable(whisperDir, _environmentManager.IsWindows, "whisper-server");
+
+                // 4. Critical Binary Integrity Validation
+                // Verifica la existencia física de los ejecutables antes de la invocación para prevenir excepciones de proceso no encontrado.
                 if (!global::System.IO.File.Exists(llamaBinPath))
                 {
-                    GD.PrintErr("BackendLauncher: Fatal - Native C++ Server (llama-server) not found.");
+                    GD.PrintErr($"BackendLauncher: Fatal - Llama Server binary missing in {llamaDir}.");
                     CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
                     return;
                 }
 
-                // Evaluates the physical presence of the STT host container before process formulation.
                 if (!global::System.IO.File.Exists(whisperBinPath))
                 {
-                    GD.PrintErr("BackendLauncher: Fatal - Native C++ Server (whisper-server) not found.");
+                    GD.PrintErr($"BackendLauncher: Fatal - Whisper Server binary missing in {whisperDir}.");
                     CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
                     return;
                 }
 
-                // Mirrors dynamically linked libraries and automatically generates strict soname bindings (.so.0)
+                // 5. Shared Library Synchronization and Auto-Patching
                 try
                 {
-                    string[] ggmlLibs = global::System.IO.Directory.GetFiles(llamaBinDir, "libggml*.so*");
+                    // Itera sobre las librerías dinámicas GGML y las desplaza al directorio raíz de ejecución para satisfacer el cargador dinámico.
+                    string[] ggmlLibs = global::System.IO.Directory.GetFiles(llamaDir, "libggml*.so*");
                     foreach (string libPath in ggmlLibs)
                     {
                         string fileName = global::System.IO.Path.GetFileName(libPath);
-                        string destPath = global::System.IO.Path.Combine(binDir, fileName);
+                        string destPath = global::System.IO.Path.Combine(_environmentManager.BinPath, fileName);
                         
-                        // 1. Copia la librería base
                         if (!global::System.IO.File.Exists(destPath))
                         {
                             global::System.IO.File.Copy(libPath, destPath, false);
                         }
 
-                        // 2. AUTO-PATCH: Si la librería original termina en ".so", crea inmediatamente la versión ".so.0" que exige Whisper.
+                        // Genera una copia con sufijo versionado (.so.0) para mantener compatibilidad con binarios vinculados de forma rígida.
                         if (fileName.EndsWith(".so"))
                         {
-                            string versionedFileName = fileName + ".0";
-                            string versionedDestPath = global::System.IO.Path.Combine(binDir, versionedFileName);
+                            string versionedDestPath = global::System.IO.Path.Combine(_environmentManager.BinPath, fileName + ".0");
                             if (!global::System.IO.File.Exists(versionedDestPath))
                             {
                                 global::System.IO.File.Copy(libPath, versionedDestPath, false);
@@ -177,22 +187,24 @@ namespace Logic.Backend
                         }
                     }
 
-                    // 3. HARD-PATCH: Whisper asume que siempre existe un fallback genérico de CPU con nombre estricto.
-                    string targetWhisperCpuLib = global::System.IO.Path.Combine(binDir, "libggml-cpu.so.0");
+                    // Establece una redundancia para la librería de cálculo en CPU mediante la clonación de la variante x64 detectada.
+                    string targetWhisperCpuLib = global::System.IO.Path.Combine(_environmentManager.BinPath, "libggml-cpu.so.0");
                     if (!global::System.IO.File.Exists(targetWhisperCpuLib))
                     {
-                        string fallbackCpu = global::System.IO.Path.Combine(binDir, "libggml-cpu-x64.so");
+                        string fallbackCpu = global::System.IO.Path.Combine(_environmentManager.BinPath, "libggml-cpu-x64.so");
                         if (global::System.IO.File.Exists(fallbackCpu)) 
                         {
                             global::System.IO.File.Copy(fallbackCpu, targetWhisperCpuLib, false);
                         }
                     }
                 }
-                catch (Exception copyEx)
+                catch (Exception libSyncEx)
                 {
-                    GD.PrintErr($"BackendLauncher: Failure synchronizing shared libraries for native instances. {copyEx.Message}");
+                    GD.PrintErr($"BackendLauncher: Library synchronization fault: {libSyncEx.Message}");
                 }
 
+                // 6. Process Start Information Initialization
+                // Estructura los argumentos de línea de comandos y configura la redirección de flujos de E/S para el monitoreo.
                 ProcessStartInfo whisperInfo = new ProcessStartInfo
                 {
                     FileName = whisperBinPath,
@@ -213,35 +225,34 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
-                // Concatenates multiple library paths resolving segmentation faults natively triggered by CPU compilation bindings.
-                whisperInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = $"{binDir}:{llamaBinDir}";
+                // 7. Environment Variable Injection for Dynamic Linker
+                // Define el alcance de búsqueda del enlazador y asigna la visibilidad de dispositivos Vulkan para aceleración por hardware.
+                whisperInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = $"{_environmentManager.BinPath}:{llamaDir}";
                 whisperInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = "1";
                 
-                llamaInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = llamaBinDir;
+                llamaInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = llamaDir;
                 llamaInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = "1";
 
+                // 8. Process Instance Instantiation and Event Binding
+                // Instancia los controladores de proceso y suscribe delegados para la captura de logs y gestión de fallos críticos.
                 _whisperProcess = new Process { StartInfo = whisperInfo, EnableRaisingEvents = true };
                 _llamaProcess = new Process { StartInfo = llamaInfo, EnableRaisingEvents = true };
 
                 _whisperProcess.OutputDataReceived += (sender, e) => 
                 { 
                     if (!string.IsNullOrEmpty(e.Data)) 
-                    {
-                        GD.Print($"[Whisper] {e.Data}");
                         CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Whisper] {e.Data}"); 
-                    }
                 };
                 
                 _whisperProcess.ErrorDataReceived += (sender, e) => 
                 { 
                     if (!string.IsNullOrEmpty(e.Data)) 
                     {
-                        GD.PrintErr($"[Whisper ERR] {e.Data}");
+                        string lowerData = e.Data.ToLower();
                         CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Whisper ERR] {e.Data}"); 
                         
-                        string lowerData = e.Data.ToLower();
-                        bool isFatalError = lowerData.Contains("out of memory") || lowerData.Contains("bad allocation") || lowerData.Contains("segmentation fault");
-                        if (isFatalError) PanicKill($"Critical memory fault: {e.Data}");
+                        if (lowerData.Contains("out of memory") || lowerData.Contains("bad allocation") || lowerData.Contains("segmentation fault") || lowerData.Contains("memory fault"))
+                            PanicKill($"Critical STT memory fault: {e.Data}");
                     }
                 };
                 _whisperProcess.Exited += OnProcessExited;
@@ -249,65 +260,51 @@ namespace Logic.Backend
                 _llamaProcess.OutputDataReceived += (sender, e) => 
                 { 
                     if (!string.IsNullOrEmpty(e.Data)) 
-                    {
-                        GD.Print($"[Llama] {e.Data}");
                         CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Llama] {e.Data}"); 
-                    }
                 };
                 
                 _llamaProcess.ErrorDataReceived += (sender, e) => 
                 { 
                     if (!string.IsNullOrEmpty(e.Data)) 
                     {
-                        GD.PrintErr($"[Llama ERR] {e.Data}");
+                        string lowerData = e.Data.ToLower();
                         CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Llama ERR] {e.Data}");
                         
-                        string lowerData = e.Data.ToLower();
-                        bool isFatalError = lowerData.Contains("out of memory") || lowerData.Contains("bad allocation") || lowerData.Contains("segmentation fault");
-                        if (isFatalError) PanicKill($"Critical memory fault: {e.Data}");
+                        if (lowerData.Contains("out of memory") || lowerData.Contains("bad allocation") || lowerData.Contains("segmentation fault"))
+                            PanicKill($"Critical LLM memory fault: {e.Data}");
                         
-                        if (e.Data.Contains("server is listening on") || e.Data.Contains("HTTP server listening"))
+                        if (e.Data.Contains("server is listening") || e.Data.Contains("HTTP server listening"))
                         {
                             _retryCount = 0; 
-                            GD.Print("BackendLauncher: Llama Server natively loaded into memory successfully.");
                             CallDeferred(MethodName.EmitSignal, SignalName.BackendReady);
                         }
                     }
                 };
                 _llamaProcess.Exited += OnProcessExited;
 
-                // Explicitly resolves and binds the TTS unmanaged engine sequence strictly prior to process execution contexts.
-                GD.Print("[DEBUG] BackendLauncher: Solicitando inicialización nativa de Sherpa-ONNX (TTS)...");
-                if (_ttsManager != null) 
+                // 9. Native TTS Initialization Sequence
+                // Valida y arranca el subsistema de síntesis de voz nativo mediante la interfaz de gestión interna.
+                if (_ttsManager != null && _ttsManager.InitializeNativeEngine()) 
                 {
-                    bool ttsReady = _ttsManager.InitializeNativeEngine();
-                    if (ttsReady) GD.Print("[DEBUG] BackendLauncher: Motor TTS Nativo enlazado correctamente a la memoria.");
-                    else GD.PrintErr("[DEBUG] BackendLauncher: FALLO Crítico al enlazar Motor TTS Nativo.");
-                } 
-                else 
-                {
-                    GD.PrintErr("[DEBUG] BackendLauncher: NativeTTSManager no fue encontrado en el SceneTree.");
+                    GD.Print("BackendLauncher: Native TTS engine online.");
                 }
 
-                GD.Print($"[DEBUG] BackendLauncher: Arrancando motor STT (Whisper) con PID asignado por el OS...");
+                // 10. OS-Level Process Execution
+                // Dispara el inicio de los procesos y habilita la lectura asíncrona de los flujos de texto redirigidos.
                 _whisperProcess.Start();
                 _whisperProcess.BeginOutputReadLine();
                 _whisperProcess.BeginErrorReadLine();
 
-                GD.Print($"[DEBUG] BackendLauncher: Arrancando motor LLM (Llama) en puerto {LlamaPort}...");
                 _llamaProcess.Start();
                 _llamaProcess.BeginOutputReadLine();
                 _llamaProcess.BeginErrorReadLine();
 
                 _isRunning = true;
-
-                GD.Print($"BackendLauncher: Natives initialized. Llama PID: {_llamaProcess.Id}, Whisper wrapper initialized. TTS is mapped via Unmanaged P/Invoke.");
-                
                 await MonitorProcessHealth();
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"BackendLauncher: General fault instantiating native binaries. {ex.Message}");
+                GD.PrintErr($"BackendLauncher: Unexpected lifecycle fault: {ex.Message}");
                 CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
             }
         }
