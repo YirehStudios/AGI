@@ -49,17 +49,6 @@ namespace Logic.Utils
         [Export] public Button BtnAdvancedSettings;
         [Export] public VBoxContainer AdvancedContainer;
         [Export] public LineEdit TxtCustomPort;
-        // Configuración de enrutamiento para motores de inferencia (Linux/Windows)
-        [Export] public string LlamaLinuxUrl = "https://github.com/ggml-org/llama.cpp/releases/download/b8966/llama-b8966-bin-ubuntu-vulkan-x64.tar.gz";
-        [Export] public string LlamaWindowsUrl = "https://github.com/ggml-org/llama.cpp/releases/download/b8966/llama-b8966-bin-win-vulkan-x64.zip";
-        [Export] public string WhisperLinuxUrl = "https://raw.githubusercontent.com/YirehStudios/AGI/refs/heads/main/whisper-server-vulkan-linux/whisper-server-vulkan-linux.tar.gz";
-        [Export] public string WhisperWindowsUrl = "";
-        [Export] public string SherpaLinuxUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.0/sherpa-onnx-v1.13.0-linux-x64-shared.tar.bz2";
-        [Export] public string SherpaWindowsUrl = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.0/sherpa-onnx-v1.13.0-win-x64-shared-MD-Release.tar.bz2";
-        private ConfigManager.ModelPreset _selectedLLM;
-        private ConfigManager.ModelPreset _selectedSTT;
-        private ConfigManager.ModelPreset _selectedTTS;
-
         [Export] public Button BtnStartBatchDownload;
 
         private DownloadManager _downloadManager;
@@ -68,6 +57,10 @@ namespace Logic.Utils
         private ConfigManager _configManager;
         private PackageManager _packageManager;
         private EnvironmentManager _environmentManager;
+
+        private ConfigManager.ModelPreset _selectedLLM;
+        private ConfigManager.ModelPreset _selectedSTT;
+        private ConfigManager.ModelPreset _selectedTTS;
 
         //Delete
         private List<ConfigManager.ModelPreset> _debugSelectedList = new List<ConfigManager.ModelPreset>();
@@ -303,26 +296,40 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Orquesta la recuperación asíncrona, extracción e inicialización de los motores nativos.
-        /// Implementa un enrutamiento dinámico de URLs y extensiones basado en el sistema operativo detectado.
+        /// Orquesta la recuperación asíncrona de los motores de ejecución y los modelos seleccionados.
+        /// Obtiene dinámicamente las URLs desde el ConfigManager y aplica reglas de enrutamiento 
+        /// por sistema operativo para determinar las extensiones de archivo y puntos finales de red.
         /// </summary>
         private async void StartModelDownload()
         {
             SwitchState(WizardState.Downloading);
 
-            // Determinación de parámetros de plataforma para la selección de paquetes binarios.
+            // Recuperación del manifiesto de motores desde la fuente remota o caché local.
+            ConfigManager.EngineConfig engineConfigs = await _configManager.GetOrDownloadEnginesAsync();
+
+            if (engineConfigs == null)
+            {
+                GD.PrintErr("SetupWizard: Error crítico. No se pudo obtener la configuración de los motores (engines.json).");
+                if (ModelDownloadStatus != null) 
+                    ModelDownloadStatus.Text = "[center][color=red]Error: No se pudo recuperar el manifiesto de motores.[/color][/center]";
+                return;
+            }
+
+            // Evaluación del entorno operativo para la selección de binarios.
             bool isWindows = _environmentManager.IsWindows;
 
-            string currentLlamaUrl = isWindows ? LlamaWindowsUrl : LlamaLinuxUrl;
+            // Determinación de URLs y nombres de archivo según la plataforma detectada.
+            // Se asignan extensiones .zip para Windows y .tar.gz/.tar.bz2 para entornos basados en Unix.
+            string currentLlamaUrl = isWindows ? engineConfigs.Llama.WindowsUrl : engineConfigs.Llama.LinuxUrl;
             string llamaArchive = isWindows ? "llama-server.zip" : "llama-server.tar.gz";
 
-            string currentWhisperUrl = isWindows ? WhisperWindowsUrl : WhisperLinuxUrl;
+            string currentWhisperUrl = isWindows ? engineConfigs.Whisper.WindowsUrl : engineConfigs.Whisper.LinuxUrl;
             string whisperArchive = isWindows ? "whisper-server.zip" : "whisper-server.tar.gz";
 
-            string currentSherpaUrl = isWindows ? SherpaWindowsUrl : SherpaLinuxUrl;
+            string currentSherpaUrl = isWindows ? engineConfigs.Sherpa.WindowsUrl : engineConfigs.Sherpa.LinuxUrl;
             string sherpaArchive = isWindows ? "sherpa-onnx.zip" : "sherpa-onnx-linux.tar.bz2";
 
-            // Ejecución de la descarga y preparación de motores base con validación de integridad.
+            // Fase de preparación de motores base: Descarga, verificación de integridad y extracción.
             if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Llama Server...[/center]";
             bool llamaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentLlamaUrl, llamaArchive, "llama");
 
@@ -334,11 +341,13 @@ namespace Logic.Utils
 
             if (!llamaOk || !whisperOk || !sherpaOk)
             {
-                GD.PrintErr("SetupWizard: Error preparando los motores base.");
-                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center][color=red]Error crítico preparando motores de ejecución.[/color][/center]";
+                GD.PrintErr("SetupWizard: Falló la preparación de los motores base de ejecución.");
+                if (ModelDownloadStatus != null) 
+                    ModelDownloadStatus.Text = "[center][color=red]Error crítico preparando motores nativos.[/color][/center]";
                 return;
             }
 
+            // Inicialización del directorio de modelos y procesamiento de la cola de presets seleccionados.
             string modelsDir = _environmentManager.ModelsPath;
             global::System.IO.Directory.CreateDirectory(modelsDir);
 
@@ -350,6 +359,7 @@ namespace Logic.Utils
 
                 string safeFileName = preset.Name.Replace(" ", "_");
 
+                // Normalización de extensiones según la naturaleza del modelo y el preset definido.
                 if (preset.Name.Contains("Whisper")) safeFileName += ".bin";
                 else if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa") || preset.Name.Contains("Kokoro"))
                 {
@@ -357,6 +367,8 @@ namespace Logic.Utils
                 }
                 else safeFileName += ".gguf";
 
+                // Actualización del estado global de configuración para el modelo activo.
+                // Se realiza el mapeo de motores específicos (STT/TTS) antes de la persistencia.
                 if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa") || preset.Name.Contains("Kokoro"))
                 {
                     _configManager.ActiveTTSEngine = "sherpa-onnx";
@@ -378,6 +390,7 @@ namespace Logic.Utils
                 string globalPath = global::System.IO.Path.Combine(modelsDir, safeFileName);
                 bool isAlreadyExtracted = false;
 
+                // Validación de persistencia previa para evitar operaciones de red redundantes.
                 if (preset.Name.Contains("Piper") || preset.Name.Contains("Sherpa") || preset.Name.Contains("Kokoro"))
                 {
                     string extractedFolderPath = global::System.IO.Path.Combine(modelsDir, _configManager.ActiveTTSModel);
@@ -386,24 +399,27 @@ namespace Logic.Utils
 
                 if (global::System.IO.File.Exists(globalPath) || isAlreadyExtracted)
                 {
-                    GD.Print($"SetupWizard: Local cache validated for {safeFileName}");
-                    if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]El modelo {preset.Name} ya está listo. Omitiendo...[/center]";
+                    GD.Print($"SetupWizard: Cache validado localmente para {safeFileName}");
+                    if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]{preset.Name} ya está presente. Omitiendo...[/center]";
                     await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout);
                     continue;
                 }
 
                 if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]Descargando tensores: {preset.Name}...[/center]";
 
+                // Ejecución de la transferencia de datos mediante el DownloadManager.
                 bool success = await _downloadManager.DownloadFileAsync(preset.DownloadLinks[0], modelsDir, safeFileName);
 
                 if (!success)
                 {
-                    GD.PrintErr($"SetupWizard: Network failure with {preset.Name}");
-                    if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center][color=red]Error de red descargando {preset.Name}.[/color][/center]";
+                    GD.PrintErr($"SetupWizard: Fallo de red durante la descarga de {preset.Name}");
+                    if (ModelDownloadStatus != null) 
+                        ModelDownloadStatus.Text = $"[center][color=red]Error descargando {preset.Name}.[/color][/center]";
                     return;
                 }
             }
 
+            // Inicio de la secuencia de arranque del servidor local tras completar las dependencias de datos.
             StartLlamaServer();
         }
 

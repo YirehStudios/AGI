@@ -1,0 +1,14 @@
+{
+  "Llama": {
+    "LinuxUrl": "https://github.com/ggml-org/llama.cpp/releases/download/b8966/llama-b8966-bin-ubuntu-vulkan-x64.tar.gz",
+    "WindowsUrl": "https://github.com/ggml-org/llama.cpp/releases/download/b8941/llama-b8941-bin-win-vulkan-x64.zip"
+  },
+  "Whisper": {
+    "LinuxUrl": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/whisper-server-vulkan/dist/whisper-server-vulkan-linux.tar.gz",
+    "WindowsUrl": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/whisper-server-vulkan/dist/whisper-server-vulkan-windows.zip"
+  },
+  "Sherpa": {
+    "LinuxUrl": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.0/sherpa-onnx-v1.13.0-linux-x64-shared.tar.bz2",
+    "WindowsUrl": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.0/sherpa-onnx-v1.13.0-win-x64-shared-MD-Release.tar.bz2"
+  }
+}

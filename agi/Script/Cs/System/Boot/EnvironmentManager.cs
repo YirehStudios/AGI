@@ -30,16 +30,24 @@ public partial class EnvironmentManager : Node
         string osName = OS.GetName();
 
         // Evaluación de sistema operativo
-        IsWindows = osName == "Windows";
-        IsLinux = osName == "LinuxBSD";
-        IsAndroid = osName == "Android";
+        // IsWindows = osName == "Windows";
+        // IsLinux = osName == "LinuxBSD";
+        // IsAndroid = osName == "Android";
+
+        IsWindows = true; 
+        IsLinux = false;
+        IsAndroid = false;
 
         // Asignación de flags según reglas de negocio
         if (IsAndroid)
         {
-            IsUIOnlyMode = true;
-            CanRunLocalModels = false;
-            CanRunLocalTTS = false;
+            // IsUIOnlyMode = true;
+            // CanRunLocalModels = false;
+            // CanRunLocalTTS = false;
+
+            IsUIOnlyMode = false;
+            CanRunLocalModels = true;
+            CanRunLocalTTS = true;
         }
         else
         {
