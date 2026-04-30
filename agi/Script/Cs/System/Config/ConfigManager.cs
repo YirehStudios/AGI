@@ -9,12 +9,11 @@ using System.Threading.Tasks;
 namespace Logic.System.Config
 {
     /// <summary>
-    /// Manages the application's configuration state, handles persistence, and validates model integrity.
-    /// Operates strictly as a data layer Singleton without UI dependencies.
+    /// Gestiona el estado de configuración de la aplicación, maneja la persistencia y valida la integridad de los modelos.
+    /// Opera como una capa de datos Singleton sin dependencias de interfaz de usuario.
     /// </summary>
     public partial class ConfigManager : Node
     {
-        
         public enum AppMode 
         { 
             None, 
@@ -34,20 +33,34 @@ namespace Logic.System.Config
         public bool IsLanConnection { get; set; } = false;
         public string CustomPort { get; set; } = "8080";
 
-        // -1 significa "Auto-detectar la GPU más potente". 
-        // 0, 1, 2... serán los índices si el usuario lo cambia manualmente en tu futura UI.
         public int SelectedGpuIndex { get; set; } = -1;
 
-        /// <summary>
-        /// Define los motores y modelos de procesamiento de lenguaje natural y síntesis de voz utilizados por defecto.
-        /// </summary>
         public string ActiveSTTEngine { get; set; } = "whisper.cpp";
         public string ActiveSTTModel { get; set; } = "base.bin";
         public string ActiveTTSEngine { get; set; } = "sherpa-onnx";
         public string ActiveTTSModel { get; set; } = "vits-piper-es_ES-miro-high";
 
         /// <summary>
-        /// Defines the structure for model presets loaded from the external JSON configuration.
+        /// Define la estructura para las URLs de descarga de motores en diferentes plataformas.
+        /// </summary>
+        public class EngineUrls
+        {
+            public string LinuxUrl { get; set; }
+            public string WindowsUrl { get; set; }
+        }
+
+        /// <summary>
+        /// Contenedor raíz para la configuración de los diversos motores de inferencia.
+        /// </summary>
+        public class EngineConfig
+        {
+            public EngineUrls Llama { get; set; }
+            public EngineUrls Whisper { get; set; }
+            public EngineUrls Sherpa { get; set; }
+        }
+
+        /// <summary>
+        /// Define la estructura de los presets de modelos cargados desde el JSON externo.
         /// </summary>
         public class ModelPreset
         {
@@ -61,10 +74,6 @@ namespace Logic.System.Config
 
         private Logic.Network.DownloadManager _downloadManager;
 
-        /// <summary>
-        /// Internal structure used exclusively for JSON serialization of the configuration state.
-        /// Integra el mapeo de los motores de síntesis y reconocimiento para la persistencia local.
-        /// </summary>
         private class ConfigState
         {
             public AppMode Mode { get; set; }
@@ -81,10 +90,6 @@ namespace Logic.System.Config
             public string ActiveTTSModel { get; set; }
         }
 
-        /// <summary>
-        /// Inicializa las dependencias del nodo al entrar al árbol de escena.
-        /// Establece las rutas de configuración y recupera la instancia del DownloadManager en memoria.
-        /// </summary>
         public override void _Ready()
         {
             _settingsDirectory = ProjectSettings.GlobalizePath("user://settings");
@@ -97,16 +102,75 @@ namespace Logic.System.Config
         }
 
         /// <summary>
-        /// Orquesta la descarga asíncrona de un modelo de IA predefinido utilizando el DownloadManager global.
+        /// Obtiene la configuración de motores desde el repositorio remoto con respaldo local.
+        /// Implementa lógica de cache-busting para garantizar la frescura de los datos.
         /// </summary>
-        /// <param name="preset">Objeto que contiene los metadatos y enlaces de descarga del modelo.</param>
+        /// <returns>Objeto EngineConfig con las URLs de descarga por plataforma.</returns>
+        public async Task<EngineConfig> GetOrDownloadEnginesAsync()
+        {
+            string enginesPath = ProjectSettings.GlobalizePath("user://engines.json");
+            
+            // Intento de sincronización con el repositorio remoto.
+            bool downloadSuccess = await DownloadEnginesFromGitHub(enginesPath);
+
+            if (!downloadSuccess)
+            {
+                GD.PrintErr("ConfigManager: La actualización de motores falló. Verificando disponibilidad local.");
+                if (!File.Exists(enginesPath))
+                {
+                    GD.PrintErr("ConfigManager: No se encontró definición de motores.");
+                    return null;
+                }
+            }
+
+            try
+            {
+                string jsonString = File.ReadAllText(enginesPath);
+                JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                return JsonSerializer.Deserialize<EngineConfig>(jsonString, options);
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"ConfigManager: Error deserializando engines.json: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Realiza la petición HTTP para descargar el manifiesto de motores.
+        /// Utiliza el calificador global para evitar colisiones entre el cliente de Godot y el de .NET.
+        /// </summary>
+        /// <param name="destinationPath">Ruta local de persistencia del archivo JSON.</param>
+        /// <returns>True si la descarga y escritura fueron exitosas.</returns>
+        private async Task<bool> DownloadEnginesFromGitHub(string destinationPath)
+        {
+            string cacheBuster = DateTime.Now.Ticks.ToString();
+            string targetUrl = $"https://raw.githubusercontent.com/YirehStudios/AGI/main/agi/Script/Cs/System/Config/engines.json?t={cacheBuster}";
+
+            try
+            {
+                // Se utiliza el calificador global:: para resolver la ambigüedad con Godot.HttpClient
+                // y prevenir que el compilador busque 'Net' dentro del espacio de nombres 'Logic.System'.
+                using global::System.Net.Http.HttpClient client = new global::System.Net.Http.HttpClient();
+                client.DefaultRequestHeaders.CacheControl = new global::System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+                
+                string jsonContent = await client.GetStringAsync(targetUrl);
+                File.WriteAllText(destinationPath, jsonContent);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"ConfigManager: Error de red descargando motores: {ex.Message}");
+                return false;
+            }
+        }
+
         public async Task DownloadModelAsync(ModelPreset preset)
         {
             if (_downloadManager == null || preset.DownloadLinks.Count == 0) return;
 
             string url = preset.DownloadLinks[0];
             string fileName = Path.GetFileName(new Uri(url).LocalPath);
-            
             string folder = "user://agi/models";
 
             GD.Print($"ConfigManager: Iniciando descarga de {preset.Name}...");
@@ -118,10 +182,6 @@ namespace Logic.System.Config
             }
         }
 
-        /// <summary>
-        /// Serializes the current application state to the local configuration file.
-        /// Captura y persiste las asignaciones de motor y modelo de audio activas.
-        /// </summary>
         public void SaveConfiguration()
         {
             try
@@ -158,16 +218,9 @@ namespace Logic.System.Config
             }
         }
 
-        /// <summary>
-        /// Reads and deserializes the configuration state from the local file system.
-        /// Restaura en memoria la configuración, inyectando las preferencias de audio si están definidas.
-        /// </summary>
         public void LoadConfiguration()
         {
-            if (!File.Exists(_configFilePath))
-            {
-                return;
-            }
+            if (!File.Exists(_configFilePath)) return;
 
             try
             {
@@ -197,27 +250,14 @@ namespace Logic.System.Config
             }
         }
 
-        /// <summary>
-        /// Obtiene la lista de modelos preconfigurados priorizando la última versión del repositorio remoto.
-        /// Implementa una estrategia de tolerancia a fallos empleando la versión en caché local en caso 
-        /// de indisponibilidad de la red.
-        /// </summary>
-        /// <returns>Una tarea asíncrona que contiene la lista de objetos ModelPreset actualizada o respaldada.</returns>
         public async Task<List<ModelPreset>> GetOrDownloadPresetsAsync()
         {
             string userPresetsPath = ProjectSettings.GlobalizePath("user://presets.json");
-
             bool downloadSuccess = await DownloadPresetsFromGitHub(userPresetsPath);
 
             if (!downloadSuccess)
             {
-                GD.PrintErr("ConfigManager: La actualización remota falló. Evaluando contingencia en caché local.");
-                
-                if (!File.Exists(userPresetsPath))
-                {
-                    GD.PrintErr("ConfigManager: No existe caché local de presets. Operación abortada.");
-                    return new List<ModelPreset>();
-                }
+                if (!File.Exists(userPresetsPath)) return new List<ModelPreset>();
             }
 
             try
@@ -228,28 +268,26 @@ namespace Logic.System.Config
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"ConfigManager: Error durante la lectura o deserialización de presets. Excepción: {ex.Message}");
+                GD.PrintErr($"ConfigManager: Error leyendo presets: {ex.Message}");
                 return new List<ModelPreset>();
             }
         }
 
         /// <summary>
-        /// Instancia un cliente HTTP calificado explícitamente desde System.Net.Http para evitar colisiones 
-        /// con la red nativa de Godot. Realiza una petición GET hacia la URL cruda del repositorio,
-        /// recupera la cadena de texto de la respuesta y la persiste en la ruta de destino especificada.
+        /// Recupera el catálogo de modelos preestablecidos desde el repositorio remoto.
+        /// Implementa resolución explícita de tipos para asegurar la integridad de la operación de red.
         /// </summary>
-        /// <param name="destinationPath">La ruta absoluta del sistema de archivos donde se almacenará el JSON.</param>
-        /// <returns>Una tarea asíncrona que retorna verdadero si el proceso de descarga y escritura concluye con éxito.</returns>
+        /// <param name="destinationPath">Ruta de destino para la persistencia del archivo de presets.</param>
+        /// <returns>Booleano indicando el éxito de la transferencia de datos.</returns>
         private async Task<bool> DownloadPresetsFromGitHub(string destinationPath)
         {
-            // Añadimos un timestamp para romper el caché
             string cacheBuster = DateTime.Now.Ticks.ToString();
             string targetUrl = $"https://raw.githubusercontent.com/YirehStudios/AGI/main/agi/Script/Cs/System/Config/presets.json?t={cacheBuster}";
 
             try
             {
+                // La instanciación mediante el espacio de nombres global garantiza que se utilice el cliente HTTP de .NET Core.
                 using global::System.Net.Http.HttpClient client = new global::System.Net.Http.HttpClient();
-                // Opcional: Añadir cabecera para no cachear
                 client.DefaultRequestHeaders.CacheControl = new global::System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
                 
                 string jsonContent = await client.GetStringAsync(targetUrl);
@@ -258,41 +296,28 @@ namespace Logic.System.Config
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"ConfigManager: Error en la red: {ex.Message}");
+                GD.PrintErr($"ConfigManager: Error en la red (Presets): {ex.Message}");
                 return false;
             }
         }
 
-        /// <summary>
-        /// Validates the existence and expected byte size of the currently assigned model file.
-        /// </summary>
-        /// <param name="expectedSize">The expected file size in bytes to verify integrity.</param>
-        /// <returns>A tuple containing a boolean success flag and a descriptive error message if applicable.</returns>
         public (bool IsValid, string ErrorMessage) ValidateModelIntegrity(long expectedSize)
         {
-            if (string.IsNullOrEmpty(ActiveModelPath))
-            {
-                return (false, "Model path is not configured.");
-            }
-
-            if (!File.Exists(ActiveModelPath))
-            {
-                return (false, $"The model file was not found at the specified path: {ActiveModelPath}");
-            }
+            if (string.IsNullOrEmpty(ActiveModelPath)) return (false, "Model path is not configured.");
+            if (!File.Exists(ActiveModelPath)) return (false, $"File not found at: {ActiveModelPath}");
 
             try
             {
                 FileInfo fileInfo = new FileInfo(ActiveModelPath);
                 if (fileInfo.Length != expectedSize)
                 {
-                    return (false, $"Model size mismatch. Expected {expectedSize} bytes, but found {fileInfo.Length} bytes. The file may be corrupted or incomplete.");
+                    return (false, $"Size mismatch. Expected {expectedSize}, found {fileInfo.Length}.");
                 }
-
                 return (true, string.Empty);
             }
             catch (Exception ex)
             {
-                return (false, $"An error occurred while validating the model: {ex.Message}");
+                return (false, $"Validation error: {ex.Message}");
             }
         }
     }

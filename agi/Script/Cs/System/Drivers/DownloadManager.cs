@@ -1,12 +1,17 @@
 using Godot;
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
 
 namespace Logic.Network
 {
+    /// <summary>
+    /// Gestiona la descarga asíncrona de activos y su posterior descompresión.
+    /// Implementa soporte para aceleración mediante aria2c y extracción nativa de archivos comprimidos.
+    /// </summary>
     public partial class DownloadManager : Node
     {
         [Signal]
@@ -15,6 +20,9 @@ namespace Logic.Network
         [Signal]
         public delegate void DownloadCompletedEventHandler(string fileName, bool success);
 
+        /// <summary>
+        /// Verifica la presencia del binario aria2c en las variables de entorno del sistema.
+        /// </summary>
         private bool CheckAria2Availability()
         {
             Godot.Collections.Array output = new Godot.Collections.Array();
@@ -22,10 +30,12 @@ namespace Logic.Network
             return exitCode == 0;
         }
 
-
+        /// <summary>
+        /// Ejecuta el flujo de trabajo de descarga y extracción en un hilo secundario para preservar la reactividad de la interfaz.
+        /// </summary>
         public async Task<bool> DownloadFileAsync(string url, string destinationFolder, string fileName)
         {
-            // Paso 1: Inicialización
+            // Paso 1: Inicialización y normalización de rutas.
             url = url.Trim();
             bool hasAria2 = CheckAria2Availability();
             string globalDestination = ProjectSettings.GlobalizePath(destinationFolder);
@@ -37,7 +47,7 @@ namespace Logic.Network
 
             string filePath = Path.Combine(globalDestination, fileName);
 
-            // Paso 2 y 3: TODO EL PROCESO PESADO (Descarga y Extracción) EN EL SUBPROCESO
+            // Paso 2 y 3: Ejecución de transferencia de datos y procesamiento de archivos en subproceso.
             bool finalSuccess = await Task.Run(async () =>
             {
                 bool downloadSuccess = false;
@@ -45,8 +55,7 @@ namespace Logic.Network
                 {
                     if (hasAria2)
                     {
-                        GD.Print($"DownloadManager: Utilizando aria2c para {fileName}");
-                        
+                        // Configuración del proceso aria2c para descarga segmentada y multi-hilo.
                         using Process process = new Process();
                         process.StartInfo.FileName = "aria2c";
                         
@@ -69,6 +78,7 @@ namespace Logic.Network
                         process.StartInfo.UseShellExecute = false;
                         process.StartInfo.CreateNoWindow = true;
 
+                        // Captura y parseo de la salida estándar para reportar el progreso de descarga.
                         process.OutputDataReceived += (sender, e) =>
                         {
                             if (!string.IsNullOrEmpty(e.Data))
@@ -97,8 +107,7 @@ namespace Logic.Network
                     }
                     else
                     {
-                        GD.Print($"DownloadManager: Utilizando HttpClient fallback para {fileName}");
-                        
+                        // Implementación de respaldo mediante HttpClient en caso de ausencia de aria2c.
                         using global::System.Net.Http.HttpClient client = new global::System.Net.Http.HttpClient();
                         
                         client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
@@ -133,56 +142,57 @@ namespace Logic.Network
                 }
                 catch (Exception ex)
                 {
-                    GD.PrintErr($"DownloadManager: Error en transferencia de {fileName}. Excepción: {ex.Message}");
+                    GD.PrintErr($"DownloadManager: Fallo en la transferencia de {fileName}. Detalle: {ex.Message}");
                     downloadSuccess = false;
                 }
 
-                // Paso 3: EXTRACCIÓN (AHORA EN EL SUBPROCESO PARA NO CONGELAR LA UI)
+                // Paso 3: EXTRACCIÓN Y PROCESAMIENTO POST-DESCARGA.
                 if (downloadSuccess)
                 {
                     try
                     {
                         if (fileName.EndsWith(".tar.gz") || fileName.EndsWith(".tar.bz2") || fileName.EndsWith(".zip"))
                         {
-                            // Avisamos a la interfaz que estamos extrayendo
                             CallDeferred(Godot.GodotObject.MethodName.EmitSignal, SignalName.DownloadProgress, fileName + " (Extrayendo...)", 99f);
 
-                            using Process extractProcess = new Process();
-                            extractProcess.StartInfo.UseShellExecute = false;
-                            extractProcess.StartInfo.CreateNoWindow = true;
-
-                            if (fileName.EndsWith(".tar.gz"))
+                            // Gestión de extracción nativa para el formato ZIP mediante la librería System.IO.Compression.
+                            if (fileName.EndsWith(".zip"))
                             {
-                                extractProcess.StartInfo.FileName = "tar";
-                                extractProcess.StartInfo.Arguments = $"-xzf \"{filePath}\" -C \"{globalDestination}\"";
-                            }
-                            else if (fileName.EndsWith(".tar.bz2"))
-                            {
-                                extractProcess.StartInfo.FileName = "tar";
-                                extractProcess.StartInfo.Arguments = $"-xjf \"{filePath}\" -C \"{globalDestination}\"";
-                            }
-                            else if (fileName.EndsWith(".zip"))
-                            {
-                                extractProcess.StartInfo.FileName = "unzip";
-                                extractProcess.StartInfo.Arguments = $"-o \"{filePath}\" -d \"{globalDestination}\"";
-                            }
-
-                            extractProcess.Start();
-                            extractProcess.WaitForExit();
-
-                            if (extractProcess.ExitCode != 0) 
-                            {
-                                throw new Exception("El proceso de extracción falló en el sistema operativo.");
+                                ZipFile.ExtractToDirectory(filePath, globalDestination, true);
+                                GD.Print($"DownloadManager: Extracción nativa de {fileName} completada.");
                             }
                             else
                             {
-                                GD.Print($"DownloadManager: Extracción de {fileName} completada (ExitCode 0).");
+                                // Delegación a utilidades del sistema operativo para formatos TAR comprimidos.
+                                using Process extractProcess = new Process();
+                                extractProcess.StartInfo.UseShellExecute = false;
+                                extractProcess.StartInfo.CreateNoWindow = true;
+                                extractProcess.StartInfo.FileName = "tar";
+
+                                if (fileName.EndsWith(".tar.gz"))
+                                {
+                                    extractProcess.StartInfo.Arguments = $"-xzf \"{filePath}\" -C \"{globalDestination}\"";
+                                }
+                                else if (fileName.EndsWith(".tar.bz2"))
+                                {
+                                    extractProcess.StartInfo.Arguments = $"-xjf \"{filePath}\" -C \"{globalDestination}\"";
+                                }
+
+                                extractProcess.Start();
+                                extractProcess.WaitForExit();
+
+                                if (extractProcess.ExitCode != 0) 
+                                {
+                                    throw new Exception("El comando tar reportó un código de salida no exitoso.");
+                                }
+                                
+                                GD.Print($"DownloadManager: Extracción vía shell de {fileName} finalizada.");
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        GD.PrintErr($"DownloadManager: Error crítico en extracción de {fileName}. Excepción: {ex.Message}");
+                        GD.PrintErr($"DownloadManager: Error crítico durante la descompresión de {fileName}. Detalle: {ex.Message}");
                         downloadSuccess = false;
                     }
                 }
@@ -190,7 +200,7 @@ namespace Logic.Network
                 return downloadSuccess;
             });
 
-            // Paso 4: Finalización y Notificación de vuelta al hilo principal
+            // Paso 4: Notificación de finalización al hilo de ejecución de Godot.
             if (Godot.GodotObject.IsInstanceValid(this) && !this.IsQueuedForDeletion())
             {
                 try
