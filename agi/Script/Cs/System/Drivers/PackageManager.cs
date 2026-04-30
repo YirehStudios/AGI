@@ -6,7 +6,8 @@ using Logic.Utils;
 namespace Logic.System.Drivers
 {
     /// <summary>
-    /// Manages the lifecycle of engine packages, including downloading and verifying file system permissions.
+    /// Gestiona el ciclo de vida de los paquetes de motores, incluyendo la descarga, 
+    /// organización en directorios específicos y verificación de permisos de ejecución.
     /// </summary>
     public partial class PackageManager : Node
     {
@@ -20,56 +21,72 @@ namespace Logic.System.Drivers
         }
 
         /// <summary>
-        /// Validates if the required engine executable is present and ready.
+        /// Valida la presencia del ejecutable del motor en la subcarpeta correspondiente a su arquitectura y prefijo.
         /// </summary>
         public bool IsEngineReady(string enginePrefix)
         {
-            string path = FileResolver.FindExecutable(_environmentManager.BinPath, _environmentManager.IsWindows, enginePrefix);
+            // Se calcula la ruta de destino basándose en el sistema operativo y el motor para una búsqueda precisa.
+            string osFolder = _environmentManager.IsWindows ? "windows" : "linux";
+            string engineTargetDir = Path.Combine(_environmentManager.BinPath, osFolder, enginePrefix);
+            
+            string path = FileResolver.FindExecutable(engineTargetDir, _environmentManager.IsWindows, enginePrefix);
             return !string.IsNullOrEmpty(path);
         }
 
         /// <summary>
-        /// Downloads and prepares the engine, including recursive search and Linux permission configuration.
+        /// Ejecuta el aprovisionamiento del motor mediante descarga asíncrona y configuración de entorno.
         /// </summary>
-        public async Task<bool> DownloadAndPrepareEngineAsync(string url, string fileName, string enginePrefix)
+        public async Task<bool> DownloadAndPrepareEngineAsync(string url, string fileName, string folderName, string exactExecutableName)
         {
+            // Valida si el entorno actual requiere la preparación de binarios nativos.
             if (_environmentManager.IsUIOnlyMode || _environmentManager.IsAndroid)
             {
                 return true;
             }
 
-            bool downloadSuccess = await _downloadManager.DownloadFileAsync(url, _environmentManager.BinPath, fileName);
+            // Define la segmentación de directorios según el sistema operativo identificado.
+            string osFolder = _environmentManager.IsWindows ? "windows" : "linux";
+            
+            // Calcula la ruta absoluta de destino para el despliegue del motor.
+            string engineTargetDir = Path.Combine(_environmentManager.BinPath, osFolder, folderName);
+            
+            // Establece la ruta interna de Godot para la persistencia del archivo comprimido.
+            string godotDestination = $"user://bin/{osFolder}/{folderName}";
+
+            // Inicia la transferencia de datos hacia la carpeta aislada del motor específico.
+            bool downloadSuccess = await _downloadManager.DownloadFileAsync(url, godotDestination, fileName);
             if (!downloadSuccess)
             {
                 return false;
             }
 
-            string subDir = FileResolver.FindDirectoryByPrefix(_environmentManager.BinPath, enginePrefix);
-            string targetFolder = string.IsNullOrEmpty(subDir) ? _environmentManager.BinPath : subDir;
+            // Localiza la ubicación exacta del binario ejecutable dentro del directorio extraído.
+            string executablePath = FileResolver.FindExecutable(engineTargetDir, _environmentManager.IsWindows, exactExecutableName);
 
-            string executablePath = FileResolver.FindExecutable(targetFolder, _environmentManager.IsWindows, enginePrefix);
-
-            GD.Print($"[PackageManager] Evaluating path for {enginePrefix}: {executablePath}");
+            GD.Print($"[PackageManager] Evaluating path for {exactExecutableName}: {executablePath}");
             if (string.IsNullOrEmpty(executablePath))
             {
-                GD.PrintErr($"[PackageManager] ERROR: Executable for '{enginePrefix}' not found within {targetFolder}. Aborting.");
+                GD.PrintErr($"[PackageManager] ERROR: Executable for '{exactExecutableName}' not found within {engineTargetDir}. Aborting.");
                 return false;
             }
 
+            // Gestiona descriptores de seguridad y librerías vinculadas en sistemas POSIX.
             if (_environmentManager.IsLinux)
             {
-                // Assign execute permissions to the main binary
+                // Concede privilegios de ejecución al binario identificado.
                 OS.Execute("chmod", new string[] { "+x", executablePath });
 
-                if (enginePrefix.Contains("sherpa"))
+                // Procesa dependencias de librerías compartidas si el motor es Sherpa.
+                if (folderName.Contains("sherpa"))
                 {
-                    string libPath = Path.Combine(targetFolder, "lib");
+                    string libPath = Path.Combine(engineTargetDir, "lib");
                     if (Directory.Exists(libPath))
                     {
                         string[] libFiles = Directory.GetFiles(libPath, "*.so*");
                         GD.Print($"[PackageManager] Applying read permissions to libraries in {libPath}");
                         foreach (string libFile in libFiles)
                         {
+                            // Asegura que las librerías dinámicas sean accesibles para la carga en runtime.
                             OS.Execute("chmod", new string[] { "a+r", libFile });
                         }
                         GD.Print($"[PackageManager] Library permissions applied successfully.");
@@ -77,7 +94,7 @@ namespace Logic.System.Drivers
                 }
             }
 
-            GD.Print($"[PackageManager] -> Engine '{enginePrefix}' prepared successfully.");
+            GD.Print($"[PackageManager] -> Engine '{exactExecutableName}' prepared successfully.");
             return true;
         }
     }

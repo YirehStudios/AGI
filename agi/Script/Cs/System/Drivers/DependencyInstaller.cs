@@ -7,19 +7,31 @@ namespace Logic.System.Drivers
 {
     /// <summary>
     /// Instala dependencias lanzando un script maestro generado dinámicamente.
-    /// Detecta hardware y la distribución de Linux para automatizar la configuración.
+    /// Detecta hardware y la distribución de Linux para automatizar la configuración.[cite: 4]
     /// </summary>
     public partial class DependencyInstaller : Node
     {
+        private dynamic _environmentManager;
+
         /// <summary>
-        /// Executes system checks asynchronously to prevent blocking the main rendering thread.
-        /// Generates and provisions a bash script limited to fundamental OS dependencies, 
-        /// completely dropping the heavy Python ecosystem footprint from the pipeline.
+        /// Inicializa la dependencia recuperando el nodo Autoload del árbol principal.[cite: 4]
+        /// </summary>
+        public override void _Ready()
+        {
+            _environmentManager = GetNode("/root/EnvironmentManager");
+        }
+
+        /// <summary>
+        /// Ejecuta comprobaciones del sistema de forma asíncrona.
+        /// Genera y provisiona un script bash limitado a dependencias fundamentales del sistema operativo.[cite: 4]
         /// </summary>
         public async Task<(bool IsReady, string RequiredCommand, string AuditLog)> AuditSystemDependenciesAsync()
         {
             return await Task.Run(() =>
             {
+                // Restricción de plataforma: Omite la auditoría en entornos Windows, Android o UI Only para evitar la ejecución de comandos Bash incompatibles.
+                if (_environmentManager.IsWindows || _environmentManager.IsAndroid || _environmentManager.IsUIOnlyMode) { return (true, string.Empty, string.Empty); }
+
                 bool hasAria2 = CheckCommandExists("aria2c");
                 bool hasVulkan = CheckCommandExists("vulkaninfo");
                 bool hasEspeak = CheckCommandExists("espeak-ng");
@@ -28,7 +40,6 @@ namespace Logic.System.Drivers
                 bool needsVulkan = !hasVulkan;
                 bool needsEspeak = !hasEspeak;
 
-                // Omite el despliegue del script si los requerimientos de descarga, renderizado y fonemas están satisfechos por el host.
                 if (!needsAria2 && !needsVulkan && !needsEspeak)
                 {
                     return (true, string.Empty, "> Todos los subsistemas operativos C++ y nativos están en línea y funcionales.");
@@ -50,7 +61,6 @@ namespace Logic.System.Drivers
                 bool hasDnf = CheckCommandExists("dnf");
                 bool hasPacman = CheckCommandExists("pacman");
 
-                // Restringe la asignación de comandos de repositorios eliminando las bibliotecas pip y bindings de Python.
                 if (needsAria2 || needsVulkan || needsEspeak)
                 {
                     scriptContent += "echo '-> Instalando dependencias de red, aceleración Vulkan y diccionarios...'\n";

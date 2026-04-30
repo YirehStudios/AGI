@@ -145,7 +145,7 @@ namespace Logic.System.Config
         private async Task<bool> DownloadEnginesFromGitHub(string destinationPath)
         {
             string cacheBuster = DateTime.Now.Ticks.ToString();
-            string targetUrl = $"https://raw.githubusercontent.com/YirehStudios/AGI/main/agi/Script/Cs/System/Config/engines.json?t={cacheBuster}";
+            string targetUrl = $"https://github.com/YirehStudios/AGI/raw/refs/heads/main/agi/Script/Cs/System/Config/engines.json?t={cacheBuster}";
 
             try
             {
