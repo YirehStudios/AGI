@@ -327,10 +327,16 @@ namespace Logic.Utils
             string whisperArchive = isWindows ? "whisper-server.zip" : "whisper-server.tar.gz";
 
             string currentSherpaUrl = isWindows ? engineConfigs.Sherpa.WindowsUrl : engineConfigs.Sherpa.LinuxUrl;
+
+            // Extracción de la URL del entorno de Python según la plataforma actual para su posterior inicialización.
+            string currentPythonUrl = isWindows ? engineConfigs.Python.WindowsUrl : engineConfigs.Python.LinuxUrl;
             
-            // Se aplica una corrección en la extensión de Sherpa para Windows, utilizando .tar.bz2 en lugar de .zip
+            // Se aplica una conrección en la extensión de Sherpa para Windows, utilizando .tar.bz2 en lugar de .zip
             // para mantener la compatibilidad con el empaquetado del motor.
             string sherpaArchive = isWindows ? "sherpa-onnx-win.tar.bz2" : "sherpa-onnx-linux.tar.bz2";
+
+            // Inicialización del entorno de Python antes de proceder con la descarga de binarios de motor.
+            bool pythonOk = await _packageManager.EnsurePythonEnvironmentAsync(currentPythonUrl);
 
             // Fase de preparación de motores base: Descarga, verificación de integridad y extracción con identificación precisa de binarios.
             if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Llama Server...[/center]";
@@ -342,11 +348,14 @@ namespace Logic.Utils
             if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Sherpa-ONNX Server...[/center]";
             bool sherpaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentSherpaUrl, sherpaArchive, "sherpa", "sherpa-onnx");
 
-            if (!llamaOk || !whisperOk || !sherpaOk)
+            // Evaluación de resultados de preparación incluyendo el estado del entorno de Python.
+            if (!llamaOk || !whisperOk || !sherpaOk || !pythonOk)
             {
-                GD.PrintErr("SetupWizard: Falló la preparación de los motores base de ejecución.");
+                string errorMessage = !pythonOk ? "Error al configurar el entorno de Python." : "Falló la preparación de los motores base de ejecución.";
+                GD.PrintErr($"SetupWizard: {errorMessage}");
+
                 if (ModelDownloadStatus != null) 
-                    ModelDownloadStatus.Text = "[center][color=red]Error crítico preparando motores nativos.[/color][/center]";
+                    ModelDownloadStatus.Text = $"[center][color=red]{errorMessage}[/color][/center]";
                 return;
             }
 
