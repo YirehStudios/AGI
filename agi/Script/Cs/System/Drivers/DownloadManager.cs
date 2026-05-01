@@ -22,7 +22,7 @@ namespace Logic.Network
         public delegate void DownloadCompletedEventHandler(string fileName, bool success);
 
         /// <summary>
-        /// Verifica la presencia del binario aria2c en las variables de entorno del sistema.[cite: 5]
+        /// Verifica la presencia del binario aria2c en las variables de entorno del sistema.
         /// </summary>
         private bool CheckAria2Availability()
         {
@@ -32,7 +32,7 @@ namespace Logic.Network
         }
 
         /// <summary>
-        /// Ejecuta la descarga y extracción en un hilo secundario para preservar la reactividad de la interfaz.[cite: 5]
+        /// Ejecuta la descarga y extracción en un hilo secundario para preservar la reactividad de la interfaz.
         /// </summary>
         public async Task<bool> DownloadFileAsync(string url, string destinationFolder, string fileName)
         {

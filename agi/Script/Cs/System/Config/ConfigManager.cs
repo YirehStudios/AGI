@@ -51,12 +51,14 @@ namespace Logic.System.Config
 
         /// <summary>
         /// Contenedor raíz para la configuración de los diversos motores de inferencia.
+        /// Incluye la definición para Llama, Whisper, Sherpa y el entorno base de Python.
         /// </summary>
         public class EngineConfig
         {
             public EngineUrls Llama { get; set; }
             public EngineUrls Whisper { get; set; }
             public EngineUrls Sherpa { get; set; }
+            public EngineUrls Python { get; set; }
         }
 
         /// <summary>
