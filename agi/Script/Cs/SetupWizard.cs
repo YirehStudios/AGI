@@ -165,13 +165,30 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Bypasses the setup UI if the configuration is already completed.
-        /// Triggers the local server instantiation or performs a remote handshake based on the saved application mode.
+        /// Ejecuta la secuencia de arranque rápido omitiendo la interfaz de configuración inicial.
+        /// Realiza una auditoría obligatoria de dependencias del sistema antes de proceder con la instanciación de servicios.
         /// </summary>
         private async void FastBootSequence()
         {
             PanelWelcome.Visible = false;
 
+            // Ejecuta de forma asíncrona la verificación integral de las herramientas de sistema y binarios requeridos.
+            var auditResult = await _dependencyInstaller.AuditSystemDependenciesAsync();
+
+            // Evalúa la integridad del entorno; ante la ausencia de dependencias, invalida el estado de configuración y redirige al flujo de instalación.
+            if (!auditResult.IsReady) 
+            {    
+                GD.PrintErr("FastBoot: Faltan dependencias críticas. Revirtiendo al menú de instalación.");    
+                _configManager.SetupCompleted = false;    
+                _configManager.SaveConfiguration();    
+                SwitchState(WizardState.Dependencies);    
+                
+                if (TerminalLog != null) TerminalLog.Text = auditResult.AuditLog;    
+                if (TxtCommandDisplay != null) TxtCommandDisplay.Text = auditResult.RequiredCommand;    
+                return;
+            }
+
+            // Procede con el flujo de inicialización normal validando el modo de aplicación persistido en el gestor de configuración.
             if (_configManager.CurrentMode == ConfigManager.AppMode.LocalHost)
             {
                 StartLlamaServer();
@@ -181,6 +198,7 @@ namespace Logic.Utils
                 Logic.Network.NetworkManager network = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
                 network.PerformHandshake();
 
+                // Suspende la ejecución hasta recibir la señal de finalización del handshake desde la capa de red.
                 var signalResult = await ToSignal(network, Logic.Network.NetworkManager.SignalName.HandshakeCompleted);
                 bool success = (bool)signalResult[0];
 
@@ -190,7 +208,7 @@ namespace Logic.Utils
                 }
                 else
                 {
-                    // Resets the configuration completion flag and routes back to the mode selection state upon connection failure.
+                    // Restablece los flags de configuración y retorna al selector de modo ante una falla de negociación con el host remoto.
                     _configManager.SetupCompleted = false;
                     _configManager.SaveConfiguration();
 
