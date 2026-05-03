@@ -50,8 +50,16 @@ namespace Logic.System.Config
         }
 
         /// <summary>
+        /// Define la estructura para la URL del puente de inferencia TTS.
+        /// </summary>
+        public class TtsServerConfig
+        {
+            public string Url { get; set; }
+        }
+
+        /// <summary>
         /// Contenedor raíz para la configuración de los diversos motores de inferencia.
-        /// Incluye la definición para Llama, Whisper, Sherpa y el entorno base de Python.
+        /// Incluye la definición para Llama, Whisper, Sherpa, el entorno base de Python y el script de puente TTS.[cite: 8, 9]
         /// </summary>
         public class EngineConfig
         {
@@ -59,6 +67,9 @@ namespace Logic.System.Config
             public EngineUrls Whisper { get; set; }
             public EngineUrls Sherpa { get; set; }
             public EngineUrls Python { get; set; }
+            
+            // Propiedad vinculada a la clave "tts_server" del archivo engines.json[cite: 9]
+            public TtsServerConfig TtsServer { get; set; }
         }
 
         /// <summary>
