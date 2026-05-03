@@ -13,5 +13,9 @@
   "Sherpa": {
     "LinuxUrl": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.0/sherpa-onnx-v1.13.0-linux-x64-shared.tar.bz2",
     "WindowsUrl": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.0/sherpa-onnx-v1.13.0-win-x64-shared-MD-Release.tar.bz2"
+  },
+  "tts": {
+    "LinuxUrl": ""
   }
+
 }
