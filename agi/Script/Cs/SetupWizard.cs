@@ -315,13 +315,13 @@ namespace Logic.Utils
 
         /// <summary>
         /// Orquesta la recuperación asíncrona de los motores de ejecución, el entorno de Python y los modelos seleccionados.
-        /// Implementa la descarga del puente TTS en rutas compartidas del sistema según el sistema operativo.[cite: 6]
+        /// Implementa la descarga del puente TTS en rutas compartidas del sistema según el sistema operativo.
         /// </summary>
         private async void StartModelDownload()
         {
             SwitchState(WizardState.Downloading);
 
-            // Recuperación del manifiesto de motores desde la fuente remota o caché local.[cite: 6, 8]
+            // Recuperación del manifiesto de motores desde la fuente remota o caché local.
             ConfigManager.EngineConfig engineConfigs = await _configManager.GetOrDownloadEnginesAsync();
 
             if (engineConfigs == null)
@@ -332,21 +332,21 @@ namespace Logic.Utils
                 return;
             }
 
-            // Evaluación del entorno operativo para la selección de binarios y definición de rutas de compartición.[cite: 6, 7]
+            // Evaluación del entorno operativo para la selección de binarios y definición de rutas de compartición.
             bool isWindows = _environmentManager.IsWindows;
             string osFolder = isWindows ? "windows" : "linux";
             
-            // Definición de la ruta de destino para el script puente de Python (tts_server.py) según requerimiento técnico.[cite: 6]
-            string shareBinPath = $"user://share/agi/bin/{osFolder}/";
+            // Define la ruta de destino apuntando al directorio raíz de binarios para asegurar la consistencia en la ejecución.
+            string shareBinPath = "user://bin/";
             string globalSharePath = ProjectSettings.GlobalizePath(shareBinPath);
 
-            // Asegura la creación física del árbol de directorios compartidos para herramientas del sistema.[cite: 6, 7]
+            // Asegura la creación física del árbol de directorios compartidos para herramientas del sistema.
             if (!global::System.IO.Directory.Exists(globalSharePath))
             {
                 global::System.IO.Directory.CreateDirectory(globalSharePath);
             }
 
-            // Determinación de URLs y nombres de archivo para motores nativos.[cite: 6]
+            // Determinación de URLs y nombres de archivo para motores nativos.
             string currentLlamaUrl = isWindows ? engineConfigs.Llama.WindowsUrl : engineConfigs.Llama.LinuxUrl;
             string llamaArchive = isWindows ? "llama-server.zip" : "llama-server.tar.gz";
 
@@ -357,17 +357,17 @@ namespace Logic.Utils
             string currentPythonUrl = isWindows ? engineConfigs.Python.WindowsUrl : engineConfigs.Python.LinuxUrl;
             string sherpaArchive = isWindows ? "sherpa-onnx-win.tar.bz2" : "sherpa-onnx-linux.tar.bz2";
 
-            // Descarga y aprovisionamiento del script puente tts_server.py en la ruta compartida específica del SO.[cite: 6, 9]
+            // Descarga y aprovisionamiento del script puente tts_server.py en la ruta compartida específica del SO.
             if (engineConfigs.TtsServer != null && !string.IsNullOrEmpty(engineConfigs.TtsServer.Url))
             {
                 if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando puente de comunicación TTS...[/center]";
                 await _downloadManager.DownloadFileAsync(engineConfigs.TtsServer.Url, shareBinPath, "tts_server.py");
             }
 
-            // Inicialización del entorno de Python antes de proceder con la descarga de binarios de motor.[cite: 6, 7]
+            // Inicialización del entorno de Python antes de proceder con la descarga de binarios de motor.
             bool pythonOk = await _packageManager.EnsurePythonEnvironmentAsync(currentPythonUrl);
 
-            // Fase de preparación de motores base: Descarga, verificación de integridad y extracción.[cite: 6, 7]
+            // Fase de preparación de motores base: Descarga, verificación de integridad y extracción.
             if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Llama Server...[/center]";
             bool llamaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentLlamaUrl, llamaArchive, "llama", "llama-server");
 
@@ -377,7 +377,7 @@ namespace Logic.Utils
             if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Sherpa-ONNX Server...[/center]";
             bool sherpaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentSherpaUrl, sherpaArchive, "sherpa", "sherpa-onnx");
 
-            // Evaluación de resultados de preparación incluyendo el estado del entorno de Python.[cite: 6, 7]
+            // Evaluación de resultados de preparación incluyendo el estado del entorno de Python.
             if (!llamaOk || !whisperOk || !sherpaOk || !pythonOk)
             {
                 string errorMessage = !pythonOk ? "Error al configurar el entorno de Python." : "Falló la preparación de los motores base de ejecución.";
@@ -386,7 +386,7 @@ namespace Logic.Utils
                 return;
             }
 
-            // Inicialización del directorio de modelos y procesamiento de la cola de presets seleccionados.[cite: 6]
+            // Inicialización del directorio de modelos y procesamiento de la cola de presets seleccionados.
             string modelsDir = _environmentManager.ModelsPath;
             global::System.IO.Directory.CreateDirectory(modelsDir);
 

@@ -58,17 +58,29 @@ namespace Logic.System.Config
         }
 
         /// <summary>
-        /// Contenedor raíz para la configuración de los diversos motores de inferencia.
-        /// Incluye la definición para Llama, Whisper, Sherpa, el entorno base de Python y el script de puente TTS.[cite: 8, 9]
+        /// Defines the structural mapping for the engines configuration manifest.
+        /// Facilitates the deserialization of remote engine metadata into strongly-typed properties.
         /// </summary>
         public class EngineConfig
         {
+            /// <summary> Gets or sets the distribution metadata for the Llama inference server. </summary>
             public EngineUrls Llama { get; set; }
+
+            /// <summary> Gets or sets the distribution metadata for the Whisper STT engine. </summary>
             public EngineUrls Whisper { get; set; }
+
+            /// <summary> Gets or sets the distribution metadata for the Sherpa-ONNX framework. </summary>
             public EngineUrls Sherpa { get; set; }
+
+            /// <summary> Gets or sets the distribution metadata for the portable Python runtime environment. </summary>
             public EngineUrls Python { get; set; }
-            
-            // Propiedad vinculada a la clave "tts_server" del archivo engines.json[cite: 9]
+
+            /// <summary>
+            /// Gets or sets the configuration for the Python-based TTS bridge server.
+            /// The JsonPropertyName attribute explicitly binds the snake_case "tts_server" key 
+            /// from the source JSON to this property, preventing deserialization null reference failures.
+            /// </summary>
+            [global::System.Text.Json.Serialization.JsonPropertyName("tts_server")]
             public TtsServerConfig TtsServer { get; set; }
         }
 

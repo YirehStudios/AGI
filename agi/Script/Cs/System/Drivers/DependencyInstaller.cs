@@ -22,77 +22,86 @@ namespace Logic.System.Drivers
         }
 
         /// <summary>
-        /// Realiza una auditoría asíncrona de las dependencias del sistema operativo.
-        /// Evalúa la presencia de herramientas de red, aceleración gráfica y entornos de ejecución.
-        /// Implementa una cláusula de guarda para omitir la validación en plataformas que no operan bajo subsistemas de shell compatibles con Linux.[cite: 3]
+        /// Performs an asynchronous audit of operating system dependencies.
+        /// Evaluates the presence of network tools, graphics acceleration, and the uv package manager.
+        /// Implements a guard clause to skip validation on platforms incompatible with Linux shell subsystems.
         /// </summary>
         /// <returns>
-        /// Una tupla que contiene el estado de preparación (IsReady), el comando de resolución (RequiredCommand) y el registro de auditoría (AuditLog).[cite: 3]
+        /// A tuple containing readiness status (IsReady), the resolution command (RequiredCommand), and the audit log (AuditLog).
         /// </returns>
         public async Task<(bool IsReady, string RequiredCommand, string AuditLog)> AuditSystemDependenciesAsync()
         {
             return await Task.Run(() =>
             {
-                // Validación del entorno de ejecución actual para evitar la gestión de paquetes en sistemas operativos o modos incompatibles.[cite: 3]
+                // Validation of current execution environment to prevent package management on incompatible OS or modes.
                 if (_environmentManager.IsWindows || _environmentManager.IsAndroid || _environmentManager.IsUIOnlyMode)
                 { 
                     return (true, string.Empty, string.Empty);
                 }
 
-                // Ejecución de la auditoría de binarios esenciales mediante la resolución de rutas en el PATH y la validación de módulos internos de Python.[cite: 3]
-                // Se integra la comprobación estricta del módulo venv para asegurar la capacidad de crear entornos virtuales.[cite: 3]
+                // Execution of binary audit for essential tools. 
+                // Legacy Python verification has been replaced by the 'uv' package manager audit.
                 bool hasAria2 = CheckCommandExists("aria2c");
                 bool hasVulkan = CheckCommandExists("vulkaninfo");
                 bool hasEspeak = CheckCommandExists("espeak-ng");
-                bool hasPython = CheckCommandExists("python3") && CheckPythonVenv();
+                bool hasUv = CheckCommandExists("uv");
 
-                // Evaluación de estados de necesidad para determinar qué componentes específicos están ausentes en el sistema host.[cite: 3]
+                // Evaluation of necessity states for missing components on the host system.
                 bool needsAria2 = !hasAria2;
                 bool needsVulkan = !hasVulkan;
                 bool needsEspeak = !hasEspeak;
-                bool needsPython = !hasPython;
+                bool needsUv = !hasUv;
 
-                // Finalización anticipada de la auditoría si todos los requisitos de infraestructura nativa están satisfechos.[cite: 3]
-                if (!needsAria2 && !needsVulkan && !needsEspeak && !needsPython)
+                // Early exit if all native infrastructure and package manager requirements are satisfied.
+                if (!needsAria2 && !needsVulkan && !needsEspeak && !needsUv)
                 {
                     return (true, string.Empty, "> Todos los subsistemas operativos C++ y nativos están en línea y funcionales.");
                 }
 
-                // Compilación de metadatos de auditoría para proporcionar retroalimentación técnica sobre las dependencias faltantes.[cite: 3]
+                // Compilation of audit metadata for technical feedback regarding missing dependencies.
                 string missingLog = "> Análisis completado. Se detectaron dependencias base faltantes:\n";
                 if (needsAria2) missingLog += "- Gestor de descargas acelerado (aria2c)\n";
                 if (needsVulkan) missingLog += "- Aceleración gráfica (Vulkan Tools)\n";
                 if (needsEspeak) missingLog += "- Diccionarios fonéticos para síntesis (espeak-ng)\n";
-                if (needsPython) missingLog += "- Entorno base de Python 3 y herramientas virtuales (venv/pip)\n";
+                if (needsUv) missingLog += "- Ultra-fast Python package manager (uv)\n";
                 missingLog += "\n> Generando script ligero de resolución automática...";
 
-                // Definición de parámetros para la persistencia del script de automatización en el almacenamiento de usuario.[cite: 3]
+                // Definition of parameters for automation script persistence in user storage.
                 string scriptPath = ProjectSettings.GlobalizePath("user://instalar_dependencias.sh");
                 string scriptContent = "#!/bin/bash\nset -e\n\n";
                 scriptContent += "echo '============================================'\n";
                 scriptContent += "echo '  Instalador Ligero de AGI (Fedora/Linux)'\n";
                 scriptContent += "echo '============================================'\n\n";
 
-                // Clasificación del gestor de paquetes nativo mediante la detección de binarios administrativos disponibles en el sistema.[cite: 3]
+                // Universal installation for the uv package manager using the Astral bootstrap script.
+                if (needsUv) 
+                {
+                    scriptContent += "echo '-> Installing uv package manager...'\n";
+                    scriptContent += "curl -LsSf https://astral.sh/uv/install.sh | sh\n";
+                    scriptContent += "source $HOME/.cargo/env\n\n";
+                }
+
+                // Native package manager detection for OS-specific dependency resolution.
                 bool hasApt = CheckCommandExists("apt-get");
                 bool hasDnf = CheckCommandExists("dnf");
                 bool hasPacman = CheckCommandExists("pacman");
 
-                // Construcción dinámica de la cadena de comandos de instalación basada en el gestor identificado y los flags de necesidad.[cite: 3]
+                // Dynamic construction of installation commands based on identified manager and necessity flags.
+                // Legacy Python and pip packages have been removed from the installation strings.
                 {
                     scriptContent += "echo '-> Instalando dependencias de red, aceleración Vulkan y entornos de ejecución...'\n";
                     
                     if (hasApt) 
                     {
-                        scriptContent += $"sudo apt-get update && sudo apt-get install -y {(needsPython ? "python3 python3-venv python3-pip " : "")}{(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "mesa-vulkan-drivers vulkan-tools " : "")}{(needsEspeak ? "espeak-ng " : "")}\n";
+                        scriptContent += $"sudo apt-get update && sudo apt-get install -y {(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "mesa-vulkan-drivers vulkan-tools " : "")}{(needsEspeak ? "espeak-ng " : "")}\n";
                     }
                     else if (hasDnf) 
                     {
-                        scriptContent += $"sudo dnf install -y {(needsPython ? "python3 python3-pip " : "")}{(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "mesa-vulkan-drivers vulkan-tools " : "")}{(needsEspeak ? "espeak-ng " : "")}\n";
+                        scriptContent += $"sudo dnf install -y {(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "mesa-vulkan-drivers vulkan-tools " : "")}{(needsEspeak ? "espeak-ng " : "")}\n";
                     }
                     else if (hasPacman) 
                     {
-                        scriptContent += $"sudo pacman -S --noconfirm {(needsPython ? "python python-pip " : "")}{(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "vulkan-radeon vulkan-intel vulkan-tools " : "")}{(needsEspeak ? "espeak-ng " : "")}\n";
+                        scriptContent += $"sudo pacman -S --noconfirm {(needsAria2 ? "aria2 " : "")}{(needsVulkan ? "vulkan-radeon vulkan-intel vulkan-tools " : "")}{(needsEspeak ? "espeak-ng " : "")}\n";
                     }
                     scriptContent += "\n";
                 }
@@ -100,7 +109,7 @@ namespace Logic.System.Drivers
                 scriptContent += "echo '============================================'\n";
                 scriptContent += "echo '¡Todo listo! Cierra esta terminal y reinicia tu app.'\n";
 
-                // Serialización del script en disco y asignación de privilegios de ejecución mediante el comando chmod.[cite: 3]
+                // Script serialization and execution privilege assignment via chmod.
                 global::System.IO.File.WriteAllText(scriptPath, scriptContent);
                 OS.Execute("chmod", new string[] { "+x", scriptPath }, new Godot.Collections.Array(), true);
 

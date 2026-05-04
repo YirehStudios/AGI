@@ -7,29 +7,28 @@ import argparse
 import os
 from kokoro_onnx import Kokoro
 
-# Configurar argumentos de línea de comandos
+# Configure command line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("--port", type=int, default=8888)
-# Añadimos un argumento para que Godot nos pueda decir dónde están los modelos
 parser.add_argument("--models-dir", type=str, default="") 
 args = parser.parse_args()
 
-# Determinar las rutas de los modelos
-# Si no le pasamos ruta por comando, asume que está en una subcarpeta de donde se ejecuta el script
+# Determine model paths
 model_path = os.path.join(args.models_dir, "model.onnx") if args.models_dir else "model.onnx"
-voices_path = os.path.join(args.models_dir, "voices.bin") if args.models_dir else "voices.bin"
+# IMPORTANT: Use the specific Python voices file to avoid C++ ABI collisions
+voices_path = os.path.join(args.models_dir, "voices_python.bin") if args.models_dir else "voices_python.bin"
 
-# Intentar inicializar Kokoro
+# Attempt to initialize Kokoro
 try:
-    print(f"Cargando Kokoro ONNX desde: {model_path}")
+    print(f"Loading Kokoro ONNX from: {model_path}")
+    print(f"Loading Python Voices from: {voices_path}")
     kokoro = Kokoro(model_path, voices_path)
 except Exception as e:
-    print(f"Fallo crítico al iniciar Kokoro: {e}")
-    # Si falla, salimos limpiamente para que Godot capture el print de error
+    print(f"Critical failure starting Kokoro: {e}")
     exit(1)
 
 async def tts_handler(websocket):
-    print("Cliente de Godot conectado al puente TTS.")
+    print("Godot client connected to TTS bridge.")
     async for message in websocket:
         try:
             data = json.loads(message)
@@ -38,26 +37,26 @@ async def tts_handler(websocket):
             if not text:
                 continue
 
-            print(f"Generando audio para: {text}")
+            print(f"Generating audio for: {text}")
             
-            # Generar audio usando Kokoro
+            # Generate audio using Kokoro
             audio, sample_rate = kokoro.create(text, voice="es_es", speed=1.0, lang="es")
             
-            # Convertir el numpy array crudo a bytes PCM (Formato WAV)
+            # Convert raw numpy array to PCM bytes (WAV format)
             with io.BytesIO() as wav_io:
                 sf.write(wav_io, audio, sample_rate, format='WAV')
                 wav_bytes = wav_io.getvalue()
                 
-            # Enviar el audio binario de vuelta a Godot por WebSocket
+            # Send binary audio back to Godot via WebSocket
             await websocket.send(wav_bytes)
             
         except Exception as e:
-            print(f"Error procesando TTS: {e}")
+            print(f"Error processing TTS: {e}")
 
 async def main():
-    print(f"Iniciando Servidor TTS Kokoro en puerto {args.port}...")
+    print(f"Starting Kokoro TTS Server on port {args.port}...")
     async with websockets.serve(tts_handler, "127.0.0.1", args.port):
-        await asyncio.Future()  # Correr para siempre
+        await asyncio.Future()  # Run forever
 
 if __name__ == "__main__":
     asyncio.run(main())
