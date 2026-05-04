@@ -52,3 +52,40 @@ Fase 3: Preparación del Entorno Portable (Python Windows)
     Objetivo: Sentar las bases para la voz de alta calidad (Kokoro) y ComfyUI.
 
     Acción: Habilitar el PackageManager para que, cuando esté en Windows, sepa cómo descargar el "Windows Embeddable Package" (el .zip oficial de Python), lo extraiga en user://env/python, y lo configure para que funcione de manera totalmente portable sin tocar el registro del sistema del usuario.
+
+Plan Maestro de Migración a uv (Linux)
+Fase 1: Auditoría e Instalación Base
+
+Objetivo: Asegurar que uv esté instalado en el sistema anfitrión Linux antes de intentar cualquier operación, modificando la auditoría de dependencias.
+
+    Instrucciones para la IA asignada (Script DependencyInstaller.cs):
+
+        Qué hacer: Modificar el método AuditSystemDependenciesAsync. Eliminar la verificación de python3 y el módulo venv (CheckPythonVenv()). En su lugar, implementar un CheckCommandExists("uv"). Si uv no está presente, el script bash generado debe instalarlo usando el instalador oficial recomendado (curl -LsSf [https://astral.sh/uv/install.sh](https://astral.sh/uv/install.sh) | sh) en lugar de usar apt/dnf/pacman para dependencias de Python.  
+
+        Qué NO hacer: No tocar bajo ninguna circunstancia la lógica de Windows o Android. No eliminar la instalación de aria2c, vulkan-tools o espeak-ng.  
+
+Fase 2: Aprovisionamiento del Entorno (Caja de Arena)
+
+Objetivo: Crear el entorno aislado, descargar la versión específica de Python e instalar las dependencias de Kokoro usando la velocidad de uv.
+
+    Instrucciones para la IA asignada (Script PackageManager.cs):
+
+        Qué hacer: Reescribir el bloque de Linux dentro de EnsurePythonEnvironmentAsync.  
+
+            Definir el comando para descargar Python: uv python install 3.13.
+
+            Crear el entorno virtual en la ruta definida (envPath) usando: uv venv --python 3.13 <ruta>.
+
+            Instalar las dependencias exactas ejecutando: uv pip install websockets soundfile numpy kokoro-onnx onnxruntime-vulkan apuntando a ese entorno.
+
+        Qué NO hacer: No modificar la lógica del archivo .zip embebido para Windows ni el script get-pip.py. No usar un archivo pyproject.toml todavía para mantener la simplicidad del código actual; usar uv pip install directamente sobre el entorno generado.  
+
+Fase 3: Ejecución Hermética del Motor TTS
+
+Objetivo: Levantar el servidor puente de Python utilizando el comando uv run, eliminando la necesidad de buscar el ejecutable exacto dentro de la carpeta bin del entorno.
+
+    Instrucciones para la IA asignada (Script BackendLauncher.cs):
+
+        Qué hacer: Modificar la sección donde se configura el puente de Python (sherpaInfo) dentro de ManageBackendLifecycle. En Linux, en lugar de resolver la ruta hacia python3 (pythonExe), configurar el ProcessStartInfo para que el FileName sea simplemente uv. Los Arguments deben ser: run --python 3.13 "{ttsScriptPath}" --port {SherpaPort} --models-dir "{modelsDir}".  
+
+        Qué NO hacer: No alterar la inyección de variables de entorno (LD_LIBRARY_PATH, GGML_VK_VISIBLE_DEVICES). No tocar los subprocesos de _whisperProcess ni _llamaProcess.

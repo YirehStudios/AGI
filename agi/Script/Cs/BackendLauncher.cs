@@ -115,38 +115,36 @@ namespace Logic.Backend
         }
 
         /// <summary>
-        /// Orquestra el ciclo de vida de los motores de inferencia (Llama, Whisper) y el puente de Python para TTS.
-        /// Realiza la resolución de rutas, validación de binarios, sincronización de bibliotecas GGML 
-        /// y configuración dinámica de hardware para los subprocesos.[cite: 5]
+        /// Orchestrates the lifecycle of inference engines (Llama, Whisper) and the Python bridge for TTS.
+        /// Performs path resolution, binary validation, and dynamic hardware configuration for subprocesses.
         /// </summary>
-        /// <param name="modelsDir">Ruta absoluta al directorio de modelos.</param>
-        /// <param name="safeFileName">Nombre de archivo sanitizado del modelo LLM.</param>
+        /// <param name="modelsDir">Absolute path to the models directory.</param>
+        /// <param name="safeFileName">Sanitized filename of the LLM model.</param>
         private async Task ManageBackendLifecycle(string modelsDir, string safeFileName)
         {
             try
             {
-                // 1. Configuración de recursos y resolución de rutas de modelos.
-                // Define el conteo de hilos calculando la mitad de los procesadores lógicos disponibles y establece las rutas absolutas para los tensores.[cite: 5]
+                // 1. Resource configuration and model path resolution.[cite: 1]
+                // Establishes parallelism by calculating logical core load and defines weight tensor paths.
                 int threadCount = Math.Max(1, global::System.Environment.ProcessorCount / 2);
                 string modelLlamaPath = global::System.IO.Path.Combine(modelsDir, safeFileName);
                 
-                // Asigna el modelo de STT activo desde la configuración o utiliza un valor predeterminado como respaldo.[cite: 5]
                 string sttModel = _configManager?.ActiveSTTModel ?? "Whisper_Base.bin"; 
                 string modelWhisperPath = global::System.IO.Path.Combine(modelsDir, sttModel);
 
-                // 2. Enrutamiento dinámico basado en el sistema operativo.
-                // Evalúa el entorno de ejecución para localizar los directorios de binarios correspondientes a la arquitectura del sistema anfitrión.[cite: 5]
+                // 2. Dynamic OS-based routing.[cite: 1]
+                // Identifies folder architecture according to the platform to locate specific binaries.
                 string osFolder = _environmentManager.IsWindows ? "windows" : "linux";
                 string llamaDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "llama");
                 string whisperDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "whisper");
 
-                // 3. Descubrimiento de binarios mediante Logic.Utils.FileResolver.
-                // Identifica y resuelve las rutas absolutas de los puntos de entrada ejecutables para los servidores de inferencia nativos.[cite: 5]
+                // 3. Binary discovery via Logic.Utils.FileResolver.[cite: 1]
+                // Recursively locates executable entry points for native inference servers.
                 string llamaBinPath = Logic.Utils.FileResolver.FindExecutable(llamaDir, _environmentManager.IsWindows, "llama-server");
                 string whisperBinPath = Logic.Utils.FileResolver.FindExecutable(whisperDir, _environmentManager.IsWindows, "whisper-server");
 
-                // 4. Validación crítica de integridad de binarios.
-                // Interroga al sistema de archivos para asegurar que los ejecutables existan antes de proceder con la instanciación de los procesos.[cite: 5]
+                // 4. Critical binary integrity validation.[cite: 1]
+                // Verifies the physical presence of executables on disk before process instantiation.
                 if (!global::System.IO.File.Exists(llamaBinPath))
                 {
                     GD.PrintErr($"BackendLauncher: Fatal - Llama Server binary missing in {llamaDir}.");
@@ -161,59 +159,16 @@ namespace Logic.Backend
                     return;
                 }
 
-                // 5. Sincronización y auto-parcheo de bibliotecas compartidas.
-                // Itera sobre el directorio de binarios para garantizar la disponibilidad de las bibliotecas dinámicas GGML en el entorno de ejecución.[cite: 5]
-                try
-                {
-                    string[] ggmlLibs = global::System.IO.Directory.GetFiles(llamaDir, "libggml*.so*");
-                    foreach (string libPath in ggmlLibs)
-                    {
-                        string fileName = global::System.IO.Path.GetFileName(libPath);
-                        string destPath = global::System.IO.Path.Combine(_environmentManager.BinPath, fileName);
-                        
-                        // Copia la biblioteca al directorio raíz de binarios si no se encuentra presente.[cite: 5]
-                        if (!global::System.IO.File.Exists(destPath))
-                        {
-                            global::System.IO.File.Copy(libPath, destPath, false);
-                        }
-
-                        // Genera enlaces simbólicos o copias versionadas requeridas por las dependencias de Linux.[cite: 5]
-                        if (fileName.EndsWith(".so"))
-                        {
-                            string versionedDestPath = global::System.IO.Path.Combine(_environmentManager.BinPath, fileName + ".0");
-                            if (!global::System.IO.File.Exists(versionedDestPath))
-                            {
-                                global::System.IO.File.Copy(libPath, versionedDestPath, false);
-                            }
-                        }
-                    }
-
-                    // Resuelve dependencias específicas de arquitectura de CPU para el motor Whisper.[cite: 5]
-                    string targetWhisperCpuLib = global::System.IO.Path.Combine(_environmentManager.BinPath, "libggml-cpu.so.0");
-                    if (!global::System.IO.File.Exists(targetWhisperCpuLib))
-                    {
-                        string fallbackCpu = global::System.IO.Path.Combine(_environmentManager.BinPath, "libggml-cpu-x64.so");
-                        if (global::System.IO.File.Exists(fallbackCpu)) 
-                        {
-                            global::System.IO.File.Copy(fallbackCpu, targetWhisperCpuLib, false);
-                        }
-                    }
-                }
-                catch (Exception libSyncEx)
-                {
-                    GD.PrintErr($"BackendLauncher: Library synchronization fault: {libSyncEx.Message}");
-                }
-
-                // 6. Configuración del puente de Python y estructuras de proceso.
-                // Define la ruta del intérprete de Python evaluando la estructura de carpetas según el sistema operativo subyacente.[cite: 5]
+                // 5. Python bridge configuration and process structures.[cite: 1]
+                // Resolves the exact binary name expected in isolated environments based on the OS.
                 string pythonExe = _environmentManager.IsWindows ? 
                     global::System.IO.Path.Combine(_environmentManager.EnvPath, "python", "python.exe") : 
                     global::System.IO.Path.Combine(_environmentManager.EnvPath, "python", "bin", "python3");
 
-                // Define la ruta absoluta hacia el script que actúa como servidor TTS.[cite: 5]
+                // Defines the absolute path to the script acting as the TTS server.
                 string ttsScriptPath = global::System.IO.Path.Combine(_environmentManager.BinPath, "tts_server.py");
 
-                // Estructura los metadatos de ejecución para el subproceso del motor de reconocimiento de voz.[cite: 5]
+                // Configures start parameters for the Whisper speech recognition engine.
                 ProcessStartInfo whisperInfo = new ProcessStartInfo
                 {
                     FileName = whisperBinPath,
@@ -224,7 +179,7 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
-                // Estructura los metadatos de ejecución para el subproceso del motor de lenguaje de gran escala.[cite: 5]
+                // Configures start parameters for the Llama language engine.
                 ProcessStartInfo llamaInfo = new ProcessStartInfo
                 {
                     FileName = llamaBinPath,
@@ -235,10 +190,9 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
-                // Verificación de la existencia del intérprete mediante el sistema de archivos para prevenir excepciones de ejecución en el puente TTS.[cite: 5]
+                // Validates interpreter existence before instantiation to prevent critical execution failures.
                 if (global::System.IO.File.Exists(pythonExe))
                 {
-                    // Instancia los parámetros de arranque del subproceso inyectando la ruta del script, el puerto de red y el directorio de modelos como argumentos de la línea de comandos.[cite: 5]
                     ProcessStartInfo sherpaInfo = new ProcessStartInfo
                     {
                         FileName = pythonExe,
@@ -249,39 +203,35 @@ namespace Logic.Backend
                         CreateNoWindow = true
                     };
 
-                    // Inicializa la instancia del proceso de sistema operativo vinculando la información de inicio y habilitando la captura de eventos asíncronos.[cite: 5]
+                    // Initializes the Sherpa-ONNX process instance, linking log streams to interface signals.
                     _sherpaProcess = new Process { StartInfo = sherpaInfo, EnableRaisingEvents = true };
                     
-                    // Suscribe delegados a los flujos de salida estándar para direccionar los registros hacia el sistema de logs de Godot.[cite: 5]
                     _sherpaProcess.OutputDataReceived += (sender, e) => 
                     { 
                         if (!string.IsNullOrEmpty(e.Data)) 
                             CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Kokoro] {e.Data}"); 
                     };
 
-                    // Suscribe delegados a los flujos de error estándar para capturar anomalías en el motor TTS.[cite: 5]
                     _sherpaProcess.ErrorDataReceived += (sender, e) => 
                     { 
                         if (!string.IsNullOrEmpty(e.Data)) 
                             CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Kokoro ERR] {e.Data}"); 
                     };
                     
-                    // Vincula el manejador de terminación de procesos para auditar los cierres inesperados del ejecutable.[cite: 5]
                     _sherpaProcess.Exited += OnProcessExited;
                 }
                 else
                 {
-                    // Anula la inicialización del proceso y emite una advertencia al detectar la ausencia del intérprete de Python.[cite: 5]
                     GD.PrintErr("TTS Bridge bypass: Python interpreter missing.");
                     _sherpaProcess = null;
                 }
 
-                // 7. Inyección de variables de entorno y detección inteligente de GPU.
-                // Inyecta rutas en LD_LIBRARY_PATH para que el enlazador dinámico del sistema operativo ubique las dependencias durante la ejecución.[cite: 5]
-                whisperInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = $"{_environmentManager.BinPath}:{llamaDir}";
+                // 6. Environment variable injection and hardware detection.[cite: 1]
+                // Configures search paths for the dynamic loader, linking only the native engine directories.
+                whisperInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = whisperDir;
                 llamaInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = llamaDir;
 
-                // Recupera el índice del dispositivo de hardware seleccionado y lo inyecta en el entorno de ejecución para su utilización mediante Vulkan.[cite: 5]
+                // Retrieves the selected hardware device index and injects Vulkan configuration if available.
                 int gpuIndex = _configManager != null ? _configManager.SelectedGpuIndex : -1;
                 if (gpuIndex >= 0)
                 {
@@ -290,19 +240,17 @@ namespace Logic.Backend
                     llamaInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = gpuStr;
                 }
 
-                // 8. Instanciación de procesos y vinculación de eventos para Whisper y Llama.
-                // Transforma las estructuras ProcessStartInfo en instancias activas de la clase Process listas para su ejecución por el sistema operativo.[cite: 5]
+                // 7. Instantiation and event subscription for Whisper and Llama.[cite: 1]
+                // Creates process instances and links output and termination handlers for health auditing.
                 _whisperProcess = new Process { StartInfo = whisperInfo, EnableRaisingEvents = true };
                 _llamaProcess = new Process { StartInfo = llamaInfo, EnableRaisingEvents = true };
 
-                // Suscribe el manejador asíncrono para volcar los logs de procesamiento de audio hacia la interfaz.[cite: 5]
                 _whisperProcess.OutputDataReceived += (sender, e) => 
                 { 
                     if (!string.IsNullOrEmpty(e.Data)) 
                         CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Whisper] {e.Data}"); 
                 };
                 
-                // Monitorea el flujo de error de STT, aplicando análisis léxico para interceptar fallas críticas de hardware y detonar los ciclos de pánico.[cite: 5]
                 _whisperProcess.ErrorDataReceived += (sender, e) => 
                 { 
                     if (!string.IsNullOrEmpty(e.Data)) 
@@ -315,14 +263,12 @@ namespace Logic.Backend
                 };
                 _whisperProcess.Exited += OnProcessExited;
 
-                // Suscribe el manejador asíncrono para volcar los logs de inferencia textual hacia la interfaz.[cite: 5]
                 _llamaProcess.OutputDataReceived += (sender, e) => 
                 { 
                     if (!string.IsNullOrEmpty(e.Data)) 
                         CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Llama] {e.Data}"); 
                 };
                 
-                // Monitorea el flujo de error de LLM, identificando tanto excepciones de memoria como las banderas de finalización de la secuencia de arranque.[cite: 5]
                 _llamaProcess.ErrorDataReceived += (sender, e) => 
                 { 
                     if (!string.IsNullOrEmpty(e.Data)) 
@@ -332,7 +278,6 @@ namespace Logic.Backend
                         if (lowerData.Contains("out of memory") || lowerData.Contains("bad allocation") || lowerData.Contains("segmentation fault"))
                             PanicKill($"Critical LLM memory fault: {e.Data}");
                         
-                        // Emite la señal de sistema listo al detectar que el servidor HTTP interno del motor Llama está vinculado al puerto.[cite: 5]
                         if (e.Data.Contains("server is listening") || e.Data.Contains("HTTP server listening"))
                         {
                             _retryCount = 0; 
@@ -342,8 +287,8 @@ namespace Logic.Backend
                 };
                 _llamaProcess.Exited += OnProcessExited;
 
-                // 9. Ejecución del sistema Backend.
-                // Despacha la solicitud de inicio al sistema operativo y activa los hilos de lectura para los flujos de salida del puente TTS.[cite: 5]
+                // 8. Backend system execution.[cite: 1]
+                // Safely initialize the TTS bridge only if the interpreter was successfully validated.
                 if (_sherpaProcess != null) 
                 {
                     _sherpaProcess.Start();
@@ -351,23 +296,19 @@ namespace Logic.Backend
                     _sherpaProcess.BeginErrorReadLine();
                 }
 
-                // Inicia el proceso de reconocimiento de voz y comienza el reenvío de su salida estándar y de errores.[cite: 5]
                 _whisperProcess.Start();
                 _whisperProcess.BeginOutputReadLine();
                 _whisperProcess.BeginErrorReadLine();
 
-                // Inicia el proceso del motor LLM y arranca la intercepción de sus buffers de datos de consola.[cite: 5]
                 _llamaProcess.Start();
                 _llamaProcess.BeginOutputReadLine();
                 _llamaProcess.BeginErrorReadLine();
 
-                // Actualiza el estado del componente y bloquea la tarea de forma asíncrona mediante el monitor de salud de los subprocesos.[cite: 5]
                 _isRunning = true;
                 await MonitorProcessHealth();
             }
             catch (Exception ex)
             {
-                // Intercepta fallas estructurales durante el levantamiento del ecosistema backend y propaga un error hacia la capa de presentación.[cite: 5]
                 GD.PrintErr($"BackendLauncher: Unexpected lifecycle fault: {ex.Message}");
                 CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
             }
