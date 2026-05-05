@@ -301,7 +301,46 @@ public partial class LivemodeMain : Panel
         
         GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager")?.RequestTTSWebSocket(fraseElegida);
     }
+    public void UpdateTheme(bool isDark)
+    {
+        Color mainBg = isDark ? new Color(0.12f, 0.12f, 0.14f) : new Color(0.95f, 0.95f, 0.97f);
+        Color primaryText = isDark ? new Color(1f, 1f, 1f) : new Color(0.2f, 0.2f, 0.2f);
 
+        ColorRect floorBg = GetNodeOrNull<ColorRect>("DynamicFloorBg");
+        if (floorBg == null)
+        {
+            floorBg = new ColorRect();
+            floorBg.Name = "DynamicFloorBg";
+            AddChild(floorBg);
+            MoveChild(floorBg, 0);
+        }
+        
+        floorBg.Color = mainBg;
+        floorBg.SetAnchorsPreset(LayoutPreset.FullRect);
+        floorBg.OffsetBottom = 0;
+        floorBg.OffsetTop = 0;
+        floorBg.OffsetLeft = 0;
+        floorBg.OffsetRight = 0;
+
+        ApplyTextThemeToNode(this, primaryText);
+    }
+
+    private void ApplyTextThemeToNode(Node node, Color textColor)
+    {
+        if (node is RichTextLabel richText)
+        {
+            richText.AddThemeColorOverride("default_color", textColor);
+        }
+        else if (node is Label label)
+        {
+            label.AddThemeColorOverride("font_color", textColor);
+        }
+        
+        foreach (Node child in node.GetChildren())
+        {
+            ApplyTextThemeToNode(child, textColor);
+        }
+    }
     /// <summary>
     /// Safely unlocks the concurrency logic allowing the state machine to finalize once the queue is emptied.
     /// Actual chunk dispatch is orchestrated by the ChatManager middleware.

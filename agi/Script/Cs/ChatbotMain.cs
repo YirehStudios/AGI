@@ -4,16 +4,13 @@ using System.Threading.Tasks;
 
 namespace Logic.UI
 {
-    /// <summary>
-    /// Core controller for the Chatbot user interface. Handles user input, network communication formatting,
-    /// audio recording for Speech-to-Text, UI animations, and dynamic markdown/code-block rendering.
-    /// </summary>
     public partial class ChatbotMain : Control
     {
         [Export] public ScrollContainer ChatScrollContainer;
-        
         [Export] public VBoxContainer MessagesContainer;
-        [Export] public LineEdit TextInputField;
+        [Export] public TextEdit TextInputField;
+        [Export] public float MinInputHeight = 45f;
+        [Export] public float MaxInputHeight = 150f;
         [Export] public Button SendButton;
         [Export] public HBoxContainer UserMessageTemplate;
         [Export] public HBoxContainer BotMessageTemplate;
@@ -22,16 +19,12 @@ namespace Logic.UI
         [Export] public Control BotMessageLayoutNode;
         [Export] public OptionButton ToolSelector; 
         [Export] public PanelContainer CodeBlockTemplate;
-        
-        // --- Mock Media Resources ---
         [Export] public Texture2D RandomImage1;
         [Export] public Texture2D RandomImage2;
         [Export] public Texture2D RandomImage3;
         [Export] public Texture2D RandomImage4;
-
         [Export] public Texture2D WingLeftBaseTexture;
         [Export] public Texture2D WingRightBaseTexture;
-        
         [Export] public VideoStream RandomVideo1;
         [Export] public VideoStream RandomVideo2;
         [Export] public VideoStream RandomVideo3;
@@ -48,32 +41,37 @@ namespace Logic.UI
         [Export] public TextureRect AlaDerecha;
         [Export] public Control Pupilas;
         [Export] public Control Equis;
+        [Export] public Control BottomInputPanel;
+        [Export] public Control ChatBackgroundPanel;
 
-        // Internal State Variables
         private AudioEffectRecord _recorder;
         private float _silenceTimer = 0.0f;
         private const float SilenceThreshold = 0.05f;
         private bool _isRecording = false;
-        
         private HBoxContainer _currentBotMessageNode;
         private bool _isLiveModeEnabled = true;
         private bool _isWaitingForResponse = false;
         private Godot.Timer _dotsAnimationTimer;
-        
         private string _ttsBuffer = string.Empty;
         private string _fullMessageBuffer = string.Empty;
         private Random _randomGenerator = new Random();
 
         /// <summary>
-        /// Called when the node enters the scene tree for the first time.
-        /// Initializes UI components, hides templates, and subscribes to required event streams from Chat and Network managers.
+        /// Initializes UI component event subscriptions, hides base templates to prevent rendering artifacts, 
+        /// and establishes event delegates with global manager singletons via absolute paths.
         /// </summary>
         public override void _Ready()
         {
-            if (TextInputField == null) return;
-
-            SendButton.Pressed += OnSendPressed;
-            TextInputField.TextSubmitted += OnTextSubmitted;
+            if (SendButton != null)
+            {
+                SendButton.Pressed += OnSendPressed;
+            }
+            
+            if (TextInputField != null)
+            {
+                TextInputField.GuiInput += OnTextInputGuiInput;
+                TextInputField.TextChanged += OnInputTextChanged;
+            }
             
             if (UserMessageTemplate != null) UserMessageTemplate.Visible = false;
             if (BotMessageTemplate != null) BotMessageTemplate.Visible = false;
@@ -95,9 +93,10 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Called every frame. 
-        /// Processes audio input levels continuously to detect voice activity and triggers Speech-to-Text payload generation upon silence detection.
+        /// Evaluates microphone input frame-by-frame by querying the peak volume of the designated recording audio bus.
+        /// Triggers recording state transitions based on linear volume thresholds and an accumulated silence timer.
         /// </summary>
+        /// <param name="delta">The time elapsed since the previous frame.</param>
         public override void _Process(double delta)
         {
             if (!_isLiveModeEnabled || _recorder == null) return;
@@ -122,7 +121,7 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Activates the audio recorder effect when voice is detected over the threshold.
+        /// Activates the AudioEffectRecord instance on the audio bus to begin buffering audio data.
         /// </summary>
         private void StartRecording()
         {
@@ -131,7 +130,8 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Deactivates the audio recorder effect, saves the buffer to a local WAV file, and dispatches an STT request.
+        /// Deactivates the recording effect, extracts the buffered AudioStreamWav, serializes it to the local user directory,
+        /// and dispatches an asynchronous network request for Speech-To-Text translation.
         /// </summary>
         private void StopAndSendRecording()
         {
@@ -154,8 +154,9 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Callback invoked upon successful transcription of the recorded audio. Triggers the standard message processing pipeline.
+        /// Receives the parsed string from the Speech-To-Text service and forwards it to the message processing pipeline.
         /// </summary>
+        /// <param name="recognizedText">The output string returned from the STT endpoint.</param>
         private void OnSTTCompleted(string recognizedText)
         {
             if (string.IsNullOrWhiteSpace(recognizedText)) return;
@@ -163,31 +164,85 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Handles the UI event when the user clicks the physical send button.
+        /// Captures the current string from the input field and initiates message processing.
         /// </summary>
         private void OnSendPressed()
         {
-            _ = ProcessMessage(TextInputField.Text);
+            if (TextInputField != null)
+            {
+                _ = ProcessMessage(TextInputField.Text);
+            }
         }
 
         /// <summary>
-        /// Handles the UI event when the user submits text via the 'Enter' key.
+        /// Injects a direct string payload into the message processing pipeline.
         /// </summary>
+        /// <param name="newText">The raw string to be processed as a user message.</param>
         private void OnTextSubmitted(string newText)
         {
             _ = ProcessMessage(newText);
         }
 
         /// <summary>
-        /// Orchestrates the instantiation of the user message UI node, blocks input to prevent race conditions, and routes the query.
+        /// Intercepts GUI events on the text input node to detect unshifted Enter key presses.
+        /// Consumes the input event to prevent newline injection and triggers message submission.
         /// </summary>
+        /// <param name="event">The input event captured by the Godot input system.</param>
+        private void OnTextInputGuiInput(InputEvent @event)
+        {
+            if (@event is InputEventKey keyEvent && keyEvent.Pressed && keyEvent.Keycode == Key.Enter && !keyEvent.ShiftPressed)
+            {
+                GetViewport().SetInputAsHandled();
+                _ = ProcessMessage(TextInputField.Text);
+            }
+        }
+
+        /// <summary>
+        /// Computes the required height of the text input node by calculating line counts and text wraps.
+        /// Clamps the resulting value within predefined boundary constraints and applies the custom minimum size vector.
+        /// </summary>
+        private void OnInputTextChanged()
+        {
+            if (TextInputField == null) return;
+            
+            int totalLines = 0;
+            for (int i = 0; i < TextInputField.GetLineCount(); i++)
+            {
+                totalLines += 1 + TextInputField.GetLineWrapCount(i);
+            }
+            
+            float contentHeight = (totalLines * 24f) + 20f; 
+            contentHeight = Mathf.Clamp(contentHeight, MinInputHeight, MaxInputHeight);
+            
+            TextInputField.CustomMinimumSize = new Vector2(TextInputField.CustomMinimumSize.X, contentHeight);
+        }
+
+        /// <summary>
+        /// Orchestrates the comprehensive lifecycle of a user message submission. Clears existing UI states, 
+        /// instantiates and injects the user message template into the scene tree, binds copy/minimize delegate actions, 
+        /// evaluates debug commands, and routes the payload to the selected backend endpoint.
+        /// </summary>
+        /// <param name="text">The raw message payload to be processed.</param>
         private async Task ProcessMessage(string text)
         {
             if (string.IsNullOrWhiteSpace(text) || _isWaitingForResponse) return;
 
             _isWaitingForResponse = true;
+
+            Node current = this;
+            while (current != null)
+            {
+                if (current.HasMethod("HideWelcomeMessage"))
+                {
+                    current.Call("HideWelcomeMessage");
+                    break;
+                }
+                current = current.GetParent();
+            }
+
             TextInputField.Text = string.Empty;
-            SendButton.Disabled = true;
+            TextInputField.CustomMinimumSize = new Vector2(TextInputField.CustomMinimumSize.X, MinInputHeight);
+            if (SendButton != null) SendButton.Disabled = true;
 
             HBoxContainer newUserMsg = (HBoxContainer)UserMessageTemplate.Duplicate();
             string relativePath = UserMessageTemplate.GetPathTo(UserMessageMarkdownNode);
@@ -195,6 +250,40 @@ namespace Logic.UI
             
             userMarkdownLabel.Set("markdown_text", text);
             newUserMsg.Visible = true;
+
+            Button copyBtn = newUserMsg.GetNodeOrNull<Button>("UserActions/CopyUserBtn");
+            Button minimizeBtn = newUserMsg.GetNodeOrNull<Button>("UserActions/MinimizeUserBtn");
+
+            if (copyBtn != null)
+            {
+                string textToCopy = text;
+                copyBtn.Pressed += () => {
+                    DisplayServer.ClipboardSet(textToCopy);
+                };
+            }
+
+            if (minimizeBtn != null)
+            {
+                bool isMinimized = false;
+                minimizeBtn.Pressed += () => {
+                    isMinimized = !isMinimized;
+                    if (isMinimized)
+                    {
+                        userMarkdownLabel.CustomMinimumSize = new Vector2(userMarkdownLabel.CustomMinimumSize.X, 30);
+                        userMarkdownLabel.FitContent = false;
+                        userMarkdownLabel.ClipContents = true;
+                        minimizeBtn.Text = "Maximizar";
+                    }
+                    else
+                    {
+                        userMarkdownLabel.CustomMinimumSize = new Vector2(userMarkdownLabel.CustomMinimumSize.X, 0);
+                        userMarkdownLabel.FitContent = true;
+                        userMarkdownLabel.ClipContents = false;
+                        minimizeBtn.Text = "Minimizar";
+                    }
+                };
+            }
+
             MessagesContainer.AddChild(newUserMsg);
             ScrollToBottom();
 
@@ -204,8 +293,8 @@ namespace Logic.UI
                 await ToSignal(GetTree().CreateTimer(1.5f), SceneTreeTimer.SignalName.Timeout);
                 TriggerConnectionErrorAnimation(); 
                 _isWaitingForResponse = false;
-                SendButton.Disabled = false;
-                TextInputField.Editable = true;
+                if (SendButton != null) SendButton.Disabled = false;
+                if (TextInputField != null) TextInputField.Editable = true;
                 return; 
             }
 
@@ -213,11 +302,11 @@ namespace Logic.UI
 
             if (selectedTool == 1)
             {
-                await GenerateMockMediaResponse(text, isVideo: false);
+                await GenerateMockMediaResponse(text, false);
             }
             else if (selectedTool == 2)
             {
-                await GenerateMockMediaResponse(text, isVideo: true);
+                await GenerateMockMediaResponse(text, true);
             }
             else
             {
@@ -229,13 +318,14 @@ namespace Logic.UI
                 else
                 {
                     _isWaitingForResponse = false;
-                    SendButton.Disabled = false;
+                    if (SendButton != null) SendButton.Disabled = false;
                 }
             }
         }
 
         /// <summary>
-        /// Prepares the UI for incoming AI tokens by creating a new Bot message layout and starting the idle "Thinking" animation.
+        /// Prepares the scene tree for an incoming bot response. Allocates a new instance of the bot message template, 
+        /// initializes UI loading states, and starts the asynchronous animation routine.
         /// </summary>
         private void OnBotStartedThinking()
         {
@@ -250,6 +340,13 @@ namespace Logic.UI
             MessagesContainer.AddChild(newBotMsg);
             
             _currentBotMessageNode = newBotMsg;
+
+            if (BotActionsContainer != null)
+            {
+                string containerPath = BotMessageTemplate.GetPathTo(BotActionsContainer);
+                HBoxContainer actionsContainer = newBotMsg.GetNodeOrNull<HBoxContainer>(containerPath);
+                if (actionsContainer != null) actionsContainer.Visible = true;
+            }
 
             if (BotActions != null)
             {
@@ -266,8 +363,12 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Simulates media generation processes locally (image or video generation) based on the user's prompt tool selection.
+        /// Constructs a synthetic bot response containing embedded multimedia components. 
+        /// Dynamically builds layout containers, instantiates video players or texture rects, 
+        /// assigns randomly pooled assets, and resolves playback controls at runtime.
         /// </summary>
+        /// <param name="prompt">The initial string trigger associated with this response.</param>
+        /// <param name="isVideo">Boolean flag dictating the instantiation of a VideoStreamPlayer versus a TextureRect.</param>
         private async Task GenerateMockMediaResponse(string prompt, bool isVideo)
         {
             HBoxContainer newBotMsg = (HBoxContainer)BotMessageTemplate.Duplicate();
@@ -275,6 +376,13 @@ namespace Logic.UI
             RichTextLabel botTextLabel = newBotMsg.GetNode<RichTextLabel>(mdRelativePath);
             string layoutRelativePath = BotMessageTemplate.GetPathTo(BotMessageLayoutNode);
             Control messageLayout = newBotMsg.GetNode<Control>(layoutRelativePath);
+
+            if (BotActionsContainer != null)
+            {
+                string containerPath = BotMessageTemplate.GetPathTo(BotActionsContainer);
+                HBoxContainer actionsContainer = newBotMsg.GetNodeOrNull<HBoxContainer>(containerPath);
+                if (actionsContainer != null) actionsContainer.Visible = true;
+            }
 
             Label actionsLabel = null;
             if (BotActions != null)
@@ -297,7 +405,13 @@ namespace Logic.UI
             await ToSignal(GetTree().CreateTimer(3.0f), SceneTreeTimer.SignalName.Timeout);
 
             StopDotsAnimation();
-            if (actionsLabel != null) actionsLabel.Text = string.Empty;
+            
+            if (BotActionsContainer != null)
+            {
+                string containerPath = BotMessageTemplate.GetPathTo(BotActionsContainer);
+                HBoxContainer actionsContainer = newBotMsg.GetNodeOrNull<HBoxContainer>(containerPath);
+                if (actionsContainer != null) actionsContainer.Visible = false;
+            }
 
             if (isVideo)
             {
@@ -379,14 +493,16 @@ namespace Logic.UI
             
             ScrollToBottom();
             _isWaitingForResponse = false;
-            TextInputField.Editable = true;
-            SendButton.Disabled = false;
-            TextInputField.GrabFocus();
+            if (TextInputField != null) TextInputField.Editable = true;
+            if (SendButton != null) SendButton.Disabled = false;
+            if (TextInputField != null) TextInputField.GrabFocus();
         }
 
         /// <summary>
-        /// Real-time stream handler appending parsed language tokens dynamically onto the designated RichTextLabel node.
+        /// Concatenates partial string sequences retrieved asynchronously from the network into the main text buffer, 
+        /// triggering a runtime update of the Markdown label component to stream output to the UI.
         /// </summary>
+        /// <param name="token">The latest string segment received from the backend generation node.</param>
         private void OnTokenReceived(string token)
         {
             if (_currentBotMessageNode == null) return;
@@ -401,14 +517,15 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Finalizes the AI conversation turn, halts asynchronous animations, evaluates custom markdown blocks, 
-        /// hides the entire bot actions container, and restores user controls.
+        /// Resolves the bot response state machine by resetting interactable elements, purging active processing timers, 
+        /// restoring default avatar modulation, and executing the secondary text-parsing routine for code extraction.
         /// </summary>
+        /// <param name="fullResponse">The complete compiled string output from the LLM.</param>
         private void OnBotFinishedSpeaking(string fullResponse)
         {
             _isWaitingForResponse = false;
-            TextInputField.Editable = true;
-            SendButton.Disabled = false;
+            if (TextInputField != null) TextInputField.Editable = true;
+            if (SendButton != null) SendButton.Disabled = false;
 
             StopDotsAnimation();
 
@@ -437,9 +554,11 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Parses the final message buffer for markdown code segments.
-        /// Splits the content by block delimiters and dynamically injects interactive UI Godot panels for code, while reconstructing standard markdown nodes.
+        /// Parses the raw string payload to identify standard markdown codeblock delimiters. 
+        /// Suppresses the generic text node and dynamically interleaves syntax-highlighted code panels 
+        /// and distinct text block instances based on parsed array indices.
         /// </summary>
+        /// <param name="rawText">The aggregated response string containing potential markdown syntax.</param>
         private void InjectCodeBlocks(string rawText)
         {
             if (string.IsNullOrWhiteSpace(rawText) || !rawText.Contains("```")) return;
@@ -452,13 +571,13 @@ namespace Logic.UI
             RichTextLabel originalMarkdownNode = _currentBotMessageNode.GetNode<RichTextLabel>(mdRelativePath);
             originalMarkdownNode.Visible = false; 
 
-            string[] blocks = rawText.Split(new string[] { "```" }, StringSplitOptions.None);
+            string[] separator = { "```" };
+            string[] blocks = rawText.Split(separator, StringSplitOptions.None);
             
             for (int i = 0; i < blocks.Length; i++)
             {
                 if (string.IsNullOrWhiteSpace(blocks[i])) continue;
 
-                // Even indices represent normal text outside code blocks.
                 if (i % 2 == 0) 
                 {
                     RichTextLabel textBlock = (RichTextLabel)originalMarkdownNode.Duplicate();
@@ -466,7 +585,6 @@ namespace Logic.UI
                     textBlock.Set("markdown_text", blocks[i].Trim());
                     messageLayout.AddChild(textBlock);
                 }
-                // Odd indices represent content inside a code block.
                 else 
                 {
                     string codeContent = blocks[i];
@@ -520,7 +638,8 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Enqueues an execution frame to ensure the UI has resolved node heights before forcing the ScrollContainer to the bottom limit.
+        /// Defers execution until the main thread processes the current frame to ensure Godot's UI layout logic 
+        /// has correctly updated dimensions. Afterwards, assigns the maximum value to the VScrollBar to follow content.
         /// </summary>
         private async void ScrollToBottom()
         {
@@ -533,8 +652,11 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Instantiates and loops a dynamically generated timer to append trailing dots to a label string asynchronously.
+        /// Instantiates a transient Timer object to modulate the `Text` property of a given label on an interval callback.
+        /// Simulates asynchronous loading state by appending trailing periods recursively.
         /// </summary>
+        /// <param name="label">The target UI node to receive the string updates.</param>
+        /// <param name="baseText">The immutable prefix string to prepend to the animation sequence.</param>
         private void StartDotsAnimation(Label label, string baseText)
         {
             if (_dotsAnimationTimer != null) return; 
@@ -557,7 +679,8 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Disposes the dots animation timer safely and releases resources from the scene tree.
+        /// Executes a safe destruction pattern on the active animation timer. Stops the internal clock and 
+        /// pushes the node to the engine's defer queue for memory deallocation.
         /// </summary>
         private void StopDotsAnimation()
         {
@@ -570,7 +693,9 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Executes a complex visual tween sequence updating textures, scale, and color modulation natively to reflect a critical systemic error state.
+        /// Orchestrates a multi-track property animation via Godot's Tween API to visually indicate a connection fault.
+        /// Sets parallel interpolation parameters to modify positional offsets, transform rotations, and structural modulations
+        /// of various UI avatar components synchronously.
         /// </summary>
         public void TriggerConnectionErrorAnimation()
         {
@@ -640,7 +765,241 @@ namespace Logic.UI
         }
 
         /// <summary>
-        /// Safely unsubscribes event handlers before the node is disposed from the memory tree to prevent GC memory leakages.
+        /// Injects a system-wide color palette dynamically onto the UI hierarchy. Constructs necessary background matrices
+        /// at runtime, instantiates localized instances of `StyleBoxFlat` to manipulate borders and margins independently, 
+        /// and delegates a recursive tree traversal to update textual node modulations.
+        /// </summary>
+        /// <param name="isDark">A boolean evaluating to true for dark palette matrices, false otherwise.</param>
+        public void UpdateTheme(bool isDark)
+{
+    Color primaryText = isDark ? new Color(1f, 1f, 1f) : new Color(0.2f, 0.2f, 0.2f);
+    Color inputBg = isDark ? new Color(0.25f, 0.25f, 0.28f) : new Color(1f, 1f, 1f);
+    Color mainBg = isDark ? new Color(0.12f, 0.12f, 0.14f) : new Color(0.95f, 0.95f, 0.97f);
+    Color bottomBarBg = isDark ? new Color(0.06f, 0.06f, 0.07f) : new Color(0.95f, 0.95f, 0.95f);
+    Color botBubbleBg = isDark ? new Color(0.18f, 0.18f, 0.20f) : new Color(0.92f, 0.92f, 0.93f);
+    Color userTextColor = new Color(1f, 1f, 1f);
+
+    ColorRect floorBg = GetNodeOrNull<ColorRect>("DynamicFloorBg");
+    if (floorBg == null)
+    {
+        floorBg = new ColorRect();
+        floorBg.Name = "DynamicFloorBg";
+        AddChild(floorBg);
+        MoveChild(floorBg, 0);
+    }
+    floorBg.Color = mainBg;
+    floorBg.SetAnchorsPreset(LayoutPreset.FullRect);
+    floorBg.OffsetBottom = 0;
+    floorBg.OffsetTop = 0;
+    floorBg.OffsetLeft = 0;
+    floorBg.OffsetRight = 0;
+
+    if (ChatScrollContainer != null)
+    {
+        StyleBoxFlat sBg = new StyleBoxFlat();
+        sBg.BgColor = mainBg;
+        ChatScrollContainer.AddThemeStyleboxOverride("panel", sBg);
+    }
+
+    if (BottomInputPanel != null)
+    {
+        StyleBoxFlat newStyle = new StyleBoxFlat();
+        newStyle.BgColor = bottomBarBg;
+        
+        if (BottomInputPanel is Panel panel)
+        {
+            if (panel.HasThemeStylebox("panel") && panel.GetThemeStylebox("panel") is StyleBoxFlat existingStyle)
+            {
+                newStyle = (StyleBoxFlat)existingStyle.Duplicate();
+                newStyle.BgColor = bottomBarBg;
+                newStyle.BorderWidthBottom = 0;
+                newStyle.BorderWidthTop = 0;
+                newStyle.BorderWidthLeft = 0;
+                newStyle.BorderWidthRight = 0;
+            }
+            panel.AddThemeStyleboxOverride("panel", newStyle);
+        }
+        else if (BottomInputPanel is PanelContainer pContainer)
+        {
+            if (pContainer.HasThemeStylebox("panel") && pContainer.GetThemeStylebox("panel") is StyleBoxFlat existingStyle)
+            {
+                newStyle = (StyleBoxFlat)existingStyle.Duplicate();
+                newStyle.BgColor = bottomBarBg;
+                newStyle.BorderWidthBottom = 0;
+                newStyle.BorderWidthTop = 0;
+                newStyle.BorderWidthLeft = 0;
+                newStyle.BorderWidthRight = 0;
+            }
+            pContainer.AddThemeStyleboxOverride("panel", newStyle);
+        }
+        else if (BottomInputPanel is ColorRect colorRect)
+        {
+            colorRect.Color = bottomBarBg;
+        }
+    }
+
+    if (TextInputField != null)
+    {
+        TextInputField.AddThemeColorOverride("font_color", primaryText);
+        StyleBoxFlat editStyle = new StyleBoxFlat();
+        editStyle.BgColor = inputBg;
+        editStyle.CornerRadiusTopLeft = 15; 
+        editStyle.CornerRadiusTopRight = 15;
+        editStyle.CornerRadiusBottomLeft = 15; 
+        editStyle.CornerRadiusBottomRight = 15;
+        editStyle.ContentMarginLeft = 12;
+        editStyle.ContentMarginTop = 12;
+        TextInputField.AddThemeStyleboxOverride("normal", editStyle);
+        TextInputField.AddThemeStyleboxOverride("focus", editStyle);
+    }
+
+    if (ToolSelector != null)
+    {
+        ToolSelector.Alignment = HorizontalAlignment.Center;
+        ToolSelector.AddThemeColorOverride("font_color", primaryText);
+        ToolSelector.AddThemeColorOverride("font_hover_color", primaryText);
+        ToolSelector.AddThemeColorOverride("font_focus_color", primaryText);
+        ToolSelector.AddThemeColorOverride("font_pressed_color", primaryText);
+        
+        StyleBoxFlat toolStyle = new StyleBoxFlat();
+        toolStyle.BgColor = inputBg;
+        toolStyle.CornerRadiusTopLeft = 8;
+        toolStyle.CornerRadiusTopRight = 8;
+        toolStyle.CornerRadiusBottomLeft = 8;
+        toolStyle.CornerRadiusBottomRight = 8;
+        ToolSelector.AddThemeStyleboxOverride("normal", toolStyle);
+        ToolSelector.AddThemeStyleboxOverride("hover", toolStyle);
+        ToolSelector.AddThemeStyleboxOverride("focus", toolStyle);
+        ToolSelector.AddThemeStyleboxOverride("pressed", toolStyle);
+
+        PopupMenu popup = ToolSelector.GetPopup();
+        if (popup != null)
+        {
+            StyleBoxFlat popupStyle = new StyleBoxFlat();
+            popupStyle.BgColor = inputBg;
+            popupStyle.CornerRadiusTopLeft = 8;
+            popupStyle.CornerRadiusTopRight = 8;
+            popupStyle.CornerRadiusBottomLeft = 8;
+            popupStyle.CornerRadiusBottomRight = 8;
+            popup.AddThemeStyleboxOverride("panel", popupStyle);
+
+            popup.AddThemeColorOverride("font_color", primaryText);
+            popup.AddThemeColorOverride("font_hover_color", primaryText);
+            popup.AddThemeColorOverride("font_focus_color", primaryText);
+
+            StyleBoxFlat popupHoverStyle = new StyleBoxFlat();
+            popupHoverStyle.BgColor = new Color(0.35f, 0.35f, 0.38f);
+            popupHoverStyle.CornerRadiusTopLeft = 4;
+            popupHoverStyle.CornerRadiusTopRight = 4;
+            popupHoverStyle.CornerRadiusBottomLeft = 4;
+            popupHoverStyle.CornerRadiusBottomRight = 4;
+            popup.AddThemeStyleboxOverride("hover", popupHoverStyle);
+        }
+    }
+
+    MarginContainer inputMargin = GetNodeOrNull<MarginContainer>("MainContainer/ChatAreaContainer/InputAreaMargin");
+    if (inputMargin != null)
+    {
+        ColorRect marginBg = inputMargin.GetNodeOrNull<ColorRect>("DarkMarginBg");
+        if (marginBg == null)
+        {
+            marginBg = new ColorRect();
+            marginBg.Name = "DarkMarginBg";
+            inputMargin.AddChild(marginBg);
+            inputMargin.MoveChild(marginBg, 0); 
+        }
+        marginBg.Color = mainBg; 
+    }
+
+    if (BotMessageMarkdownNode != null)
+        BotMessageMarkdownNode.AddThemeColorOverride("default_color", primaryText);
+    
+    if (UserMessageMarkdownNode != null)
+        UserMessageMarkdownNode.AddThemeColorOverride("default_color", userTextColor);
+    
+    ApplyBubbleStyle(BotMessageTemplate, botBubbleBg);
+
+    if (MessagesContainer != null)
+    {
+        foreach (Node child in MessagesContainer.GetChildren())
+        {
+            string childName = child.Name.ToString();
+            
+            bool esMensajeDeIA = childName.Contains("Bot") || 
+                                 child.FindChild("BotActions", true, false) != null || 
+                                 child.FindChild("ThinkingIcon", true, false) != null;
+
+            if (esMensajeDeIA)
+            {
+                ApplyTextThemeToNode(child, primaryText);
+                ApplyBubbleStyle(child, botBubbleBg);
+            }
+            else
+            {
+                ApplyTextThemeToNode(child, userTextColor);
+            }
+        }
+    }
+}
+
+private void ApplyBubbleStyle(Node messageNode, Color bgColor)
+{
+    if (messageNode == null) return;
+    
+    PanelContainer bubble = messageNode.FindChild("MessageBubble", true, false) as PanelContainer;
+    
+    if (bubble != null)
+    {
+        StyleBoxFlat newStyle = new StyleBoxFlat();
+        if (bubble.HasThemeStylebox("panel") && bubble.GetThemeStylebox("panel") is StyleBoxFlat existingStyle)
+        {
+            newStyle = (StyleBoxFlat)existingStyle.Duplicate();
+            newStyle.BorderWidthBottom = 0;
+            newStyle.BorderWidthTop = 0;
+            newStyle.BorderWidthLeft = 0;
+            newStyle.BorderWidthRight = 0;
+        }
+        newStyle.BgColor = bgColor;
+        bubble.AddThemeStyleboxOverride("panel", newStyle);
+    }
+}
+        /// <summary>
+        /// Performs an asynchronous recursive traversal over the structural layout tree to typecast controls 
+        /// and enforce strict foreground color modifications against inherited standard controls.
+        /// </summary>
+        /// <param name="node">The initial node vertex point evaluated within the traversal algorithm.</param>
+        /// <param name="textColor">The mapped layout color strictly instantiated for textual data components.</param>
+        private void ApplyTextThemeToNode(Node node, Color textColor)
+        {
+            if (node is RichTextLabel richText)
+            {
+                richText.AddThemeColorOverride("default_color", textColor);
+            }
+            else if (node is Label label)
+            {
+                if (label.Name == "BotActions")
+                {
+                    label.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f, 1f));
+                }
+                else
+                {
+                    label.AddThemeColorOverride("font_color", textColor);
+                }
+            }
+            else if (node is TextureRect textureRect && textureRect.Name == "ThinkingIcon")
+            {
+                textureRect.SelfModulate = new Color(0.5f, 0.5f, 0.5f, 1f);
+            }
+            
+            foreach (Node child in node.GetChildren())
+            {
+                ApplyTextThemeToNode(child, textColor);
+            }
+        }
+
+        /// <summary>
+        /// Executed natively prior to memory de-allocation; systematically isolates node instances from singleton structures 
+        /// by decoupling active delegate hooks thereby mitigating NullReferenceExceptions upon node cleanup.
         /// </summary>
         public override void _ExitTree()
         {
