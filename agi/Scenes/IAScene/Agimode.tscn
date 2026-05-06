@@ -1,45 +1,432 @@
-[gd_scene format=3 uid="uid://m2fwyq0v655v"]
+[gd_scene format=3 uid="uid://s8tuasw0blu"]
 
-[ext_resource type="PackedScene" uid="uid://dbu6gascba6pe" path="res://Scenes/Test/Scene/kipfel.tscn" id="1_0oggk"]
+[ext_resource type="Script" uid="uid://cburckky6i8de" path="res://Script/Cs/MainApp.cs" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://bolcjtvklqbax" path="res://Scenes/IAScene/Chatbot.tscn" id="2_dpcee"]
+[ext_resource type="Texture2D" uid="uid://dxui8em8fu8w3" path="res://Resources/logo.png" id="2_logo"]
+[ext_resource type="PackedScene" uid="uid://bx5yq2jklxap" path="res://Scenes/IAScene/Livemode.tscn" id="3_l7jlp"]
+[ext_resource type="Texture2D" uid="uid://c4uj1r172utru" path="res://Resources/Images/Icons/Util/ChatMode.svg" id="5_ide7w"]
+[ext_resource type="Texture2D" uid="uid://dxcnkms337jlm" path="res://Resources/Images/Icons/Util/LiveMode.svg" id="6_8bqqk"]
+[ext_resource type="Texture2D" uid="uid://b1vmdijvvtehk" path="res://Resources/Images/Icons/Util/Modo3D.svg" id="7_ide7w"]
+[ext_resource type="Texture2D" uid="uid://br187aqkvne0f" path="res://Resources/Images/Icons/Util/History.svg" id="icon_history"]
+[ext_resource type="Texture2D" uid="uid://c68wrvv5lhtal" path="res://Resources/Images/Icons/Util/Home.svg" id="icon_home"]
+[ext_resource type="Texture2D" uid="uid://cr40nman7fa0v" path="res://Resources/Images/Icons/Util/Menu.svg" id="icon_menu"]
+[ext_resource type="Texture2D" uid="uid://b4lil6k3srfwq" path="res://Resources/Images/Icons/Util/Settings.svg" id="icon_settings"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_caoo8"]
+[sub_resource type="SystemFont" id="SystemFont_regular"]
+font_names = PackedStringArray("Sans-Serif")
+subpixel_positioning = 0
 
-[sub_resource type="Sky" id="Sky_0oggk"]
-sky_material = SubResource("ProceduralSkyMaterial_caoo8")
+[sub_resource type="Theme" id="Theme_global"]
+default_font = SubResource("SystemFont_regular")
+default_font_size = 15
+Button/colors/font_color = Color(0.2, 0.2, 0.2, 1)
+Button/colors/font_focus_color = Color(0.2, 0.2, 0.2, 1)
+Button/colors/font_hover_color = Color(0.1, 0.1, 0.1, 1)
+Button/colors/font_pressed_color = Color(1, 1, 1, 1)
 
-[sub_resource type="Environment" id="Environment_bx7mt"]
-background_mode = 1
-sky = SubResource("Sky_0oggk")
-ambient_light_color = Color(1, 1, 1, 1)
-ambient_light_energy = 2.5
-glow_enabled = true
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_main_bg"]
+bg_color = Color(0.949, 0.949, 0.969, 1)
 
-[sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_hfeav"]
+[sub_resource type="Shader" id="Shader_blur"]
+code = "shader_type canvas_item;
+uniform float lod: hint_range(0.0, 5.0) = 2.5;
+uniform sampler2D screen_texture : hint_screen_texture, filter_linear_mipmap;
+void fragment() {
+	COLOR = textureLod(screen_texture, SCREEN_UV, lod);
+	COLOR.rgb *= 1.0;
+	COLOR.a = 1.0;
+}"
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_0oggk"]
-size = Vector3(61.8694, 1.506012, 78.87683)
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_glass"]
+shader = SubResource("Shader_blur")
+shader_parameter/lod = 3.5
 
-[node name="Node3D" type="Node3D" unique_id=676113451]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_settings_panel"]
+bg_color = Color(1, 1, 1, 0.4)
+border_width_left = 1
+border_color = Color(1, 1, 1, 0.3)
+corner_radius_top_left = 20
+corner_radius_bottom_left = 20
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=262894634]
-environment = SubResource("Environment_bx7mt")
-camera_attributes = SubResource("CameraAttributesPractical_hfeav")
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pink_tab"]
+bg_color = Color(1, 0.4, 0.7, 0.8)
+corner_radius_top_left = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(1, 0.4, 0.7, 0.3)
+shadow_size = 5
 
-[node name="Camera3D" type="Camera3D" parent="." unique_id=412546678]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.065, 1.125)
-fov = 41.3
+[sub_resource type="Animation" id="Animation_settings_open"]
+resource_name = "settings_open"
+length = 0.5
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SettingsLayer/SettingsDrawer:position")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.5),
+"transitions": PackedFloat32Array(0.2, 1),
+"update": 0,
+"values": [Vector2(1152, 0), Vector2(768, 0)]
+}
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1056515601]
-transform = Transform3D(1, 0, 0, 0, 0.9512828, -0.30831975, 0, 0.30831975, 0.9512828, 0, 6.7411585, 0)
-shadow_enabled = true
+[sub_resource type="Animation" id="Animation_tab_hover"]
+resource_name = "tab_hover"
+length = 0.3
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SettingsLayer/PinkTab:custom_minimum_size")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.3),
+"transitions": PackedFloat32Array(0.5, 1),
+"update": 0,
+"values": [Vector2(10, 60), Vector2(45, 80)]
+}
 
-[node name="Area3D" type="StaticBody3D" parent="." unique_id=1100249413]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.59398866, 1.6321168)
-collision_layer = 3
-collision_mask = 3
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_extra"]
+_data = {
+&"settings_open": SubResource("Animation_settings_open"),
+&"tab_hover": SubResource("Animation_tab_hover")
+}
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D" unique_id=1722297701]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.428261, -0.8864577, -17.288147)
-shape = SubResource("BoxShape3D_0oggk")
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sidebar_bg"]
+bg_color = Color(1, 1, 1, 1)
+shadow_color = Color(0, 0, 0, 0.05)
+shadow_size = 10
 
-[node name="Kipfel" parent="." unique_id=1831635054 instance=ExtResource("1_0oggk")]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mode_btn_normal"]
+content_margin_left = 25.0
+content_margin_top = 12.0
+content_margin_right = 15.0
+content_margin_bottom = 12.0
+bg_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mode_btn_pressed"]
+content_margin_left = 25.0
+content_margin_top = 12.0
+content_margin_right = 15.0
+content_margin_bottom = 12.0
+bg_color = Color(0, 0.478, 1, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_menu_active"]
+content_margin_left = 21.0
+content_margin_top = 12.0
+content_margin_right = 15.0
+content_margin_bottom = 12.0
+bg_color = Color(0.898, 0.898, 0.902, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_line_edit"]
+
+[sub_resource type="ButtonGroup" id="ButtonGroup_header_modes"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_menu_normal"]
+content_margin_left = 25.0
+content_margin_top = 12.0
+content_margin_right = 15.0
+content_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_header_bg"]
+
+[sub_resource type="SystemFont" id="SystemFont_bold"]
+font_names = PackedStringArray("Sans-Serif")
+font_weight = 700
+subpixel_positioning = 0
+
+[node name="MainApp" type="Panel" unique_id=488006737 node_paths=PackedStringArray("SidebarWrapper", "ContentContainer", "CompanyLogo", "MenuToggleButton", "ChatBotModeButton", "LiveModeButton", "AgiModeButton", "HeaderTitle", "HistoryButton", "HistoryScroll", "HistoryListContainer", "UiAnimator", "SettingsDrawer", "SettingsTab", "ExtraAnimator")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("Theme_global")
+theme_override_styles/panel = SubResource("StyleBoxFlat_main_bg")
+script = ExtResource("1_script")
+ChatbotScene = ExtResource("2_dpcee")
+LivemodeScene = ExtResource("3_l7jlp")
+SidebarWrapper = NodePath("MainLayout/SidebarWrapper")
+ContentContainer = NodePath("MainLayout/RightColumn/ContentContainer")
+CompanyLogo = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout/LogoMargin/LogoContainer/CompanyLogo")
+MenuToggleButton = NodePath("MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout/MenuToggleButton")
+ChatBotModeButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout/ChatBotModeButton")
+LiveModeButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout/LiveModeButton")
+AgiModeButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout/AgiModeButton")
+HeaderTitle = NodePath("MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout/HeaderTitle")
+HistoryButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout/HistoryButton")
+HistoryScroll = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout/HistoryScroll")
+HistoryListContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout/HistoryScroll/HistoryListContainer")
+UiAnimator = NodePath("UiAnimator")
+SettingsDrawer = NodePath("SettingsLayer/SettingsDrawer")
+SettingsTab = NodePath("SettingsLayer/PinkTab")
+ExtraAnimator = NodePath("ExtraAnimator")
+
+[node name="UiAnimator" type="AnimationPlayer" parent="." unique_id=365541031]
+libraries/ = {
+"": SubResource("AnimationLibrary_ui")
+}
+autoplay = "logo_idle"
+
+[node name="ExtraAnimator" type="AnimationPlayer" parent="."]
+libraries/ = {
+"": SubResource("AnimationLibrary_extra")
+}
+
+[node name="MainLayout" type="HBoxContainer" parent="." unique_id=730713609]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="SidebarWrapper" type="Control" parent="MainLayout" unique_id=2136813588]
+clip_contents = true
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+
+[node name="SidebarContainer" type="PanelContainer" parent="MainLayout/SidebarWrapper" unique_id=1808261517]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_sidebar_bg")
+
+[node name="SidebarLayout" type="VBoxContainer" parent="MainLayout/SidebarWrapper/SidebarContainer" unique_id=1182709975]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="LogoMargin" type="MarginContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout" unique_id=359839589]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="LogoContainer" type="HBoxContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout/LogoMargin" unique_id=1992269983]
+layout_mode = 2
+alignment = 1
+
+[node name="CompanyLogo" type="TextureRect" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout/LogoMargin/LogoContainer" unique_id=1850912340]
+texture_filter = 4
+custom_minimum_size = Vector2(160, 160)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = ExtResource("2_logo")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ChatBotModeButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout" unique_id=99832900]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_mode_btn_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_mode_btn_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+toggle_mode = true
+button_pressed = true
+button_group = SubResource("ButtonGroup_header_modes")
+text = " Modo Chat Bot"
+icon = ExtResource("5_ide7w")
+alignment = 0
+
+[node name="LiveModeButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout" unique_id=61619980]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_mode_btn_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_mode_btn_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+toggle_mode = true
+button_group = SubResource("ButtonGroup_header_modes")
+text = " Modo Live"
+icon = ExtResource("6_8bqqk")
+alignment = 0
+
+[node name="AgiModeButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout" unique_id=1786153305]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_mode_btn_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_mode_btn_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+toggle_mode = true
+button_group = SubResource("ButtonGroup_header_modes")
+text = " Modo AGI"
+icon = ExtResource("7_ide7w")
+alignment = 0
+
+[node name="SeparatorMargin" type="MarginContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout" unique_id=1373918910]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 10
+
+[node name="HSeparator" type="HSeparator" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout/SeparatorMargin" unique_id=676208570]
+layout_mode = 2
+
+[node name="HomeButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout" unique_id=77091678]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+text = " Inicio"
+icon = ExtResource("icon_home")
+alignment = 0
+
+[node name="HistoryButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout" unique_id=2128652110]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+text = " Historial"
+icon = ExtResource("icon_history")
+alignment = 0
+
+[node name="HistoryScroll" type="ScrollContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout" unique_id=1121930028]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="HistoryListContainer" type="VBoxContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarLayout/HistoryScroll" unique_id=1913569530]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="RightColumn" type="VBoxContainer" parent="MainLayout" unique_id=405211898]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="HeaderPanel" type="PanelContainer" parent="MainLayout/RightColumn" unique_id=1136298823]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxEmpty_header_bg")
+
+[node name="HeaderMargin" type="MarginContainer" parent="MainLayout/RightColumn/HeaderPanel" unique_id=2066912587]
+layout_mode = 2
+theme_override_constants/margin_left = 25
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 25
+theme_override_constants/margin_bottom = 10
+
+[node name="HeaderLayout" type="HBoxContainer" parent="MainLayout/RightColumn/HeaderPanel/HeaderMargin" unique_id=2004079493]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="MenuToggleButton" type="Button" parent="MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout" unique_id=410067647]
+custom_minimum_size = Vector2(50, 50)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_line_edit")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_line_edit")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+icon = ExtResource("icon_menu")
+
+[node name="HeaderTitle" type="RichTextLabel" parent="MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout" unique_id=947088159]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_colors/default_color = Color(0.2, 0.2, 0.2, 1)
+theme_override_fonts/normal_font = SubResource("SystemFont_bold")
+theme_override_font_sizes/normal_font_size = 19
+text = "Chat"
+fit_content = true
+autowrap_mode = 0
+
+[node name="ContentContainer" type="Panel" parent="MainLayout/RightColumn" unique_id=33346608]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxEmpty_line_edit")
+
+[node name="SettingsLayer" type="CanvasLayer" parent="."]
+
+[node name="PinkTab" type="Button" parent="SettingsLayer"]
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -10.0
+offset_top = -30.0
+offset_bottom = 30.0
+grow_horizontal = 0
+grow_vertical = 2
+custom_minimum_size = Vector2(10, 60)
+theme_override_styles/normal = SubResource("StyleBoxFlat_pink_tab")
+theme_override_styles/hover = SubResource("StyleBoxFlat_pink_tab")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_pink_tab")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+icon = ExtResource("icon_settings")
+icon_alignment = 1
+expand_icon = true
+
+[node name="SettingsDrawer" type="Control" parent="SettingsLayer"]
+layout_mode = 3
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_right = 384.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="BackBufferCopy" type="BackBufferCopy" parent="SettingsLayer/SettingsDrawer"]
+copy_mode = 2
+
+[node name="BlurPanel" type="ColorRect" parent="SettingsLayer/SettingsDrawer"]
+material = SubResource("ShaderMaterial_glass")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="GlassOverlay" type="Panel" parent="SettingsLayer/SettingsDrawer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_settings_panel")
+
+[node name="Margin" type="MarginContainer" parent="SettingsLayer/SettingsDrawer/GlassOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 30
+theme_override_constants/margin_top = 40
+theme_override_constants/margin_right = 30
+theme_override_constants/margin_bottom = 40
+
+[node name="Content" type="VBoxContainer" parent="SettingsLayer/SettingsDrawer/GlassOverlay/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Title" type="Label" parent="SettingsLayer/SettingsDrawer/GlassOverlay/Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 0, 0, 0.8)
+theme_override_fonts/font = SubResource("SystemFont_bold")
+theme_override_font_sizes/font_size = 24
+text = "Configuración"
