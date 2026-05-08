@@ -23,8 +23,8 @@
 [ext_resource type="Script" uid="uid://dfr1w7u3jgni3" path="res://addons/markdownlabel/header_formats/h5_format.gd" id="17_rq6ts"]
 [ext_resource type="Script" uid="uid://bsi6dexoofpe6" path="res://addons/markdownlabel/header_formats/h6_format.gd" id="18_cae2h"]
 [ext_resource type="FontFile" uid="uid://c88eronmj27o0" path="res://Resources/Fonts/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf" id="23_rq6ts"]
-[ext_resource type="Texture2D" uid="uid://c_thinking_svg" path="res://Resources/Images/Icons/Util/Thinking.svg" id="id_thinking"]
-[ext_resource type="Texture2D" uid="uid://c_avatar_bot_png" path="res://Resources/avatar_bot.png" id="id_agi_logo"]
+[ext_resource type="Texture2D" uid="uid://du3w0n73d40lw" path="res://Resources/avatar_bot.png" id="id_agi_logo"]
+[ext_resource type="Texture2D" uid="uid://bwewlane66cuh" path="res://Resources/Images/Icons/Util/Thinking.svg" id="id_thinking"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_popup_hover"]
 content_margin_left = 12.0
@@ -90,6 +90,9 @@ VScrollBar/styles/scroll_focus = SubResource("StyleBoxEmpty_scroll")
 bg_color = Color(0.949, 0.949, 0.969, 1)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_spacer"]
+content_margin_left = 0.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_line_edit"]
 content_margin_left = 0.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_user_bubble"]
@@ -217,9 +220,6 @@ corner_radius_bottom_right = 20
 corner_radius_bottom_left = 20
 anti_aliasing_size = 1.5
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_line_edit"]
-content_margin_left = 0.0
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_send_normal"]
 bg_color = Color(0, 0.478, 1, 1)
 corner_radius_top_left = 25
@@ -244,7 +244,7 @@ corner_radius_bottom_right = 25
 corner_radius_bottom_left = 25
 anti_aliasing_size = 1.5
 
-[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "UserMessageTemplate", "BotMessageTemplate", "UserMessageMarkdownNode", "BotMessageMarkdownNode", "BotMessageLayoutNode", "ToolSelector", "BottomInputPanel", "BotActionsContainer", "BotActions", "BotAvatarContainer", "GotaCuerpo", "AlaIzquierda", "AlaDerecha", "Pupilas", "Equis")]
+[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "UserMessageTemplate", "BotMessageTemplate", "UserMessageMarkdownNode", "BotMessageMarkdownNode", "BotMessageLayoutNode", "ToolSelector", "BotActionsContainer", "BotActions", "BotAvatarContainer", "GotaCuerpo", "AlaIzquierda", "AlaDerecha", "Pupilas", "Equis", "BottomInputPanel")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -263,15 +263,6 @@ UserMessageMarkdownNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollCo
 BotMessageMarkdownNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/MessageBody")
 BotMessageLayoutNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout")
 ToolSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolSelector")
-BottomInputPanel = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel")
-BotActionsContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer")
-BotActions = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer/BotActions")
-BotAvatarContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer")
-GotaCuerpo = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/GotaCuerpo")
-AlaIzquierda = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/AlaIzquierda")
-AlaDerecha = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/AlaDerecha")
-Pupilas = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/Pupilas")
-Equis = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/Equis")
 RandomImage1 = ExtResource("2_q7f8p")
 RandomImage2 = ExtResource("3_jta4j")
 RandomImage3 = ExtResource("4_amhcu")
@@ -280,6 +271,15 @@ RandomVideo1 = ExtResource("6_jta4j")
 RandomVideo2 = ExtResource("7_amhcu")
 RandomVideo3 = ExtResource("8_675c4")
 RandomVideo4 = ExtResource("9_u6rn7")
+BotActionsContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer")
+BotActions = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer/BotActions")
+BotAvatarContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer")
+GotaCuerpo = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/GotaCuerpo")
+AlaIzquierda = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/AlaIzquierda")
+AlaDerecha = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/AlaDerecha")
+Pupilas = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/Pupilas")
+Equis = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/Equis")
+BottomInputPanel = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel")
 
 [node name="MainContainer" type="HBoxContainer" parent="." unique_id=2091277489]
 layout_mode = 1
@@ -324,22 +324,22 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxEmpty_spacer")
 
-[node name="UserActions" type="VBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate"]
+[node name="UserActions" type="VBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate" unique_id=1860688275]
 layout_mode = 2
 alignment = 1
 
-[node name="CopyUserBtn" type="Button" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/UserActions"]
+[node name="CopyUserBtn" type="Button" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/UserActions" unique_id=768162149]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = "Copiar"
 
-[node name="MinimizeUserBtn" type="Button" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/UserActions"]
+[node name="MinimizeUserBtn" type="Button" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/UserActions" unique_id=1825867988]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = "Minimizar"
 
 [node name="MessageBubble" type="PanelContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate" unique_id=995048799]
@@ -519,7 +519,7 @@ size_flags_vertical = 3
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="ThinkingIcon" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer"]
+[node name="ThinkingIcon" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer" unique_id=1988618637]
 custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
 texture = ExtResource("id_thinking")
@@ -598,9 +598,9 @@ popup/item_2/id = 2
 custom_minimum_size = Vector2(0, 45)
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_colors/caret_color = Color(0.15, 0.15, 0.15, 1)
 theme_override_colors/font_color = Color(0.15, 0.15, 0.15, 1)
 theme_override_colors/font_placeholder_color = Color(0.4, 0.4, 0.4, 1)
-theme_override_colors/caret_color = Color(0.15, 0.15, 0.15, 1)
 theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 placeholder_text = "Escribe tu mensaje aquí..."

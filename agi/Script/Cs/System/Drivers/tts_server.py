@@ -1,3 +1,4 @@
+# tts_server.py - A WebSocket server that uses Kokoro ONNX to generate TTS audio for Godot clients. Version 1.0.0.0
 import asyncio
 import websockets
 import json

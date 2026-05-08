@@ -30,8 +30,6 @@ Button/colors/icon_pressed_color = Color(1, 1, 1, 1)
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_main_bg"]
 bg_color = Color(0.949, 0.949, 0.969, 1)
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_line_edit"]
-
 [sub_resource type="Animation" id="Animation_logo_idle"]
 resource_name = "logo_idle"
 length = 4.0
@@ -111,6 +109,8 @@ _data = {
 &"sidebar_close": SubResource("Animation_sidebar_close"),
 &"sidebar_open": SubResource("Animation_sidebar_open")
 }
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_line_edit"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sidebar_bg"]
 bg_color = Color(1, 1, 1, 1)
@@ -293,8 +293,8 @@ button_group = SubResource("ButtonGroup_header_modes")
 text = " Modo Chat Bot"
 icon = ExtResource("5_ide7w")
 alignment = 0
-clip_text = true
 text_overrun_behavior = 3
+clip_text = true
 
 [node name="LiveModeButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout" unique_id=61619980]
 custom_minimum_size = Vector2(10, 0)
@@ -308,8 +308,8 @@ button_group = SubResource("ButtonGroup_header_modes")
 text = " Modo Live"
 icon = ExtResource("6_8bqqk")
 alignment = 0
-clip_text = true
 text_overrun_behavior = 3
+clip_text = true
 
 [node name="AgiModeButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout" unique_id=1786153305]
 custom_minimum_size = Vector2(10, 0)
@@ -323,8 +323,8 @@ button_group = SubResource("ButtonGroup_header_modes")
 text = " Modo AGI"
 icon = ExtResource("7_ide7w")
 alignment = 0
-clip_text = true
 text_overrun_behavior = 3
+clip_text = true
 
 [node name="SeparatorMargin" type="MarginContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout" unique_id=1373918910]
 layout_mode = 2
@@ -346,8 +346,8 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = " Historial"
 icon = ExtResource("icon_history")
 alignment = 0
-clip_text = true
 text_overrun_behavior = 3
+clip_text = true
 
 [node name="HistoryScroll" type="ScrollContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout" unique_id=1121930028]
 layout_mode = 2
@@ -368,8 +368,8 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = " Configuración"
 icon = ExtResource("icon_settings")
 alignment = 0
-clip_text = true
 text_overrun_behavior = 3
+clip_text = true
 
 [node name="RightColumn" type="VBoxContainer" parent="MainLayout" unique_id=405211898]
 layout_mode = 2
@@ -435,10 +435,6 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 0.0
-offset_top = 0.0
-offset_right = 0.0
-offset_bottom = 0.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
