@@ -124,27 +124,23 @@ namespace Logic.Backend
         {
             try
             {
-                // 1. Resource configuration and model path resolution.[cite: 1]
-                // Establishes parallelism by calculating logical core load and defines weight tensor paths.
+                // Configures the processing resources and resolves the specific paths for the model files[cite: 2].
                 int threadCount = Math.Max(1, global::System.Environment.ProcessorCount / 2);
                 string modelLlamaPath = global::System.IO.Path.Combine(modelsDir, safeFileName);
                 
                 string sttModel = _configManager?.ActiveSTTModel ?? "Whisper_Base.bin"; 
                 string modelWhisperPath = global::System.IO.Path.Combine(modelsDir, sttModel);
 
-                // 2. Dynamic OS-based routing.[cite: 1]
-                // Identifies folder architecture according to the platform to locate specific binaries.
+                // Determines the target directory based on the current operating system[cite: 2].
                 string osFolder = _environmentManager.IsWindows ? "windows" : "linux";
                 string llamaDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "llama");
                 string whisperDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "whisper");
 
-                // 3. Binary discovery via Logic.Utils.FileResolver.[cite: 1]
-                // Recursively locates executable entry points for native inference servers.
+                // Executes the resolution of native binaries through the utility layer[cite: 2].
                 string llamaBinPath = Logic.Utils.FileResolver.FindExecutable(llamaDir, _environmentManager.IsWindows, "llama-server");
                 string whisperBinPath = Logic.Utils.FileResolver.FindExecutable(whisperDir, _environmentManager.IsWindows, "whisper-server");
 
-                // 4. Critical binary integrity validation.[cite: 1]
-                // Verifies the physical presence of executables on disk before process instantiation.
+                // Validates the integrity of the required server binaries before proceeding with initialization[cite: 2].
                 if (!global::System.IO.File.Exists(llamaBinPath))
                 {
                     GD.PrintErr($"BackendLauncher: Fatal - Llama Server binary missing in {llamaDir}.");
@@ -159,16 +155,19 @@ namespace Logic.Backend
                     return;
                 }
 
-                // 5. Python bridge configuration and process structures.[cite: 1]
-                // Resolves the exact binary name expected in isolated environments based on the OS.
+                // Configures the Python environment and paths for the TTS bridge[cite: 2].
                 string pythonExe = _environmentManager.IsWindows ? 
                     global::System.IO.Path.Combine(_environmentManager.EnvPath, "python", "python.exe") : 
                     global::System.IO.Path.Combine(_environmentManager.EnvPath, "python", "bin", "python3");
 
-                // Defines the absolute path to the script acting as the TTS server.
+                // Resolves the active TTS model folder and directory to ensure asset availability.
+                string ttsModelFolder = _configManager != null && !string.IsNullOrEmpty(_configManager.ActiveTTSModel) ? _configManager.ActiveTTSModel : "";
+                string ttsModelsDir = global::System.IO.Path.Combine(modelsDir, ttsModelFolder);
+
+                // Establishes the absolute path to the Python server script for speech synthesis.
                 string ttsScriptPath = global::System.IO.Path.Combine(_environmentManager.BinPath, "tts_server.py");
 
-                // Configures start parameters for the Whisper speech recognition engine.
+                // Defines the execution parameters for the Whisper inference process.
                 ProcessStartInfo whisperInfo = new ProcessStartInfo
                 {
                     FileName = whisperBinPath,
@@ -179,7 +178,7 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
-                // Configures start parameters for the Llama language engine.
+                // Defines the execution parameters for the Llama language model process.
                 ProcessStartInfo llamaInfo = new ProcessStartInfo
                 {
                     FileName = llamaBinPath,
@@ -190,20 +189,20 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
-                // Validates interpreter existence before instantiation to prevent critical execution failures.
+                // Initializes the Sherpa-ONNX TTS process if the Python interpreter is valid.
                 if (global::System.IO.File.Exists(pythonExe))
                 {
+                    // Forces unbuffered output via '-u' to facilitate real-time crash diagnostics and logging.
                     ProcessStartInfo sherpaInfo = new ProcessStartInfo
                     {
                         FileName = pythonExe,
-                        Arguments = $"\"{ttsScriptPath}\" --port {SherpaPort} --models-dir \"{modelsDir}\"",
+                        Arguments = $"-u \"{ttsScriptPath}\" --port {SherpaPort} --models-dir \"{ttsModelsDir}\"",
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
                     };
 
-                    // Initializes the Sherpa-ONNX process instance, linking log streams to interface signals.
                     _sherpaProcess = new Process { StartInfo = sherpaInfo, EnableRaisingEvents = true };
                     
                     _sherpaProcess.OutputDataReceived += (sender, e) => 
@@ -226,12 +225,10 @@ namespace Logic.Backend
                     _sherpaProcess = null;
                 }
 
-                // 6. Environment variable injection and hardware detection.[cite: 1]
-                // Configures search paths for the dynamic loader, linking only the native engine directories.
+                // Injects library paths and GPU visibility flags into the process environment[cite: 2].
                 whisperInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = whisperDir;
                 llamaInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = llamaDir;
 
-                // Retrieves the selected hardware device index and injects Vulkan configuration if available.
                 int gpuIndex = _configManager != null ? _configManager.SelectedGpuIndex : -1;
                 if (gpuIndex >= 0)
                 {
@@ -240,8 +237,7 @@ namespace Logic.Backend
                     llamaInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = gpuStr;
                 }
 
-                // 7. Instantiation and event subscription for Whisper and Llama.[cite: 1]
-                // Creates process instances and links output and termination handlers for health auditing.
+                // Subscribes to standard output and error streams for the inference engines[cite: 2].
                 _whisperProcess = new Process { StartInfo = whisperInfo, EnableRaisingEvents = true };
                 _llamaProcess = new Process { StartInfo = llamaInfo, EnableRaisingEvents = true };
 
@@ -287,8 +283,7 @@ namespace Logic.Backend
                 };
                 _llamaProcess.Exited += OnProcessExited;
 
-                // 8. Backend system execution.[cite: 1]
-                // Safely initialize the TTS bridge only if the interpreter was successfully validated.
+                // Triggers the asynchronous execution of all backend components[cite: 2].
                 if (_sherpaProcess != null) 
                 {
                     _sherpaProcess.Start();

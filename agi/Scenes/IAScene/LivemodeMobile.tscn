@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://livemode_mobile_uid"]
+[gd_scene format=3 uid="uid://chwb3c2g48vah"]
 
 [ext_resource type="Script" uid="uid://cqlqgupb2vwje" path="res://Script/Cs/LivemodeMain.cs" id="1_script"]
 
@@ -128,7 +128,7 @@ _data = {
 &"transition": SubResource("Animation_transition")
 }
 
-[node name="LiveModeInterfaceMobile" type="Panel" node_paths=PackedStringArray("WaveVisualizer", "WaveAnimationPlayer")]
+[node name="LiveModeInterfaceMobile" type="Panel" unique_id=1503531508 node_paths=PackedStringArray("WaveVisualizer", "WaveAnimationPlayer")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -140,7 +140,7 @@ script = ExtResource("1_script")
 WaveVisualizer = NodePath("MainContainer/LiveAreaContainer/CenterArea/WaveVisualizer")
 WaveAnimationPlayer = NodePath("WaveAnimationPlayer")
 
-[node name="MainContainer" type="HBoxContainer" parent="."]
+[node name="MainContainer" type="HBoxContainer" parent="." unique_id=1631755573]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -149,17 +149,17 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-[node name="LiveAreaContainer" type="VBoxContainer" parent="MainContainer"]
+[node name="LiveAreaContainer" type="VBoxContainer" parent="MainContainer" unique_id=1197716678]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 0
 
-[node name="CenterArea" type="Panel" parent="MainContainer/LiveAreaContainer"]
+[node name="CenterArea" type="Panel" parent="MainContainer/LiveAreaContainer" unique_id=1131488075]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = SubResource("StyleBoxEmpty_panel_wrapper")
 
-[node name="WaveVisualizer" type="ColorRect" parent="MainContainer/LiveAreaContainer/CenterArea"]
+[node name="WaveVisualizer" type="ColorRect" parent="MainContainer/LiveAreaContainer/CenterArea" unique_id=115999639]
 material = SubResource("ShaderMaterial_chatgpt_blob")
 layout_mode = 1
 anchors_preset = 8
@@ -174,7 +174,7 @@ offset_bottom = 160.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="BottomControls" type="VBoxContainer" parent="MainContainer/LiveAreaContainer/CenterArea"]
+[node name="BottomControls" type="VBoxContainer" parent="MainContainer/LiveAreaContainer/CenterArea" unique_id=2074074602]
 layout_mode = 1
 anchors_preset = 7
 anchor_left = 0.5
@@ -190,7 +190,7 @@ grow_vertical = 0
 theme_override_constants/separation = 15
 alignment = 1
 
-[node name="StatusText" type="RichTextLabel" parent="MainContainer/LiveAreaContainer/CenterArea/BottomControls"]
+[node name="StatusText" type="RichTextLabel" parent="MainContainer/LiveAreaContainer/CenterArea/BottomControls" unique_id=791660669]
 layout_mode = 2
 theme_override_colors/default_color = Color(0.4, 0.4, 0.4, 1)
 theme_override_font_sizes/normal_font_size = 14
@@ -198,11 +198,11 @@ bbcode_enabled = true
 text = "[center]Tap to cancel[/center]"
 fit_content = true
 
-[node name="CenterButtonLayout" type="HBoxContainer" parent="MainContainer/LiveAreaContainer/CenterArea/BottomControls"]
+[node name="CenterButtonLayout" type="HBoxContainer" parent="MainContainer/LiveAreaContainer/CenterArea/BottomControls" unique_id=320813557]
 layout_mode = 2
 alignment = 1
 
-[node name="FloatingActionButton" type="Button" parent="MainContainer/LiveAreaContainer/CenterArea/BottomControls/CenterButtonLayout"]
+[node name="FloatingActionButton" type="Button" parent="MainContainer/LiveAreaContainer/CenterArea/BottomControls/CenterButtonLayout" unique_id=982771522]
 custom_minimum_size = Vector2(60, 60)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
@@ -218,6 +218,6 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_fab_pressed")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = "X"
 
-[node name="WaveAnimationPlayer" type="AnimationPlayer" parent="."]
+[node name="WaveAnimationPlayer" type="AnimationPlayer" parent="." unique_id=1588422395]
 libraries/ = SubResource("AnimationLibrary_waves")
 autoplay = &"idle"

@@ -89,3 +89,37 @@ Objetivo: Levantar el servidor puente de Python utilizando el comando uv run, el
         Qué hacer: Modificar la sección donde se configura el puente de Python (sherpaInfo) dentro de ManageBackendLifecycle. En Linux, en lugar de resolver la ruta hacia python3 (pythonExe), configurar el ProcessStartInfo para que el FileName sea simplemente uv. Los Arguments deben ser: run --python 3.13 "{ttsScriptPath}" --port {SherpaPort} --models-dir "{modelsDir}".  
 
         Qué NO hacer: No alterar la inyección de variables de entorno (LD_LIBRARY_PATH, GGML_VK_VISIBLE_DEVICES). No tocar los subprocesos de _whisperProcess ni _llamaProcess.
+
+        
+🗺️ Plan Maestro 3: Soberanía+
+Fase 1: El Ojo Omnisciente (Búsqueda Web Gratuita y Deep Research)
+    
+    El Puente (Python): 
+        Levantaremos un servidor con FastAPI que actuará como nuestro microservicio.  
+    
+    La Búsqueda (Paso A): 
+        Usaremos la librería duckduckgo_search para extraer títulos, fragmentos (snippets) y enlaces orgánicos. Esto consume mínima RAM y evita bloqueos al operar con un ritmo humano.  
+    
+    Deep Research (Paso B): 
+        Integraremos librerías como Trafilatura o Crawl4AI. Cuando se requiera, el script entrará al enlace más relevante y extraerá el texto completo del artículo, dando la sensación de una investigación profunda real.  
+    
+    Inyección de Contexto: 
+        Python empaquetará y limpiará los resultados en un formato estricto de Markdown (ej. # Fuente: ... Contenido: ...) antes de mandarlo a Godot, para que la IA no se pierda leyendo la información.  
+
+Fase 2: Expansión Multiversal (APIs de Terceros)
+    
+    Modificaremos el núcleo de C# para almacenar de forma persistente las llaves de API (Gemini, Claude, GPT).
+    
+    Dotaremos al NetworkManager.cs de inteligencia para enrutar los prompts. Si el usuario elige "Modo Nube", la petición se va al exterior; si elige "Local", usamos nuestro Llama/Whisper de siempre.
+
+Fase 3: Manos a la Obra (Protocolo MCP)
+
+    Implementaremos la arquitectura del Model Context Protocol (MCP) en nuestros componentes.
+    
+    Esto permitirá conectar "Tools" dinámicas, convirtiendo a tu AGI en un agente capaz de ejecutar acciones en la computadora, listar directorios o ejecutar comandos, no solo charlar.
+
+Fase 4: AGI como Centro de Mando (Modo Servidor / Reverse API)
+
+    Transformaremos la instancia de Godot en un servidor anfitrión local.
+    
+    Abriremos un HttpListener para que otras aplicaciones (o tú mismo desde otros scripts) puedan mandar un POST a tu aplicación y recibir la respuesta procesada por tu AGI (Y tambien generar una API para que se pueda conectar servidores AGI con AGI IU para celular u otros dispositivos que no cuenten con mucho internet o quieran mejores modelos).
