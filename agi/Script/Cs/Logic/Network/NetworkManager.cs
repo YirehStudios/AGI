@@ -21,6 +21,8 @@ namespace Logic.Network
         public delegate void STTCompletedEventHandler(string text);
         [Signal]
         public delegate void TTSAudioChunkReceivedEventHandler(byte[] pcmData);
+        [Signal]
+        public delegate void SearchCompletedEventHandler(string markdownResults);
 
         private readonly global::System.Net.Http.HttpClient _httpClient = new global::System.Net.Http.HttpClient();
 
@@ -219,6 +221,48 @@ namespace Logic.Network
                     GD.PrintErr($"[FLAG] STT ERROR: Whisper HTTP request failed. {ex.Message}");
                 }
             });
+        }
+
+        /// <summary>
+        /// Dispatches a search request to the local Python microservice to retrieve web-augmented data.
+        /// Sends a JSON payload containing the query and depth parameters to the FastAPI endpoint.
+        /// Upon success, it extracts the Markdown-formatted results and notifies the UI layer.
+        /// </summary>
+        /// <param name="query">The search string to be processed by DuckDuckGo.</param>
+        /// <param name="deepResearch">Flag to enable full-text extraction via Trafilatura.</param>
+        public async Task RequestWebSearch(string query, bool deepResearch)
+        {
+            try
+            {
+                // Constructs the data transfer object for the search microservice.
+                var payload = new
+                {
+                    query = query,
+                    deep_research = deepResearch
+                };
+
+                string jsonPayload = JsonSerializer.Serialize(payload);
+                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                // Targets the dedicated search port as defined in the infrastructure orchestration.
+                HttpResponseMessage response = await _httpClient.PostAsync("http://127.0.0.1:8000/search", content);
+                response.EnsureSuccessStatusCode();
+
+                string jsonResponse = await response.Content.ReadAsStringAsync();
+                
+                // Parses the specialized "results" field containing the compiled Markdown string.
+                using JsonDocument doc = JsonDocument.Parse(jsonResponse);
+                if (doc.RootElement.TryGetProperty("results", out JsonElement resultsElement))
+                {
+                    string markdownResults = resultsElement.GetString();
+                    CallDeferred(MethodName.EmitSignal, SignalName.SearchCompleted, markdownResults);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Logs connectivity or serialization faults specifically for the search service.
+                GD.PrintErr($"[NET ERROR] Search Microservice Request Failed: {ex.Message}");
+            }
         }
 
         private string GetActiveUrl()

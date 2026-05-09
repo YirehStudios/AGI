@@ -75,7 +75,7 @@ namespace Logic.Lite
 
         private bool _isInsideThinkBlock = false;
 
-        private const string SystemPrompt = "Eres AGI, una asistente técnica altamente capacitada y empática. Nunca reveles que eres una IA. Responde de forma concisa pero útil. SIEMPRE piensa paso a paso usando estrictamente la etiqueta <think> al inicio de tu respuesta para separar tu razonamiento interno de tu respuesta final. Tu pensamiento interno es invisible para el usuario, tu respuesta final no. Si la conversación cambia de tema drásticamente, incluye al final de tu respuesta secreta <think> la etiqueta [SESSION_NAME: Nombre del Tema] y [SUMMARY: Resumen breve].";
+        private const string SystemPrompt = "Eres AGI, una asistente técnica altamente capacitada y empática. Nunca reveles que eres una IA. Responde de forma concisa pero útil. Se te proporcionará información de internet bajo la etiqueta [INTERNET CONTEXT]; úsala obligatoriamente para dar respuestas actualizadas y precisas, citando la fuente si es necesario. SIEMPRE piensa paso a paso usando estrictamente la etiqueta <think> al inicio de tu respuesta para separar tu razonamiento interno de tu respuesta final. Tu pensamiento interno es invisible para el usuario, tu respuesta final no. Si la conversación cambia de tema drásticamente, incluye al final de tu respuesta secreta <think> la etiqueta [SESSION_NAME: Nombre del Tema] y [SUMMARY: Resumen breve].";
         private ChatSession _currentSession;
         private string _historyDirectory;
         private string _currentFilePath;
@@ -133,14 +133,16 @@ namespace Logic.Lite
         }
 
         /// <summary>
-        /// Initializes the transactional input processing flow, clears session buffers, 
-        /// manages the tail-end WebSocket evaluation, and natively handles logic separation for reasoning models.
-        /// Implements LINQ queries to ensure independent ID allocation per role within the JSON schema.
+        /// Initializes the transactional input processing flow, orchestrating a RAG (Retrieval-Augmented Generation) pipeline.
+        /// It asynchronously fetches internet context via the Search Microservice before constructing the final LLM prompt.
+        /// Manages session persistence, reasoning block separation, and real-time buffer synchronization for UI and TTS.
         /// </summary>
+        /// <param name="userInput">The raw query provided by the user.</param>
         public async global::System.Threading.Tasks.Task SendToAI(string userInput)
         {
             if (string.IsNullOrWhiteSpace(userInput) || _networkManager == null) return;
 
+            // Records the initial user message in the session history and persists it to disk.
             int newId = _currentSession.Messages.Count + 1;
             
             _currentSession.Messages.Add(new ChatMessage 
@@ -153,7 +155,25 @@ namespace Logic.Lite
             });
             SaveSession();
 
+            // Dispatches an asynchronous web search request to gather real-time internet context.
+            await _networkManager.RequestWebSearch(userInput, false);
+            
+            // Suspends execution until the search microservice returns the Markdown-formatted results.
+            var signalResult = await ToSignal(_networkManager, Logic.Network.NetworkManager.SignalName.SearchCompleted);
+            string webContext = signalResult[0].AsString();
+
+            // Constructs the augmented input to ground the AI's response in the retrieved web data.
+            string augmentedInput = $"[INTERNET CONTEXT]\n{webContext}\n\n[USER QUESTION]\n{userInput}";
+
+            // Temporarily injects the augmented input into the session to ensure the Prompt Builder includes the context.
+            string originalContent = _currentSession.Messages[^1].Content;
+            _currentSession.Messages[^1].Content = augmentedInput;
+
+            // Builds the standardized ChatML prompt using the context-augmented turn.
             string prompt = BuildPrompt();
+
+            // Restores the original user query to maintain a clean and concise JSON history for the UI.
+            _currentSession.Messages[^1].Content = originalContent;
 
             EmitSignal(SignalName.OnBotStartedThinking);
             
@@ -162,8 +182,10 @@ namespace Logic.Lite
             _ttsBuffer = string.Empty;
             _isInsideThinkBlock = false;
 
+            // Streams the completion request to the Llama server using the augmented prompt.
             await _networkManager.StreamChatCompletion(prompt);
 
+            // Processes remaining audio fragments in the TTS buffer after the stream concludes.
             if (!string.IsNullOrWhiteSpace(_ttsBuffer))
             {
                 string safeText = CleanResponseForTTS(_ttsBuffer);
@@ -174,6 +196,7 @@ namespace Logic.Lite
                 _ttsBuffer = string.Empty;
             }
 
+            // Parses the raw response to separate internal reasoning (<think>) from the visible content.
             string rawResponse = _currentAssistantBuffer;
             string thoughtProcess = "";
             string finalContent = rawResponse;
@@ -191,6 +214,7 @@ namespace Logic.Lite
                 finalContent = "";
             }
 
+            // Dynamically updates session metadata (Name and Summary) if the AI provides them in the reasoning block.
             if (thoughtProcess.Contains("[SESSION_NAME:"))
             {
                 var matchName = global::System.Text.RegularExpressions.Regex.Match(thoughtProcess, @"\[SESSION_NAME:\s*(.+?)\]");
@@ -213,6 +237,7 @@ namespace Logic.Lite
                 if (matchSummary.Success) _currentSession.Summary = matchSummary.Groups[1].Value.Trim();
             }
 
+            // Adds the assistant's final response and internal reasoning to the persistent session log.
             _currentSession.Messages.Add(new ChatMessage 
             { 
                 IdAssistant = _currentSession.Messages.FindAll(m => m.Role == "assistant").Count + 1,
@@ -224,6 +249,7 @@ namespace Logic.Lite
             });
             SaveSession();
 
+            // Finalizes the interaction by emitting the synthesized response for the UI.
             string safeTtsText = CleanResponseForTTS(finalContent);
             if (string.IsNullOrWhiteSpace(safeTtsText)) safeTtsText = "Pensé demasiado y perdí el hilo. ¿Puedes repetirlo?";
             
