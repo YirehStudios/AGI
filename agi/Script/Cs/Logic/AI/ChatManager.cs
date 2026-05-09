@@ -72,10 +72,11 @@ namespace Logic.Lite
         [Signal] public delegate void OnBotThoughtFinishedEventHandler();
         [Signal] public delegate void OnBotMessageTokenReceivedEventHandler(string token); 
         [Signal] public delegate void OnBotFinishedSpeakingEventHandler(string fullResponse);
+        private static string SystemPromptInit = "Eres AGI, una asistente técnica altamente capacitada y empática. Nunca reveles que eres una IA. Responde de forma concisa pero útil. Se te proporcionará información de internet bajo la etiqueta [INTERNET CONTEXT]; úsala obligatoriamente para dar respuestas actualizadas y precisas, citando la fuente si es necesario. SIEMPRE piensa paso a paso usando estrictamente la etiqueta <think> al inicio de tu respuesta para separar tu razonamiento interno de tu respuesta final. Tu pensamiento interno es invisible para el usuario, tu respuesta final no. Si la conversación cambia de tema drásticamente, incluye al final de tu respuesta secreta <think> la etiqueta [SESSION_NAME: Nombre del Tema] y [SUMMARY: Resumen breve].";
 
         private bool _isInsideThinkBlock = false;
 
-        private const string SystemPrompt = "Eres AGI, una asistente técnica altamente capacitada y empática. Nunca reveles que eres una IA. Responde de forma concisa pero útil. Se te proporcionará información de internet bajo la etiqueta [INTERNET CONTEXT]; úsala obligatoriamente para dar respuestas actualizadas y precisas, citando la fuente si es necesario. SIEMPRE piensa paso a paso usando estrictamente la etiqueta <think> al inicio de tu respuesta para separar tu razonamiento interno de tu respuesta final. Tu pensamiento interno es invisible para el usuario, tu respuesta final no. Si la conversación cambia de tema drásticamente, incluye al final de tu respuesta secreta <think> la etiqueta [SESSION_NAME: Nombre del Tema] y [SUMMARY: Resumen breve].";
+        private string SystemPrompt = $"{SystemPromptInit}";
         private ChatSession _currentSession;
         private string _historyDirectory;
         private string _currentFilePath;
@@ -131,8 +132,7 @@ namespace Logic.Lite
                 GD.PrintErr($"[BRAIN] Failed to write JSON history to disk: {ex.Message}");
             }
         }
-
-        /// <summary>
+/// <summary>
         /// Initializes the transactional input processing flow, orchestrating a RAG (Retrieval-Augmented Generation) pipeline.
         /// It asynchronously fetches internet context via the Search Microservice before constructing the final LLM prompt.
         /// Manages session persistence, reasoning block separation, and real-time buffer synchronization for UI and TTS.
@@ -182,6 +182,11 @@ namespace Logic.Lite
             _ttsBuffer = string.Empty;
             _isInsideThinkBlock = false;
 
+            // Extreme telemetry: Dumps the exact augmented prompt sent to the LLM to the Godot console.
+            GD.Print("\n================ [AGI PROMPT DUMP] ================\n");
+            GD.Print(prompt);
+            GD.Print("\n===================================================\n");
+
             // Streams the completion request to the Llama server using the augmented prompt.
             await _networkManager.StreamChatCompletion(prompt);
 
@@ -214,7 +219,7 @@ namespace Logic.Lite
                 finalContent = "";
             }
 
-            // Dynamically updates session metadata (Name and Summary) if the AI provides them in the reasoning block.
+            // Dynamically updates session metadata based on assistant reasoning tags.
             if (thoughtProcess.Contains("[SESSION_NAME:"))
             {
                 var matchName = global::System.Text.RegularExpressions.Regex.Match(thoughtProcess, @"\[SESSION_NAME:\s*(.+?)\]");
@@ -329,12 +334,19 @@ namespace Logic.Lite
 
         /// <summary>
         /// Constructs the standardized ChatML prompt utilizing the structured JSON elements.
-        /// Bypasses regex processing dynamically leveraging the pre-parsed Think and Content boundaries.
+        /// Fixes CS8076 by resolving the system time outside the interpolated string to prevent parsing conflicts.
         /// </summary>
+        /// <returns>The fully formatted prompt string for LLM inference.</returns>
         private string BuildPrompt()
         {
             StringBuilder builder = new StringBuilder();
-            builder.Append($"<|im_start|>system\n{SystemPrompt}\nMemoria actual: {_currentSession.Summary}<|im_end|>\n");
+            
+            // Injects the real-time OS clock into the foundational context. 
+            // Resolved as a separate variable to prevent interpolation delimiter errors.
+            string timeString = global::System.DateTime.Now.ToString("f");
+            string currentTimeContext = $"Fecha y hora actual del sistema: {timeString}.";
+            
+            builder.Append($"<|im_start|>system\n{SystemPrompt}\n{currentTimeContext}\nMemoria actual: {_currentSession.Summary}<|im_end|>\n");
 
             int startIndex = global::System.Math.Max(0, _currentSession.Messages.Count - 10);
             for (int i = startIndex; i < _currentSession.Messages.Count; i++)
@@ -342,7 +354,7 @@ namespace Logic.Lite
                 var msg = _currentSession.Messages[i];
                 string fullContent = msg.Content;
 
-                // Inyectar el pensamiento previo en la memoria para que no pierda el contexto
+                // Inyectar el pensamiento previo en la memoria para que no pierda el contexto.
                 if (!string.IsNullOrWhiteSpace(msg.Think))
                 {
                     fullContent = $"<think>\n{msg.Think}\n</think>\n{msg.Content}";
