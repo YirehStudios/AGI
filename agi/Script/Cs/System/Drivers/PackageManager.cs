@@ -130,121 +130,157 @@ namespace Logic.System.Drivers
         }
 
         /// <summary>
-        /// Synchronizes and configures an isolated Python execution environment for the local host[cite: 8].
-        /// On Linux systems, it utilizes the 'uv' package manager to provision Python 3.13, create a virtual environment, and install dependencies[cite: 8].
-        /// On Windows systems, it deploys a portable distribution, enables site-packages, and provisions pip for module resolution[cite: 8].
+        /// Provisions a dedicated Python environment for the Search Microservice.
+        /// Performs full deployment including script synchronization, portable distribution setup, 
+        /// and dependency installation (FastAPI, Uvicorn, Search tools).
         /// </summary>
-        /// <param name="pythonUrl">The download URL for the portable Python binary, required for Windows deployments[cite: 8].</param>
-        /// <returns>A task representing the success of the environment initialization and provisioning[cite: 8].</returns>
-        public async Task<bool> EnsurePythonEnvironmentAsync(string pythonUrl)
+        /// <param name="pythonUrl">The remote URL for the portable Python distribution (Windows).</param>
+        /// <param name="searchServerUrl">The remote URL for the search_server.py script from manifest.</param>
+        /// <returns>True if the environment and microservice dependencies are ready; otherwise, false.</returns>
+        public async Task<bool> EnsureSearchEnvironmentAsync(string pythonUrl, string searchServerUrl)
         {
-            // Restricts execution in environments where local binary provisioning is not supported or required[cite: 8].
-            if (_environmentManager.IsUIOnlyMode || _environmentManager.IsAndroid)
+            // Validates operational support for the current hardware platform.
+            if (_environmentManager.IsUIOnlyMode || _environmentManager.IsAndroid) return true;
+
+            string envPath = Path.Combine(_environmentManager.EnvPath, "python_search");
+            string searchScriptPath = Path.Combine(_environmentManager.BinPath, "search_server.py");
+
+            if (!Directory.Exists(envPath)) Directory.CreateDirectory(envPath);
+
+            // Synchronizes the search microservice logic from the repository to the local system.
+            bool scriptDownloadSuccess = await _downloadManager.DownloadFileAsync(searchServerUrl, _environmentManager.BinPath, "search_server.py");
+            if (!scriptDownloadSuccess)
             {
-                return true;
+                GD.PrintErr("[PackageManager] Fatal: Failed to download search_server.py.");
+                return false;
             }
 
-            // Defines the absolute target directory for the isolated Python environment[cite: 8].
-            string envPath = Path.Combine(_environmentManager.EnvPath, "python");
-            
-            // Verifies the existence of the parent directory before proceeding with environment setup[cite: 8].
-            if (!Directory.Exists(envPath))
-            {
-                Directory.CreateDirectory(envPath);
-            }
-
-            // Provisioning logic for Linux-based systems utilizing the 'uv' package manager[cite: 8].
+            // Linux Path: Leverages 'uv' for high-performance virtual environment provisioning.
             if (_environmentManager.IsLinux)
             {
-                // Resolves the absolute path of the uv binary to ensure execution stability across different distributions[cite: 8].
                 string uvCommand = GetUvPath();
-                
-                // Constructs the expected path to the internal Python interpreter to verify if the virtual environment is already established[cite: 8].
                 string pythonBin = Path.Combine(envPath, "bin", "python");
-                
                 var output = new Godot.Collections.Array();
-                int exitCode;
 
-                // Conditional block to prevent redundant environment initialization and potential directory access conflicts[cite: 8].
                 if (!File.Exists(pythonBin))
                 {
-                    // Invokes the package manager to download and install the specific Python 3.13 runtime[cite: 8].
-                    exitCode = OS.Execute(uvCommand, new string[] { "python", "install", "3.13" }, output, true);
-                    if (exitCode != 0)
-                    {
-                        GD.PrintErr($"[PackageManager] uv Error: {string.Join("\n", output)}");
-                        return false;
-                    }
-
-                    // Initializes an isolated virtual environment bound to the provisioned Python 3.13 runtime at the designated path[cite: 8].
+                    GD.Print($"[PackageManager] Search Env: Installing Python 3.13 via uv...");
+                    // Specifically requests Python 3.13 for modern search library compatibility.
+                    if (OS.Execute(uvCommand, new string[] { "python", "install", "3.13" }, output, true) != 0) return false;
                     output.Clear();
-                    exitCode = OS.Execute(uvCommand, new string[] { "venv", "--python", "3.13", envPath }, output, true);
-                    if (exitCode != 0)
-                    {
-                        GD.PrintErr($"[PackageManager] uv Error: {string.Join("\n", output)}");
-                        return false;
-                    }
+                    if (OS.Execute(uvCommand, new string[] { "venv", "--python", "3.13", envPath }, output, true) != 0) return false;
                 }
 
-                // Executes dependency resolution via uv's pip interface. This uses a universal onnxruntime build to ensure 
-                // maximum compatibility across various Linux distributions and hardware configurations[cite: 8].
                 output.Clear();
-                string[] dependencies = { "pip", "install", "--python", envPath, "websockets", "soundfile", "numpy", "kokoro-onnx", "onnxruntime" };
-                exitCode = OS.Execute(uvCommand, dependencies, output, true);
+                GD.Print($"[PackageManager] Search Env: Installing pip dependencies (fastapi, uvicorn, etc.) via uv...");
+                string[] dependencies = { "pip", "install", "--python", envPath, "fastapi", "uvicorn", "ddgs", "trafilatura" };
+                int exitCode = OS.Execute(uvCommand, dependencies, output, true);
+                
                 if (exitCode != 0)
                 {
-                    GD.PrintErr($"[PackageManager] uv Error: {string.Join("\n", output)}");
+                    GD.PrintErr($"[PackageManager] Linux uv Search error: {string.Join("\n", output)}.");
                     return false;
                 }
-                
-                GD.Print("[PackageManager] Linux environment and Kokoro dependencies provisioned successfully via uv[cite: 8].");
+
+                GD.Print($"[PackageManager] -> Search Environment provisioned successfully on Linux.");
                 return true;
             }
 
-            // Provisioning logic for Windows-based systems using portable (embeddable) distributions[cite: 8].
+            // Windows Path: Implements a portable environment with manual site-packages patching.
             if (_environmentManager.IsWindows)
             {
                 string pythonExe = Path.Combine(envPath, "python.exe");
 
-                // Deploys the portable Python distribution if the main executable is missing[cite: 8].
                 if (!File.Exists(pythonExe))
                 {
-                    // Asynchronously retrieves the compressed package and the pip bootstrap script[cite: 8].
-                    bool downloadSuccess = await _downloadManager.DownloadFileAsync(pythonUrl, envPath, "python-embed.zip");
-                    if (!downloadSuccess) return false;
+                    GD.Print($"[PackageManager] Search Env: Downloading portable Python for Windows...");
+                    if (!await _downloadManager.DownloadFileAsync(pythonUrl, envPath, "python-embed.zip")) return false;
+                    await _downloadManager.DownloadFileAsync("https://bootstrap.pypa.io/get-pip.py", envPath, "get-pip.py");
 
-                    string pipScriptUrl = "https://bootstrap.pypa.io/get-pip.py";
-                    bool pipDownloadSuccess = await _downloadManager.DownloadFileAsync(pipScriptUrl, envPath, "get-pip.py");
-                    if (!pipDownloadSuccess) return false;
-
-                    // Modifies the path configuration file to enable 'site' module support for external libraries[cite: 8].
+                    GD.Print($"[PackageManager] Search Env: Extracting and patching Python path configuration...");
+                    // Crucial Step: Patches the embedded Python path configuration to recognize pip-installed libraries.
                     string[] pthFiles = Directory.GetFiles(envPath, "python*._pth");
                     if (pthFiles.Length > 0)
                     {
-                        string pthFilePath = pthFiles[0];
-                        string pthContent = File.ReadAllText(pthFilePath);
-                        pthContent = pthContent.Replace("#import site", "import site");
-                        File.WriteAllText(pthFilePath, pthContent);
+                        string content = File.ReadAllText(pthFiles[0]).Replace("#import site", "import site");
+                        File.WriteAllText(pthFiles[0], content);
                     }
 
-                    // Installs the pip package manager using the downloaded initialization script[cite: 8].
-                    string getPipLocalPath = Path.Combine(envPath, "get-pip.py");
-                    OS.Execute(pythonExe, new string[] { getPipLocalPath }, new Godot.Collections.Array(), true);
+                    OS.Execute(pythonExe, new string[] { Path.Combine(envPath, "get-pip.py") }, new Godot.Collections.Array(), true);
                 }
 
-                // Provision dependencies via pip, utilizing the DirectML provider for hardware acceleration on Windows[cite: 8].
                 var output = new Godot.Collections.Array();
-                int pipExit = OS.Execute(pythonExe, new string[] { "-m", "pip", "install", "websockets", "soundfile", "numpy", "kokoro-onnx", "onnxruntime-directml" }, output, true);
-
-                // Verifies successful completion of the package installation process[cite: 8].
+                GD.Print($"[PackageManager] Search Env: Installing pip dependencies (fastapi, uvicorn, etc.) on Windows...");
+                int pipExit = OS.Execute(pythonExe, new string[] { "-m", "pip", "install", "fastapi", "uvicorn", "ddgs", "trafilatura" }, output, true);
+                
                 if (pipExit != 0)
                 {
-                    GD.PrintErr($"[PackageManager] PIP Error Windows: {string.Join("\n", output)}[cite: 8]");
+                    GD.PrintErr($"[PackageManager] Windows pip Search error: {string.Join("\n", output)}.");
                     return false;
                 }
-                
-                GD.Print("[PackageManager] Kokoro dependencies successfully installed in the Windows environment[cite: 8].");
+
+                GD.Print($"[PackageManager] -> Search Environment provisioned successfully on Windows.");
                 return true;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Provisions the standard Python environment for the TTS (Sherpa/Kokoro) bridge.
+        /// Targets the 'user://env/python' directory and installs required signal processing libraries.
+        /// </summary>
+        /// <param name="pythonUrl">The remote URL for the portable Python distribution.</param>
+        /// <returns>True if the environment and audio dependencies are successfully prepared.</returns>
+        public async Task<bool> EnsurePythonEnvironmentAsync(string pythonUrl)
+        {
+            if (_environmentManager.IsUIOnlyMode || _environmentManager.IsAndroid) return true;
+
+            string envPath = Path.Combine(_environmentManager.EnvPath, "python");
+            if (!Directory.Exists(envPath)) Directory.CreateDirectory(envPath);
+
+            // Linux logic: Uses 'uv' for environment orchestration.
+            if (_environmentManager.IsLinux)
+            {
+                string uvCommand = GetUvPath();
+                string pythonBin = Path.Combine(envPath, "bin", "python");
+                var output = new Godot.Collections.Array();
+
+                if (!File.Exists(pythonBin))
+                {
+                    if (OS.Execute(uvCommand, new string[] { "python", "install", "3.10" }, output, true) != 0) return false;
+                    output.Clear();
+                    if (OS.Execute(uvCommand, new string[] { "venv", "--python", "3.10", envPath }, output, true) != 0) return false;
+                }
+
+                output.Clear();
+                string[] dependencies = { "pip", "install", "--python", envPath, "websockets", "soundfile", "numpy", "kokoro-onnx" };
+                return OS.Execute(uvCommand, dependencies, output, true) == 0;
+            }
+
+            // Windows logic: Deploys portable Python for the TTS stack.
+            if (_environmentManager.IsWindows)
+            {
+                string pythonExe = Path.Combine(envPath, "python.exe");
+
+                if (!File.Exists(pythonExe))
+                {
+                    if (!await _downloadManager.DownloadFileAsync(pythonUrl, envPath, "python-embed.zip")) return false;
+                    await _downloadManager.DownloadFileAsync("https://bootstrap.pypa.io/get-pip.py", envPath, "get-pip.py");
+
+                    string[] pthFiles = Directory.GetFiles(envPath, "python*._pth");
+                    if (pthFiles.Length > 0)
+                    {
+                        string content = File.ReadAllText(pthFiles[0]).Replace("#import site", "import site");
+                        File.WriteAllText(pthFiles[0], content);
+                    }
+
+                    OS.Execute(pythonExe, new string[] { Path.Combine(envPath, "get-pip.py") }, new Godot.Collections.Array(), true);
+                }
+
+                var output = new Godot.Collections.Array();
+                int pipExit = OS.Execute(pythonExe, new string[] { "-m", "pip", "install", "websockets", "soundfile", "numpy", "kokoro-onnx" }, output, true);
+                return pipExit == 0;
             }
 
             return true;

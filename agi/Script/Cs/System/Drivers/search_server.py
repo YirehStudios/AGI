@@ -1,7 +1,7 @@
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 import trafilatura
 
 # Define the FastAPI application instance

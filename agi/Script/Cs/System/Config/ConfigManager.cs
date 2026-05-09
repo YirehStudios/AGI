@@ -77,11 +77,16 @@ namespace Logic.System.Config
 
             /// <summary>
             /// Gets or sets the configuration for the Python-based TTS bridge server.
-            /// The JsonPropertyName attribute explicitly binds the snake_case "tts_server" key 
-            /// from the source JSON to this property, preventing deserialization null reference failures.
             /// </summary>
             [global::System.Text.Json.Serialization.JsonPropertyName("tts_server")]
             public TtsServerConfig TtsServer { get; set; }
+
+            /// <summary>
+            /// Gets or sets the configuration for the Search Microservice server.
+            /// This property is essential to resolve CS1061 and allow data-driven URL retrieval.
+            /// </summary>
+            [global::System.Text.Json.Serialization.JsonPropertyName("search_server")]
+            public TtsServerConfig search_server { get; set; }
         }
 
         /// <summary>
