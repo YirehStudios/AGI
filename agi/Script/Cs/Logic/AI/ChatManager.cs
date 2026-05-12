@@ -99,6 +99,10 @@ namespace Logic.Lite
         private Logic.Network.NetworkManager _networkManager;
         private Logic.Backend.NativeTTSManager _ttsManager;
 
+        /// <summary>
+        /// Initializes the chat manager by resolving directory paths, connecting to the network manager, 
+        /// and bootstrapping the initial session and MCP tool schemas.
+        /// </summary>
         public override void _Ready()
         {
             _historyDirectory = ProjectSettings.GlobalizePath("user://history");
@@ -116,7 +120,11 @@ namespace Logic.Lite
             _ttsManager = GetNodeOrNull<Logic.Backend.NativeTTSManager>("/root/NativeTTSManager");
 
             InitializeNewSession("Chat_Default");
+            
+            // Triggers the asynchronous synchronization sequence to fetch available tool schemas from the MCP server.
+            _ = SyncMCPTools();
         }
+
         /// <summary>
         /// Instantiates a new context window and writes the initial structured payload to the OS filesystem.
         /// </summary>
