@@ -19,5 +19,8 @@
   },
   "search_server": {
     "Url": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/agi/Script/Cs/System/Drivers/search_server.py"
-  }  
+  },
+  "mcp_server": {
+    "Url": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/agi/Script/Cs/System/Drivers/mcp_server.py"
+  }
 }
