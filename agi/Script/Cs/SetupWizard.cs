@@ -165,20 +165,21 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Ejecuta la secuencia de arranque rápido omitiendo la interfaz de configuración inicial.
-        /// Realiza una auditoría obligatoria de dependencias del sistema antes de proceder con la instanciación de servicios.
+        /// Executes the fast boot sequence, bypassing the initial configuration interface.
+        /// Performs a mandatory audit of system dependencies before proceeding with service instantiation.
+        /// Updated to recognize CloudAPI mode and bypass local infrastructure initialization.
         /// </summary>
         private async void FastBootSequence()
         {
             PanelWelcome.Visible = false;
 
-            // Ejecuta de forma asíncrona la verificación integral de las herramientas de sistema y binarios requeridos.
+            // Performs an asynchronous comprehensive verification of required system tools and binaries.
             var auditResult = await _dependencyInstaller.AuditSystemDependenciesAsync();
 
-            // Evalúa la integridad del entorno; ante la ausencia de dependencias, invalida el estado de configuración y redirige al flujo de instalación.
+            // Evaluates environment integrity; in the absence of dependencies, invalidates configuration state and redirects to setup flow.
             if (!auditResult.IsReady) 
             {    
-                GD.PrintErr("FastBoot: Faltan dependencias críticas. Revirtiendo al menú de instalación.");    
+                GD.PrintErr("FastBoot: Missing critical dependencies. Reverting to installation menu.");    
                 _configManager.SetupCompleted = false;    
                 _configManager.SaveConfiguration();    
                 SwitchState(WizardState.Dependencies);    
@@ -188,7 +189,7 @@ namespace Logic.Utils
                 return;
             }
 
-            // Procede con el flujo de inicialización normal validando el modo de aplicación persistido en el gestor de configuración.
+            // Proceeds with normal initialization flow by validating the application mode persisted in ConfigManager.
             if (_configManager.CurrentMode == ConfigManager.AppMode.LocalHost)
             {
                 StartLlamaServer();
@@ -198,7 +199,7 @@ namespace Logic.Utils
                 Logic.Network.NetworkManager network = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
                 network.PerformHandshake();
 
-                // Suspende la ejecución hasta recibir la señal de finalización del handshake desde la capa de red.
+                // Suspends execution until receiving the handshake completion signal from the network layer.
                 var signalResult = await ToSignal(network, Logic.Network.NetworkManager.SignalName.HandshakeCompleted);
                 bool success = (bool)signalResult[0];
 
@@ -208,7 +209,7 @@ namespace Logic.Utils
                 }
                 else
                 {
-                    // Restablece los flags de configuración y retorna al selector de modo ante una falla de negociación con el host remoto.
+                    // Resets configuration flags and returns to mode selector upon failure to negotiate with remote host.
                     _configManager.SetupCompleted = false;
                     _configManager.SaveConfiguration();
 
@@ -216,6 +217,12 @@ namespace Logic.Utils
                     if (ModelDownloadStatus != null)
                         ModelDownloadStatus.Text = "Se perdió la conexión con el servidor guardado. Configura uno nuevo.";
                 }
+            }
+            else if (_configManager.CurrentMode == ConfigManager.AppMode.CloudAPI)
+            {
+                // CloudAPI mode detected. Initializing local microservices (Search/TTS) through the backend launcher.
+                GD.Print("SetupWizard: CloudAPI mode detected. Initializing local microservices (Search/TTS)...");
+                StartLlamaServer();
             }
         }
 
@@ -364,9 +371,9 @@ namespace Logic.Utils
             // Provisioning both the legacy TTS and the new Search Python environments independently.
             // Dynamically retrieves the Search Server URL from the engine manifest.
             string searchServerUrl = engineConfigs.search_server?.Url ?? ""; 
-            bool searchOk = await _packageManager.EnsureSearchEnvironmentAsync(currentPythonUrl, searchServerUrl);
+            string mcpServerUrl = engineConfigs.McpServer?.Url ?? ""; 
             
-            // Restoring the original TTS environment call for infrastructure separation.
+            bool searchOk = await _packageManager.EnsureSearchEnvironmentAsync(currentPythonUrl, searchServerUrl, mcpServerUrl);
             bool ttsOk = await _packageManager.EnsurePythonEnvironmentAsync(currentPythonUrl);
             bool pythonOk = searchOk && ttsOk;
 
