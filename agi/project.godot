@@ -41,6 +41,7 @@ ThemeManager="*uid://bh8vc1plbkd3q"
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/size/mode=2
+window/energy_saving/keep_screen_on=false
 window/stretch/mode="canvas_items"
 window/stretch/aspect="ignore"
 

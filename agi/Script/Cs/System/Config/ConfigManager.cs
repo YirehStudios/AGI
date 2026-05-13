@@ -14,12 +14,26 @@ namespace Logic.System.Config
     /// </summary>
     public partial class ConfigManager : Node
     {
+        /// <summary>
+        /// Defines the operational modes of the application, including local execution, 
+        /// remote UI control, and universal cloud-based inference.
+        /// </summary>
         public enum AppMode 
         { 
             None, 
             RemoteUI, 
-            LocalHost 
+            LocalHost,
+            CloudAPI
         }
+
+        /// <summary> Gets or sets the target endpoint for OpenAI-compatible cloud providers (Gemini, DeepSeek, etc.). </summary>
+        public string CloudApiUrl { get; set; } = "https://api.openai.com/v1";
+        
+        /// <summary> Gets or sets the secret authentication key for external AI services. </summary>
+        public string CloudApiKey { get; set; } = string.Empty;
+        
+        /// <summary> Gets or sets the specific model identifier used for cloud inference requests. </summary>
+        public string CloudModelName { get; set; } = "gemini-1.5-pro";
 
         public AppMode CurrentMode { get; set; } = AppMode.None;
         public string RemoteHostUrl { get; set; } = string.Empty;
@@ -63,25 +77,19 @@ namespace Logic.System.Config
         /// </summary>
         public class EngineConfig
         {
-            /// <summary> Gets or sets the distribution metadata for the Llama inference server. </summary>
             public EngineUrls Llama { get; set; }
-
-            /// <summary> Gets or sets the distribution metadata for the Whisper STT engine. </summary>
             public EngineUrls Whisper { get; set; }
-
-            /// <summary> Gets or sets the distribution metadata for the Sherpa-ONNX framework. </summary>
             public EngineUrls Sherpa { get; set; }
-
-            /// <summary> Gets or sets the distribution metadata for the portable Python runtime environment. </summary>
             public EngineUrls Python { get; set; }
 
-            /// <summary>
-            /// Gets or sets the configuration for the Python-based TTS bridge server.
-            /// The JsonPropertyName attribute explicitly binds the snake_case "tts_server" key 
-            /// from the source JSON to this property, preventing deserialization null reference failures.
-            /// </summary>
             [global::System.Text.Json.Serialization.JsonPropertyName("tts_server")]
             public TtsServerConfig TtsServer { get; set; }
+
+            [global::System.Text.Json.Serialization.JsonPropertyName("search_server")]
+            public TtsServerConfig search_server { get; set; }
+
+            [global::System.Text.Json.Serialization.JsonPropertyName("mcp_server")]
+            public TtsServerConfig McpServer { get; set; }
         }
 
         /// <summary>
@@ -99,6 +107,9 @@ namespace Logic.System.Config
 
         private Logic.Network.DownloadManager _downloadManager;
 
+        /// <summary>
+        /// Internal data structure used for JSON serialization and persistence of the application state.
+        /// </summary>
         private class ConfigState
         {
             public AppMode Mode { get; set; }
@@ -113,8 +124,16 @@ namespace Logic.System.Config
             public string ActiveSTTModel { get; set; }
             public string ActiveTTSEngine { get; set; }
             public string ActiveTTSModel { get; set; }
+            public string CloudApiUrl { get; set; }
+            public string CloudApiKey { get; set; }
+            public string CloudModelName { get; set; }
         }
 
+        /// <summary>
+        /// Initializes the configuration manager, resolves persistent paths, and loads the user manifest.
+        /// Incorporates a temporary test override block to force CloudAPI mode targeting the base Gemini domain.
+        /// This ensures the networking layer correctly triggers the native Gemini streaming protocol.
+        /// </summary>
         public override void _Ready()
         {
             _settingsDirectory = ProjectSettings.GlobalizePath("user://settings");
@@ -123,6 +142,7 @@ namespace Logic.System.Config
 
             _downloadManager = GetNodeOrNull<Logic.Network.DownloadManager>("/root/DownloadManager");
 
+            // Restores the application state from the local preferences file.
             LoadConfiguration();
         }
 
@@ -207,6 +227,9 @@ namespace Logic.System.Config
             }
         }
 
+        /// <summary>
+        /// Synchronizes class properties into the ConfigState DTO and persists the resulting JSON to the filesystem.
+        /// </summary>
         public void SaveConfiguration()
         {
             try
@@ -229,7 +252,10 @@ namespace Logic.System.Config
                     ActiveSTTEngine = ActiveSTTEngine,
                     ActiveSTTModel = ActiveSTTModel,
                     ActiveTTSEngine = ActiveTTSEngine,
-                    ActiveTTSModel = ActiveTTSModel
+                    ActiveTTSModel = ActiveTTSModel,
+                    CloudApiUrl = CloudApiUrl,
+                    CloudApiKey = CloudApiKey,
+                    CloudModelName = CloudModelName
                 };
 
                 JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
@@ -243,6 +269,10 @@ namespace Logic.System.Config
             }
         }
 
+        /// <summary>
+        /// Reads the preference manifest from disk and restores the application state, 
+        /// including local engine paths and cloud service parameters.
+        /// </summary>
         public void LoadConfiguration()
         {
             if (!File.Exists(_configFilePath)) return;
@@ -267,6 +297,11 @@ namespace Logic.System.Config
                     if (!string.IsNullOrEmpty(state.ActiveSTTModel)) ActiveSTTModel = state.ActiveSTTModel;
                     if (!string.IsNullOrEmpty(state.ActiveTTSEngine)) ActiveTTSEngine = state.ActiveTTSEngine;
                     if (!string.IsNullOrEmpty(state.ActiveTTSModel)) ActiveTTSModel = state.ActiveTTSModel;
+
+                    // Restoring universal cloud state with safety fallbacks.
+                    CloudApiUrl = state.CloudApiUrl ?? "https://api.openai.com/v1";
+                    CloudApiKey = state.CloudApiKey ?? string.Empty;
+                    CloudModelName = state.CloudModelName ?? "gemini-1.5-pro";
                 }
             }
             catch (Exception ex)

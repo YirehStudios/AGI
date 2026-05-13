@@ -21,6 +21,8 @@ namespace Logic.Network
         public delegate void STTCompletedEventHandler(string text);
         [Signal]
         public delegate void TTSAudioChunkReceivedEventHandler(byte[] pcmData);
+        [Signal]
+        public delegate void SearchCompletedEventHandler(string markdownResults);
 
         private readonly global::System.Net.Http.HttpClient _httpClient = new global::System.Net.Http.HttpClient();
 
@@ -115,6 +117,125 @@ namespace Logic.Network
                     GD.PrintErr($"[NET ERROR] Fallo en el flujo de Llama: {ex.Message}");
                 }
             });
+        }
+
+        /// <summary>
+        /// Facilitates a high-performance streaming connection to cloud AI providers.
+        /// Implements a Dual-Track protocol supporting native Google Gemini (streamGenerateContent) 
+        /// and the standard OpenAI (chat/completions) Server-Sent Events (SSE) specification.
+        /// </summary>
+        /// <param name="prompt">The fully context-augmented prompt string for inference.</param>
+        public async Task StreamCloudCompletion(string prompt)
+        {
+            var config = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+            if (config == null || string.IsNullOrEmpty(config.CloudApiKey)) return;
+
+            // Heuristic detection: Determines the provider based on the presence of the Google base domain.
+            bool isGemini = config.CloudApiUrl.Contains("googleapis.com");
+            
+            // 1. URL Construction: Native Gemini vs OpenAI Standard.
+            string requestUrl = isGemini 
+                ? $"https://generativelanguage.googleapis.com/v1beta/models/{config.CloudModelName}:streamGenerateContent?alt=sse"
+                : $"{config.CloudApiUrl.TrimEnd('/')}/chat/completions";
+
+            GD.Print($"[NET] Dispatching Cloud Request: {requestUrl}");
+
+            await Task.Run(async () => {
+                try {
+                    // 2. Payload Construction: contents/parts (Gemini) vs messages (OpenAI).
+                    object requestBody = isGemini 
+                        ? (object)new { contents = new[] { new { parts = new[] { new { text = prompt } } } } }
+                        : (object)new { model = config.CloudModelName, messages = new[] { new { role = "user", content = prompt } }, stream = true };
+
+                    var request = new HttpRequestMessage(HttpMethod.Post, requestUrl) {
+                        Content = new StringContent(global::System.Text.Json.JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
+                    };
+
+                    // 3. Header Injection: x-goog-api-key vs Authorization Bearer.
+                    if (isGemini) request.Headers.Add("x-goog-api-key", config.CloudApiKey);
+                    else request.Headers.Add("Authorization", $"Bearer {config.CloudApiKey}");
+
+                    using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                    
+                    // Error Handling: Provides exact rejection details for debugging cloud handshakes.
+                    if (!response.IsSuccessStatusCode) {
+                        string errorContext = await response.Content.ReadAsStringAsync();
+                        GD.PrintErr($"[NET ERROR] Cloud AI API Failure: {response.StatusCode}. Details: {errorContext}");
+                        return;
+                    }
+
+                    using var reader = new StreamReader(await response.Content.ReadAsStreamAsync());
+                    while (!reader.EndOfStream) {
+                        string line = await reader.ReadLineAsync();
+                        if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data: ")) continue;
+                        
+                        string data = line.Substring(6).Trim();
+                        using JsonDocument doc = JsonDocument.Parse(data);
+                        string token = "";
+
+                        // 4. Token Extraction: candidates/content/parts (Gemini) vs choices/delta (OpenAI).
+                        if (isGemini) {
+                            if (doc.RootElement.TryGetProperty("candidates", out JsonElement candidates) && candidates.GetArrayLength() > 0) {
+                                var parts = candidates[0].GetProperty("content").GetProperty("parts");
+                                if (parts.GetArrayLength() > 0 && parts[0].TryGetProperty("text", out JsonElement textEl)) {
+                                    token = textEl.GetString();
+                                }
+                            }
+                        } else {
+                            if (doc.RootElement.TryGetProperty("choices", out JsonElement choices) && choices.GetArrayLength() > 0) {
+                                var delta = choices[0].GetProperty("delta");
+                                if (delta.TryGetProperty("content", out JsonElement contentElement)) {
+                                    token = contentElement.GetString();
+                                }
+                            }
+                        }
+                        
+                        // Emits tokens to the UI and TTS systems for real-time processing.
+                        if (!string.IsNullOrEmpty(token)) CallDeferred(MethodName.EmitSignal, SignalName.TokenReceived, token);
+                    }
+                } catch (Exception ex) { GD.PrintErr($"[NET CLOUD ERROR] {ex.Message}"); }
+            });
+        }
+
+        /// <summary>
+        /// Universal entry point for tool execution via the MCP gateway (port 8002).
+        /// Uses global namespace resolution to prevent CS0234 conflicts with Logic.System.
+        /// </summary>
+        public async Task RequestMCPExecution(string toolName, string jsonPayload)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(jsonPayload);
+                // Explicitly resolved to the global System namespace.
+                var arguments = new global::System.Collections.Generic.Dictionary<string, object>();
+                
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    if (prop.Name != "tool") arguments[prop.Name] = prop.Value.ToString();
+                }
+
+                var mcpRequest = new { tool = toolName, arguments = arguments };
+                string payload = JsonSerializer.Serialize(mcpRequest);
+                var content = new StringContent(payload, Encoding.UTF8, "application/json");
+
+                // Envía la petición al servidor MCP unificado.
+                HttpResponseMessage response = await _httpClient.PostAsync("http://127.0.0.1:8002/call_tool", content);
+                response.EnsureSuccessStatusCode();
+
+                string jsonResponse = await response.Content.ReadAsStringAsync();
+                
+                // Extrae el resultado y notifica al ChatManager mediante la señal universal.
+                using JsonDocument resultDoc = JsonDocument.Parse(jsonResponse);
+                if (resultDoc.RootElement.TryGetProperty("result", out JsonElement resElement))
+                {
+                    CallDeferred(MethodName.EmitSignal, SignalName.SearchCompleted, resElement.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"[NET ERROR] MCP Execution Failed: {ex.Message}");
+                CallDeferred(MethodName.EmitSignal, SignalName.SearchCompleted, $"Error: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -219,6 +340,48 @@ namespace Logic.Network
                     GD.PrintErr($"[FLAG] STT ERROR: Whisper HTTP request failed. {ex.Message}");
                 }
             });
+        }
+
+        /// <summary>
+        /// Dispatches a search request to the local Python microservice to retrieve web-augmented data.
+        /// Sends a JSON payload containing the query and depth parameters to the FastAPI endpoint.
+        /// Upon success, it extracts the Markdown-formatted results and notifies the UI layer.
+        /// </summary>
+        /// <param name="query">The search string to be processed by DuckDuckGo.</param>
+        /// <param name="deepResearch">Flag to enable full-text extraction via Trafilatura.</param>
+        public async Task RequestWebSearch(string query, bool deepResearch)
+        {
+            try
+            {
+                // Constructs the data transfer object for the search microservice.
+                var payload = new
+                {
+                    query = query,
+                    deep_research = deepResearch
+                };
+
+                string jsonPayload = JsonSerializer.Serialize(payload);
+                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                // Targets the dedicated search port as defined in the infrastructure orchestration.
+                HttpResponseMessage response = await _httpClient.PostAsync("http://127.0.0.1:8000/search", content);
+                response.EnsureSuccessStatusCode();
+
+                string jsonResponse = await response.Content.ReadAsStringAsync();
+                
+                // Parses the specialized "results" field containing the compiled Markdown string.
+                using JsonDocument doc = JsonDocument.Parse(jsonResponse);
+                if (doc.RootElement.TryGetProperty("results", out JsonElement resultsElement))
+                {
+                    string markdownResults = resultsElement.GetString();
+                    CallDeferred(MethodName.EmitSignal, SignalName.SearchCompleted, markdownResults);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Logs connectivity or serialization faults specifically for the search service.
+                GD.PrintErr($"[NET ERROR] Search Microservice Request Failed: {ex.Message}");
+            }
         }
 
         private string GetActiveUrl()

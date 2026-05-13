@@ -165,20 +165,21 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Ejecuta la secuencia de arranque rápido omitiendo la interfaz de configuración inicial.
-        /// Realiza una auditoría obligatoria de dependencias del sistema antes de proceder con la instanciación de servicios.
+        /// Executes the fast boot sequence, bypassing the initial configuration interface.
+        /// Performs a mandatory audit of system dependencies before proceeding with service instantiation.
+        /// Updated to recognize CloudAPI mode and bypass local infrastructure initialization.
         /// </summary>
         private async void FastBootSequence()
         {
             PanelWelcome.Visible = false;
 
-            // Ejecuta de forma asíncrona la verificación integral de las herramientas de sistema y binarios requeridos.
+            // Performs an asynchronous comprehensive verification of required system tools and binaries.
             var auditResult = await _dependencyInstaller.AuditSystemDependenciesAsync();
 
-            // Evalúa la integridad del entorno; ante la ausencia de dependencias, invalida el estado de configuración y redirige al flujo de instalación.
+            // Evaluates environment integrity; in the absence of dependencies, invalidates configuration state and redirects to setup flow.
             if (!auditResult.IsReady) 
             {    
-                GD.PrintErr("FastBoot: Faltan dependencias críticas. Revirtiendo al menú de instalación.");    
+                GD.PrintErr("FastBoot: Missing critical dependencies. Reverting to installation menu.");    
                 _configManager.SetupCompleted = false;    
                 _configManager.SaveConfiguration();    
                 SwitchState(WizardState.Dependencies);    
@@ -188,7 +189,7 @@ namespace Logic.Utils
                 return;
             }
 
-            // Procede con el flujo de inicialización normal validando el modo de aplicación persistido en el gestor de configuración.
+            // Proceeds with normal initialization flow by validating the application mode persisted in ConfigManager.
             if (_configManager.CurrentMode == ConfigManager.AppMode.LocalHost)
             {
                 StartLlamaServer();
@@ -198,7 +199,7 @@ namespace Logic.Utils
                 Logic.Network.NetworkManager network = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
                 network.PerformHandshake();
 
-                // Suspende la ejecución hasta recibir la señal de finalización del handshake desde la capa de red.
+                // Suspends execution until receiving the handshake completion signal from the network layer.
                 var signalResult = await ToSignal(network, Logic.Network.NetworkManager.SignalName.HandshakeCompleted);
                 bool success = (bool)signalResult[0];
 
@@ -208,7 +209,7 @@ namespace Logic.Utils
                 }
                 else
                 {
-                    // Restablece los flags de configuración y retorna al selector de modo ante una falla de negociación con el host remoto.
+                    // Resets configuration flags and returns to mode selector upon failure to negotiate with remote host.
                     _configManager.SetupCompleted = false;
                     _configManager.SaveConfiguration();
 
@@ -216,6 +217,12 @@ namespace Logic.Utils
                     if (ModelDownloadStatus != null)
                         ModelDownloadStatus.Text = "Se perdió la conexión con el servidor guardado. Configura uno nuevo.";
                 }
+            }
+            else if (_configManager.CurrentMode == ConfigManager.AppMode.CloudAPI)
+            {
+                // CloudAPI mode detected. Initializing local microservices (Search/TTS) through the backend launcher.
+                GD.Print("SetupWizard: CloudAPI mode detected. Initializing local microservices (Search/TTS)...");
+                StartLlamaServer();
             }
         }
 
@@ -314,39 +321,36 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Orquesta la recuperación asíncrona de los motores de ejecución, el entorno de Python y los modelos seleccionados.
-        /// Implementa la descarga del puente TTS en rutas compartidas del sistema según el sistema operativo.
+        /// Orchestrates the asynchronous retrieval of execution engines, Python environments, and selected models.
+        /// Resolves all URLs via the JSON manifest to ensure environment consistency and data-driven updates.
         /// </summary>
         private async void StartModelDownload()
         {
             SwitchState(WizardState.Downloading);
 
-            // Recuperación del manifiesto de motores desde la fuente remota o caché local.
+            // Manifest retrieval of engines from remote source or local cache.
             ConfigManager.EngineConfig engineConfigs = await _configManager.GetOrDownloadEnginesAsync();
 
             if (engineConfigs == null)
             {
-                GD.PrintErr("SetupWizard: Error crítico. No se pudo obtener la configuración de los motores.");
+                GD.PrintErr("SetupWizard: Critical error. Engine configuration could not be retrieved.");
                 if (ModelDownloadStatus != null) 
-                    ModelDownloadStatus.Text = "[center][color=red]Error: No se pudo recuperar el manifiesto de motores.[/color][/center]";
+                    ModelDownloadStatus.Text = "[center][color=red]Error: Failed to recover engine manifest.[/color][/center]";
                 return;
             }
 
-            // Evaluación del entorno operativo para la selección de binarios y definición de rutas de compartición.
+            // Operating environment evaluation for binary selection and sharing path definition.
             bool isWindows = _environmentManager.IsWindows;
             string osFolder = isWindows ? "windows" : "linux";
             
-            // Define la ruta de destino apuntando al directorio raíz de binarios para asegurar la consistencia en la ejecución.
             string shareBinPath = "user://bin/";
             string globalSharePath = ProjectSettings.GlobalizePath(shareBinPath);
 
-            // Asegura la creación física del árbol de directorios compartidos para herramientas del sistema.
             if (!global::System.IO.Directory.Exists(globalSharePath))
             {
                 global::System.IO.Directory.CreateDirectory(globalSharePath);
             }
 
-            // Determinación de URLs y nombres de archivo para motores nativos.
             string currentLlamaUrl = isWindows ? engineConfigs.Llama.WindowsUrl : engineConfigs.Llama.LinuxUrl;
             string llamaArchive = isWindows ? "llama-server.zip" : "llama-server.tar.gz";
 
@@ -357,17 +361,23 @@ namespace Logic.Utils
             string currentPythonUrl = isWindows ? engineConfigs.Python.WindowsUrl : engineConfigs.Python.LinuxUrl;
             string sherpaArchive = isWindows ? "sherpa-onnx-win.tar.bz2" : "sherpa-onnx-linux.tar.bz2";
 
-            // Descarga y aprovisionamiento del script puente tts_server.py en la ruta compartida específica del SO.
+            // Provisioning of the tts_server.py bridge script using manifest URL.
             if (engineConfigs.TtsServer != null && !string.IsNullOrEmpty(engineConfigs.TtsServer.Url))
             {
                 if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando puente de comunicación TTS...[/center]";
                 await _downloadManager.DownloadFileAsync(engineConfigs.TtsServer.Url, shareBinPath, "tts_server.py");
             }
 
-            // Inicialización del entorno de Python antes de proceder con la descarga de binarios de motor.
-            bool pythonOk = await _packageManager.EnsurePythonEnvironmentAsync(currentPythonUrl);
+            // Provisioning both the legacy TTS and the new Search Python environments independently.
+            // Dynamically retrieves the Search Server URL from the engine manifest.
+            string searchServerUrl = engineConfigs.search_server?.Url ?? ""; 
+            string mcpServerUrl = engineConfigs.McpServer?.Url ?? ""; 
+            
+            bool searchOk = await _packageManager.EnsureSearchEnvironmentAsync(currentPythonUrl, searchServerUrl, mcpServerUrl);
+            bool ttsOk = await _packageManager.EnsurePythonEnvironmentAsync(currentPythonUrl);
+            bool pythonOk = searchOk && ttsOk;
 
-            // Fase de preparación de motores base: Descarga, verificación de integridad y extracción.
+            // Engine preparation phase: download, integrity verification, and extraction.
             if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Llama Server...[/center]";
             bool llamaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentLlamaUrl, llamaArchive, "llama", "llama-server");
 
@@ -377,16 +387,15 @@ namespace Logic.Utils
             if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Sherpa-ONNX Server...[/center]";
             bool sherpaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentSherpaUrl, sherpaArchive, "sherpa", "sherpa-onnx");
 
-            // Evaluación de resultados de preparación incluyendo el estado del entorno de Python.
             if (!llamaOk || !whisperOk || !sherpaOk || !pythonOk)
             {
-                string errorMessage = !pythonOk ? "Error al configurar el entorno de Python." : "Falló la preparación de los motores base de ejecución.";
+                string errorMessage = !pythonOk ? "Error configuring Python environments." : "Base execution engine preparation failed.";
                 GD.PrintErr($"SetupWizard: {errorMessage}");
                 if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center][color=red]{errorMessage}[/color][/center]";
                 return;
             }
 
-            // Inicialización del directorio de modelos y procesamiento de la cola de presets seleccionados.
+            // Models directory initialization and selected presets processing queue.
             string modelsDir = _environmentManager.ModelsPath;
             global::System.IO.Directory.CreateDirectory(modelsDir);
 
@@ -434,7 +443,7 @@ namespace Logic.Utils
 
                 if (global::System.IO.File.Exists(globalPath) || isAlreadyExtracted)
                 {
-                    GD.Print($"SetupWizard: Cache validado localmente para {safeFileName}");
+                    GD.Print($"SetupWizard: Local cache validated for {safeFileName}");
                     if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]{preset.Name} ya está presente. Omitiendo...[/center]";
                     await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout);
                     continue;
@@ -446,10 +455,22 @@ namespace Logic.Utils
 
                 if (!success)
                 {
-                    GD.PrintErr($"SetupWizard: Fallo de red durante la descarga de {preset.Name}");
+                    GD.PrintErr($"SetupWizard: Network failure during {preset.Name} download");
                     if (ModelDownloadStatus != null) 
-                        ModelDownloadStatus.Text = $"[center][color=red]Error descargando {preset.Name}.[/color][/center]";
+                        ModelDownloadStatus.Text = $"[center][color=red]Error downloading {preset.Name}.[/color][/center]";
                     return;
+                }
+
+                if (preset.Name.Contains("Kokoro"))
+                {
+                    string kokoroDir = global::System.IO.Path.Combine(modelsDir, _configManager.ActiveTTSModel);
+                    string voicesPyPath = global::System.IO.Path.Combine(kokoroDir, "voices_python.bin");
+
+                    if (!global::System.IO.File.Exists(voicesPyPath))
+                    {
+                        if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]Descargando voces Python para {preset.Name}...[/center]";
+                        await _downloadManager.DownloadFileAsync("https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin", kokoroDir, "voices_python.bin");
+                    }
                 }
             }
 

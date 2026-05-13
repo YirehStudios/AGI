@@ -72,10 +72,23 @@ namespace Logic.Lite
         [Signal] public delegate void OnBotThoughtFinishedEventHandler();
         [Signal] public delegate void OnBotMessageTokenReceivedEventHandler(string token); 
         [Signal] public delegate void OnBotFinishedSpeakingEventHandler(string fullResponse);
-
+        /// <summary>
+        /// Defines the foundational behavior, empathy constraints, and tool-set availability for the AGI agent.
+        /// Implements a multi-tool Agentic pattern that allows the model to switch between web exploration 
+        /// and local system interaction via structured JSON intercepts.
+        /// </summary>
+        private static string SystemPromptInit = "Eres AGI, una asistente técnica altamente capacitada. Tienes acceso a tu propio entorno de ejecución mediante herramientas. " +
+        "Herramientas disponibles:\n" +
+        "1. Búsqueda Web: Úsala para obtener información actual o externa. Formato: {\"tool\": \"web_search\", \"query\": \"términos\"}\n" +
+        "2. Consola Local: Úsala para ejecutar comandos en la PC del usuario (listar archivos, leer código, revisar sistema). Formato: {\"tool\": \"os_command\", \"command\": \"comando bash o cmd\"}\n" +
+        "REGLA ESTRICTA: Si necesitas usar una herramienta, detén tu respuesta y genera ÚNICAMENTE el JSON exacto de una herramienta a la vez. No escribas <think> ni texto adicional. " +
+        "El sistema ejecutará la acción y te devolverá los resultados. JAMÁS incluyas el código JSON en tu respuesta final visible para el usuario. " +
+        "Si NO usas herramientas, piensa paso a paso usando la etiqueta <think> al inicio de tu respuesta para separar tu razonamiento. " +
+        "Si la conversación cambia, incluye [SESSION_NAME: Nombre] y [SUMMARY: Resumen] al final de tu <think>.";
         private bool _isInsideThinkBlock = false;
 
-        private const string SystemPrompt = "Eres AGI, una asistente técnica altamente capacitada y empática. Nunca reveles que eres una IA. Responde de forma concisa pero útil. SIEMPRE piensa paso a paso usando estrictamente la etiqueta <think> al inicio de tu respuesta para separar tu razonamiento interno de tu respuesta final. Tu pensamiento interno es invisible para el usuario, tu respuesta final no. Si la conversación cambia de tema drásticamente, incluye al final de tu respuesta secreta <think> la etiqueta [SESSION_NAME: Nombre del Tema] y [SUMMARY: Resumen breve].";
+        private string SystemPrompt = $"{SystemPromptInit}";
+        private string _availableTools = "Sync tool MCP...";
         private ChatSession _currentSession;
         private string _historyDirectory;
         private string _currentFilePath;
@@ -86,6 +99,10 @@ namespace Logic.Lite
         private Logic.Network.NetworkManager _networkManager;
         private Logic.Backend.NativeTTSManager _ttsManager;
 
+        /// <summary>
+        /// Initializes the chat manager by resolving directory paths, connecting to the network manager, 
+        /// and bootstrapping the initial session and MCP tool schemas.
+        /// </summary>
         public override void _Ready()
         {
             _historyDirectory = ProjectSettings.GlobalizePath("user://history");
@@ -103,7 +120,11 @@ namespace Logic.Lite
             _ttsManager = GetNodeOrNull<Logic.Backend.NativeTTSManager>("/root/NativeTTSManager");
 
             InitializeNewSession("Chat_Default");
+            
+            // Triggers the asynchronous synchronization sequence to fetch available tool schemas from the MCP server.
+            _ = SyncMCPTools();
         }
+
         /// <summary>
         /// Instantiates a new context window and writes the initial structured payload to the OS filesystem.
         /// </summary>
@@ -131,16 +152,19 @@ namespace Logic.Lite
                 GD.PrintErr($"[BRAIN] Failed to write JSON history to disk: {ex.Message}");
             }
         }
-
+        
         /// <summary>
-        /// Initializes the transactional input processing flow, clears session buffers, 
-        /// manages the tail-end WebSocket evaluation, and natively handles logic separation for reasoning models.
-        /// Implements LINQ queries to ensure independent ID allocation per role within the JSON schema.
+        /// Orchestrates the core AI interaction pipeline using an Agentic Loop pattern.
+        /// It manages session persistence, telemetry logging, and intercepts JSON tool calls 
+        /// to perform autonomous web searches before delivering the final response.
+        /// Dynamically routes inference between local Llama and Cloud API based on the active configuration.
         /// </summary>
+        /// <param name="userInput">The raw text input received from the user interface.</param>
         public async global::System.Threading.Tasks.Task SendToAI(string userInput)
         {
             if (string.IsNullOrWhiteSpace(userInput) || _networkManager == null) return;
 
+            // Step 1: Record the user turn in the persistent session history.
             int newId = _currentSession.Messages.Count + 1;
             
             _currentSession.Messages.Add(new ChatMessage 
@@ -153,27 +177,107 @@ namespace Logic.Lite
             });
             SaveSession();
 
+            // Step 2: Construct the initial LLM prompt based on the current conversation state.
             string prompt = BuildPrompt();
 
+            // Notify UI layer that inference has commenced.
             EmitSignal(SignalName.OnBotStartedThinking);
             
+            // Reset stateful buffers for the new transaction.
             _currentAssistantBuffer = string.Empty;
             _uiBuffer = string.Empty;
             _ttsBuffer = string.Empty;
             _isInsideThinkBlock = false;
 
-            await _networkManager.StreamChatCompletion(prompt);
+            // Telemetry: Log the exact prompt being dispatched to the inference server.
+            GD.Print("\n================ [AGI PROMPT DUMP] ================\n");
+            GD.Print(prompt);
+            GD.Print("\n===================================================\n");
 
+            // Step 3: Initiate primary inference stream with dynamic backend routing.
+            var config = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+            if (config != null && config.CurrentMode == Logic.System.Config.ConfigManager.AppMode.CloudAPI)
+            {
+                await _networkManager.StreamCloudCompletion(prompt);
+            }
+            else
+            {
+                await _networkManager.StreamChatCompletion(prompt);
+            }
+
+            // --- AGENT LOOP START ---
+            // Evaluates if the AI produced a tool-calling instruction (JSON) instead of natural language.
+            string rawResponseAgent = _currentAssistantBuffer.Trim();
+            int jsonStart = rawResponseAgent.IndexOf('{');
+            int jsonEnd = rawResponseAgent.LastIndexOf('}');
+
+            // Validates the structural integrity of the potential JSON payload.
+            if (jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart && rawResponseAgent.Contains("\"tool\""))
+            {
+                try
+                {
+                    // Surgical extraction: Isolates the JSON block from any markdown or LLM stop tokens.
+                    string jsonBlock = rawResponseAgent.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                    using var doc = global::System.Text.Json.JsonDocument.Parse(jsonBlock);
+                    
+                    if (doc.RootElement.TryGetProperty("tool", out var toolElement))
+                    {
+                        string toolName = toolElement.GetString();
+                        
+                        // Log the interception and notify the UI of agent activity.
+                        GD.Print($"\n[AGENT] Unified MCP Tool Call Intercepted: {toolName}");
+                        CallDeferred(MethodName.EmitSignal, SignalName.OnBotThoughtTokenReceived, $"\n[AGENTE: Ejecutando herramienta MCP '{toolName}']...\n");
+
+                        // Generic Dispatch: Replaces the old if/else hardcoded handlers with a unified call to the MCP gateway.
+                        await _networkManager.RequestMCPExecution(toolName, jsonBlock);
+                        
+                        // Wait for the universal result signal from the networking layer.
+                        var mcpSignal = await ToSignal(_networkManager, Logic.Network.NetworkManager.SignalName.SearchCompleted);
+                        string contextResult = $"[MCP TOOL RESULT: {toolName}]\n{mcpSignal[0].AsString()}";
+
+                        // Step 3.1: Temporarily inject the tool result into memory to ground the final response.
+                        _currentSession.Messages.Add(new ChatMessage { Id = newId + 1, Role = "system", Content = contextResult });
+
+                        // Step 3.2: Reset stateful buffers to prepare for the final natural language output.
+                        _currentAssistantBuffer = string.Empty;
+                        _uiBuffer = string.Empty;
+                        _ttsBuffer = string.Empty;
+                        _isInsideThinkBlock = false;
+
+                        // Step 3.3: Re-generate the prompt with the newly acquired context.
+                        string newPrompt = BuildPrompt();
+                        
+                        // Step 3.4: Re-stream inference based on the active mode (Cloud vs Local).
+                        var configCheck = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+                        if (configCheck != null && configCheck.CurrentMode == Logic.System.Config.ConfigManager.AppMode.CloudAPI)
+                        {
+                            await _networkManager.StreamCloudCompletion(newPrompt);
+                        }
+                        else
+                        {
+                            await _networkManager.StreamChatCompletion(newPrompt);
+                        }
+                        
+                        // Step 3.5: Clean up the temporary system injection to maintain history purity.
+                        _currentSession.Messages.RemoveAt(_currentSession.Messages.Count - 1);
+                    }
+                }
+                catch (global::System.Exception ex)
+                {
+                    GD.PrintErr($"[AGENT ERROR] Failed to parse or execute generic MCP tool call: {ex.Message}");
+                }
+            }
+            // --- AGENT LOOP END ---
+
+            // Step 4: Finalize audio playback for any remaining TTS fragments.
             if (!string.IsNullOrWhiteSpace(_ttsBuffer))
             {
                 string safeText = CleanResponseForTTS(_ttsBuffer);
-                if (!string.IsNullOrWhiteSpace(safeText))
-                {
-                    _ttsManager?.Speak(safeText);
-                }
+                if (!string.IsNullOrWhiteSpace(safeText)) _ttsManager?.Speak(safeText);
                 _ttsBuffer = string.Empty;
             }
 
+            // Step 5: Parse reasoning (think) and content for final storage.
             string rawResponse = _currentAssistantBuffer;
             string thoughtProcess = "";
             string finalContent = rawResponse;
@@ -191,19 +295,16 @@ namespace Logic.Lite
                 finalContent = "";
             }
 
+            // Step 6: Extract dynamic metadata (Name/Summary) from the reasoning block.
             if (thoughtProcess.Contains("[SESSION_NAME:"))
             {
                 var matchName = global::System.Text.RegularExpressions.Regex.Match(thoughtProcess, @"\[SESSION_NAME:\s*(.+?)\]");
                 if (matchName.Success) 
                 {
-                    string oldFilePath = _currentFilePath; 
+                    string oldPath = _currentFilePath;
                     _currentSession.SessionName = matchName.Groups[1].Value.Trim();
                     _currentFilePath = global::System.IO.Path.Combine(_historyDirectory, $"{_currentSession.SessionName}.json");
-                    
-                    if (global::System.IO.File.Exists(oldFilePath) && oldFilePath != _currentFilePath)
-                    {
-                        global::System.IO.File.Delete(oldFilePath);
-                    }
+                    if (global::System.IO.File.Exists(oldPath) && oldPath != _currentFilePath) global::System.IO.File.Delete(oldPath);
                 }
             }
 
@@ -213,6 +314,7 @@ namespace Logic.Lite
                 if (matchSummary.Success) _currentSession.Summary = matchSummary.Groups[1].Value.Trim();
             }
 
+            // Step 7: Finalize the transaction by saving the assistant turn.
             _currentSession.Messages.Add(new ChatMessage 
             { 
                 IdAssistant = _currentSession.Messages.FindAll(m => m.Role == "assistant").Count + 1,
@@ -224,6 +326,7 @@ namespace Logic.Lite
             });
             SaveSession();
 
+            // Final notification to the UI and TTS systems.
             string safeTtsText = CleanResponseForTTS(finalContent);
             if (string.IsNullOrWhiteSpace(safeTtsText)) safeTtsText = "Pensé demasiado y perdí el hilo. ¿Puedes repetirlo?";
             
@@ -232,12 +335,15 @@ namespace Logic.Lite
 
         /// <summary>
         /// Operates as real-time evaluation middleware traversing the token streaming pipeline.
-        /// Enforces semantic chunking on visible text fragments and dynamically triggers native TTS integration.
-        /// Resets visual buffer state upon concluding the reasoning phase to prevent length miscalculation.
+        /// Silences UI and TTS output when a tool call JSON structure is detected.
         /// </summary>
+        /// <param name="token">The atomic text fragment received from the inference stream.</param>
         private void HandleTokenReceived(string token)
         {
             _currentAssistantBuffer += token;
+            
+            // Agent Interception: If the stream starts with a JSON bracket, it's a tool call. Silence the UI and TTS.
+            if (_currentAssistantBuffer.TrimStart().StartsWith("{")) return;
 
             if (!_isInsideThinkBlock && _currentAssistantBuffer.Contains("<think>") && !_currentAssistantBuffer.Contains("</think>"))
             {
@@ -302,13 +408,19 @@ namespace Logic.Lite
         }
 
         /// <summary>
-        /// Constructs the standardized ChatML prompt utilizing the structured JSON elements.
-        /// Bypasses regex processing dynamically leveraging the pre-parsed Think and Content boundaries.
+        /// Constructs the standardized ChatML prompt, dynamically injecting current tool schemas 
+        /// into the system context to guide agentic behavior.
         /// </summary>
         private string BuildPrompt()
         {
             StringBuilder builder = new StringBuilder();
-            builder.Append($"<|im_start|>system\n{SystemPrompt}\nMemoria actual: {_currentSession.Summary}<|im_end|>\n");
+            string timeString = global::System.DateTime.Now.ToString("f");
+            string currentTimeContext = $"Fecha y hora actual del sistema: {timeString}.";
+            
+            // Injects the synchronized MCP tool list into the foundational prompt instructions.
+            string dynamicSystemPrompt = $"{SystemPromptInit}\n\n[ MCP DYNAMIC TOOLS SCHEMA ]\n{_availableTools}";
+            
+            builder.Append($"<|im_start|>system\n{dynamicSystemPrompt}\n{currentTimeContext}\nMemoria actual: {_currentSession.Summary}<|im_end|>\n");
 
             int startIndex = global::System.Math.Max(0, _currentSession.Messages.Count - 10);
             for (int i = startIndex; i < _currentSession.Messages.Count; i++)
@@ -316,7 +428,6 @@ namespace Logic.Lite
                 var msg = _currentSession.Messages[i];
                 string fullContent = msg.Content;
 
-                // Inyectar el pensamiento previo en la memoria para que no pierda el contexto
                 if (!string.IsNullOrWhiteSpace(msg.Think))
                 {
                     fullContent = $"<think>\n{msg.Think}\n</think>\n{msg.Content}";
@@ -327,6 +438,32 @@ namespace Logic.Lite
 
             builder.Append("<|im_start|>assistant\n");
             return builder.ToString();
+        }
+
+        /// <summary>
+        /// Retrieves the manifest of available tools from the local MCP server.
+        /// This allows the AGI to dynamically discover new capabilities (Search, OS, Files) 
+        /// and inject their schemas into the system context.
+        /// </summary>
+        public async global::System.Threading.Tasks.Task SyncMCPTools()
+        {
+            try
+            {
+                using var client = new global::System.Net.Http.HttpClient();
+                // Targets the standardized MCP gateway port.
+                var response = await client.GetAsync("http://127.0.0.1:8002/list_tools");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    _availableTools = await response.Content.ReadAsStringAsync();
+                    GD.Print("[BRAIN] MCP Tools synchronized successfully.");
+                }
+            }
+            catch (global::System.Exception ex)
+            {
+                GD.PrintErr($"[BRAIN] Failed to sync MCP tools: {ex.Message}");
+                _availableTools = "Error: No se pudo conectar con el servidor MCP.";
+            }
         }
 
         /// <summary>

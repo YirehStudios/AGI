@@ -22,9 +22,12 @@ namespace Logic.Backend
         [Export] public int LlamaPort = 8080;
         [Export] public int WhisperPort = 8081;
         [Export] public int SherpaPort = 8888; 
+        [Export] public int SearchPort = 8000;
+        private Process _searchProcess;
         private Process _llamaProcess;
         private Process _whisperProcess;
         private Process _sherpaProcess;
+        private Process _mcpProcess;
         private const long MaxRamAllowed = 12L * 1024 * 1024 * 1024;
         private bool _isPanicking = false;
         private bool _isRunning = false;
@@ -106,6 +109,14 @@ namespace Logic.Backend
                         }
                     }
                 }
+
+                // Enforces port release by eliminating any zombie instances of the Python microservices.
+                if (_environmentManager != null && (_environmentManager.IsLinux || !_environmentManager.IsWindows))
+                {
+                    OS.Execute("pkill", new string[] { "-f", "search_server.py" }, new Godot.Collections.Array(), true);
+                    OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
+                }
+
                 GD.Print("ResourceMonitor: Infrastructure cleanup completed. System ready for C++ engine initialization.");
             }
             catch (Exception ex)
@@ -115,60 +126,57 @@ namespace Logic.Backend
         }
 
         /// <summary>
-        /// Orchestrates the lifecycle of inference engines (Llama, Whisper) and the Python bridge for TTS.
-        /// Performs path resolution, binary validation, and dynamic hardware configuration for subprocesses.
+        /// Orchestrates the lifecycle of inference engines (Llama, Whisper), the Search Microservice, the TTS bridge, 
+        /// and the MCP tool gateway. Performs path resolution, binary validation, and dynamic hardware 
+        /// configuration for all subprocesses.
+        /// Updated to selectively launch heavy engines only when not in CloudAPI mode to optimize RAM usage.
         /// </summary>
         /// <param name="modelsDir">Absolute path to the models directory.</param>
-        /// <param name="safeFileName">Sanitized filename of the LLM model.</param>
+        /// <param name="safeFileName">Sanitized filename of the LLM model to be loaded by Llama.</param>
         private async Task ManageBackendLifecycle(string modelsDir, string safeFileName)
         {
+            // Detects the operational mode to determine which process trees should be instantiated.
+            bool isCloudMode = _configManager != null && _configManager.CurrentMode == Logic.System.Config.ConfigManager.AppMode.CloudAPI;
+
             try
             {
-                // 1. Resource configuration and model path resolution.[cite: 1]
-                // Establishes parallelism by calculating logical core load and defines weight tensor paths.
+                // Configures processing resources and resolves paths for core model files.
                 int threadCount = Math.Max(1, global::System.Environment.ProcessorCount / 2);
                 string modelLlamaPath = global::System.IO.Path.Combine(modelsDir, safeFileName);
                 
                 string sttModel = _configManager?.ActiveSTTModel ?? "Whisper_Base.bin"; 
                 string modelWhisperPath = global::System.IO.Path.Combine(modelsDir, sttModel);
 
-                // 2. Dynamic OS-based routing.[cite: 1]
-                // Identifies folder architecture according to the platform to locate specific binaries.
                 string osFolder = _environmentManager.IsWindows ? "windows" : "linux";
                 string llamaDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "llama");
                 string whisperDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "whisper");
 
-                // 3. Binary discovery via Logic.Utils.FileResolver.[cite: 1]
-                // Recursively locates executable entry points for native inference servers.
                 string llamaBinPath = Logic.Utils.FileResolver.FindExecutable(llamaDir, _environmentManager.IsWindows, "llama-server");
                 string whisperBinPath = Logic.Utils.FileResolver.FindExecutable(whisperDir, _environmentManager.IsWindows, "whisper-server");
 
-                // 4. Critical binary integrity validation.[cite: 1]
-                // Verifies the physical presence of executables on disk before process instantiation.
-                if (!global::System.IO.File.Exists(llamaBinPath))
+                // Validates presence of critical native binaries.
+                if (!global::System.IO.File.Exists(llamaBinPath) || !global::System.IO.File.Exists(whisperBinPath))
                 {
-                    GD.PrintErr($"BackendLauncher: Fatal - Llama Server binary missing in {llamaDir}.");
+                    GD.PrintErr("BackendLauncher: Fatal - Essential binaries (Llama/Whisper) are missing.");
                     CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
                     return;
                 }
 
-                if (!global::System.IO.File.Exists(whisperBinPath))
-                {
-                    GD.PrintErr($"BackendLauncher: Fatal - Whisper Server binary missing in {whisperDir}.");
-                    CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
-                    return;
-                }
-
-                // 5. Python bridge configuration and process structures.[cite: 1]
-                // Resolves the exact binary name expected in isolated environments based on the OS.
+                // Resolves Python executable paths for Windows (portable) and Linux (virtual environment).
                 string pythonExe = _environmentManager.IsWindows ? 
                     global::System.IO.Path.Combine(_environmentManager.EnvPath, "python", "python.exe") : 
                     global::System.IO.Path.Combine(_environmentManager.EnvPath, "python", "bin", "python3");
+                
+                string searchPythonExe = _environmentManager.IsWindows ? 
+                    global::System.IO.Path.Combine(_environmentManager.EnvPath, "python_search", "python.exe") : 
+                    global::System.IO.Path.Combine(_environmentManager.EnvPath, "python_search", "bin", "python3");
 
-                // Defines the absolute path to the script acting as the TTS server.
+                // Identifies script locations for TTS, Search, and MCP services.
                 string ttsScriptPath = global::System.IO.Path.Combine(_environmentManager.BinPath, "tts_server.py");
+                string searchScriptPath = global::System.IO.Path.Combine(_environmentManager.BinPath, "search_server.py");
+                string mcpScriptPath = global::System.IO.Path.Combine(_environmentManager.BinPath, "mcp_server.py");
 
-                // Configures start parameters for the Whisper speech recognition engine.
+                // Whisper Configuration.
                 ProcessStartInfo whisperInfo = new ProcessStartInfo
                 {
                     FileName = whisperBinPath,
@@ -179,7 +187,7 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
-                // Configures start parameters for the Llama language engine.
+                // Llama Configuration.
                 ProcessStartInfo llamaInfo = new ProcessStartInfo
                 {
                     FileName = llamaBinPath,
@@ -190,49 +198,51 @@ namespace Logic.Backend
                     CreateNoWindow = true
                 };
 
-                // Validates interpreter existence before instantiation to prevent critical execution failures.
+                // Search Microservice Configuration.
+                ProcessStartInfo searchInfo = new ProcessStartInfo
+                {
+                    FileName = searchPythonExe,
+                    Arguments = $"-u \"{searchScriptPath}\" --port {SearchPort}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                // Standardized MCP Tool Gateway Configuration on port 8002.
+                ProcessStartInfo mcpInfo = new ProcessStartInfo
+                {
+                    FileName = searchPythonExe,
+                    Arguments = $"-u \"{mcpScriptPath}\" --port {SearchPort + 2}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                // Sherpa (TTS) Configuration.
+                ProcessStartInfo sherpaInfo = null;
                 if (global::System.IO.File.Exists(pythonExe))
                 {
-                    ProcessStartInfo sherpaInfo = new ProcessStartInfo
+                    string ttsModelFolder = _configManager?.ActiveTTSModel ?? "";
+                    string ttsModelsDir = global::System.IO.Path.Combine(modelsDir, ttsModelFolder);
+
+                    sherpaInfo = new ProcessStartInfo
                     {
                         FileName = pythonExe,
-                        Arguments = $"\"{ttsScriptPath}\" --port {SherpaPort} --models-dir \"{modelsDir}\"",
+                        Arguments = $"-u \"{ttsScriptPath}\" --port {SherpaPort} --models-dir \"{ttsModelsDir}\"",
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
                     };
-
-                    // Initializes the Sherpa-ONNX process instance, linking log streams to interface signals.
-                    _sherpaProcess = new Process { StartInfo = sherpaInfo, EnableRaisingEvents = true };
-                    
-                    _sherpaProcess.OutputDataReceived += (sender, e) => 
-                    { 
-                        if (!string.IsNullOrEmpty(e.Data)) 
-                            CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Kokoro] {e.Data}"); 
-                    };
-
-                    _sherpaProcess.ErrorDataReceived += (sender, e) => 
-                    { 
-                        if (!string.IsNullOrEmpty(e.Data)) 
-                            CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Kokoro ERR] {e.Data}"); 
-                    };
-                    
-                    _sherpaProcess.Exited += OnProcessExited;
-                }
-                else
-                {
-                    GD.PrintErr("TTS Bridge bypass: Python interpreter missing.");
-                    _sherpaProcess = null;
                 }
 
-                // 6. Environment variable injection and hardware detection.[cite: 1]
-                // Configures search paths for the dynamic loader, linking only the native engine directories.
+                // Environment variable injection for GPU acceleration.
                 whisperInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = whisperDir;
                 llamaInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = llamaDir;
 
-                // Retrieves the selected hardware device index and injects Vulkan configuration if available.
-                int gpuIndex = _configManager != null ? _configManager.SelectedGpuIndex : -1;
+                int gpuIndex = _configManager?.SelectedGpuIndex ?? -1;
                 if (gpuIndex >= 0)
                 {
                     string gpuStr = gpuIndex.ToString();
@@ -240,71 +250,73 @@ namespace Logic.Backend
                     llamaInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = gpuStr;
                 }
 
-                // 7. Instantiation and event subscription for Whisper and Llama.[cite: 1]
-                // Creates process instances and links output and termination handlers for health auditing.
-                _whisperProcess = new Process { StartInfo = whisperInfo, EnableRaisingEvents = true };
-                _llamaProcess = new Process { StartInfo = llamaInfo, EnableRaisingEvents = true };
-
-                _whisperProcess.OutputDataReceived += (sender, e) => 
-                { 
-                    if (!string.IsNullOrEmpty(e.Data)) 
-                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Whisper] {e.Data}"); 
-                };
-                
-                _whisperProcess.ErrorDataReceived += (sender, e) => 
-                { 
-                    if (!string.IsNullOrEmpty(e.Data)) 
-                    {
-                        string lowerData = e.Data.ToLower();
-                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Whisper ERR] {e.Data}"); 
-                        if (lowerData.Contains("out of memory") || lowerData.Contains("bad allocation") || lowerData.Contains("segmentation fault") || lowerData.Contains("memory fault"))
-                            PanicKill($"Critical STT memory fault: {e.Data}");
-                    }
-                };
-                _whisperProcess.Exited += OnProcessExited;
-
-                _llamaProcess.OutputDataReceived += (sender, e) => 
-                { 
-                    if (!string.IsNullOrEmpty(e.Data)) 
-                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Llama] {e.Data}"); 
-                };
-                
-                _llamaProcess.ErrorDataReceived += (sender, e) => 
-                { 
-                    if (!string.IsNullOrEmpty(e.Data)) 
-                    {
-                        string lowerData = e.Data.ToLower();
-                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Llama ERR] {e.Data}");
-                        if (lowerData.Contains("out of memory") || lowerData.Contains("bad allocation") || lowerData.Contains("segmentation fault"))
-                            PanicKill($"Critical LLM memory fault: {e.Data}");
-                        
-                        if (e.Data.Contains("server is listening") || e.Data.Contains("HTTP server listening"))
-                        {
-                            _retryCount = 0; 
-                            CallDeferred(MethodName.EmitSignal, SignalName.BackendReady);
-                        }
-                    }
-                };
-                _llamaProcess.Exited += OnProcessExited;
-
-                // 8. Backend system execution.[cite: 1]
-                // Safely initialize the TTS bridge only if the interpreter was successfully validated.
-                if (_sherpaProcess != null) 
+                // HEAVY ENGINE STARTUP: Only if NOT in cloud mode.
+                if (!isCloudMode)
                 {
+                    _whisperProcess = new Process { StartInfo = whisperInfo, EnableRaisingEvents = true };
+                    _llamaProcess = new Process { StartInfo = llamaInfo, EnableRaisingEvents = true };
+
+                    _whisperProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Whisper] {e.Data}"); };
+                    _whisperProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Whisper ERR] {e.Data}"); };
+                    _whisperProcess.Exited += OnProcessExited;
+
+                    _llamaProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Llama] {e.Data}"); };
+                    _llamaProcess.ErrorDataReceived += (s, e) => 
+                    { 
+                        if (!string.IsNullOrEmpty(e.Data)) 
+                        {
+                            CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Llama ERR] {e.Data}");
+                            // BackendReady is emitted when the native Llama server signals it is listening.
+                            if (e.Data.Contains("server is listening")) CallDeferred(MethodName.EmitSignal, SignalName.BackendReady);
+                        }
+                    };
+                    _llamaProcess.Exited += OnProcessExited;
+
+                    _whisperProcess.Start();
+                    _whisperProcess.BeginOutputReadLine();
+                    _whisperProcess.BeginErrorReadLine();
+
+                    _llamaProcess.Start();
+                    _llamaProcess.BeginOutputReadLine();
+                    _llamaProcess.BeginErrorReadLine();
+                }
+
+                // LIGHTWEIGHT MICROSERVICES: Always launched.
+                _searchProcess = new Process { StartInfo = searchInfo, EnableRaisingEvents = true };
+                _searchProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.Print($"[Search] {e.Data}"); };
+                _searchProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.PrintErr($"[Search ERR] {e.Data}"); };
+                _searchProcess.Exited += OnProcessExited;
+                _searchProcess.Start();
+                _searchProcess.BeginOutputReadLine();
+                _searchProcess.BeginErrorReadLine();
+
+                _mcpProcess = new Process { StartInfo = mcpInfo, EnableRaisingEvents = true };
+                _mcpProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.Print($"[MCP] {e.Data}"); };
+                _mcpProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.PrintErr($"[MCP ERR] {e.Data}"); };
+                _mcpProcess.Exited += OnProcessExited;
+                _mcpProcess.Start();
+                _mcpProcess.BeginOutputReadLine();
+                _mcpProcess.BeginErrorReadLine();
+
+                if (sherpaInfo != null)
+                {
+                    _sherpaProcess = new Process { StartInfo = sherpaInfo, EnableRaisingEvents = true };
+                    _sherpaProcess.Exited += OnProcessExited;
                     _sherpaProcess.Start();
                     _sherpaProcess.BeginOutputReadLine();
                     _sherpaProcess.BeginErrorReadLine();
                 }
 
-                _whisperProcess.Start();
-                _whisperProcess.BeginOutputReadLine();
-                _whisperProcess.BeginErrorReadLine();
-
-                _llamaProcess.Start();
-                _llamaProcess.BeginOutputReadLine();
-                _llamaProcess.BeginErrorReadLine();
-
                 _isRunning = true;
+
+                // Manual BackendReady signal for Cloud mode, as Llama won't emit it.
+                if (isCloudMode)
+                {
+                    CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, "[Microservices] Search, TTS, and MCP ready. Local Llama bypassed.");
+                    CallDeferred(MethodName.EmitSignal, SignalName.BackendReady);
+                }
+
+                // Initiates the asynchronous monitoring loop for RAM constraints.
                 await MonitorProcessHealth();
             }
             catch (Exception ex)
@@ -353,6 +365,17 @@ namespace Logic.Backend
                             break;
                         }
                     }
+
+                    if (_mcpProcess != null && !_mcpProcess.HasExited)
+                    {
+                        _mcpProcess.Refresh();
+                        if (_mcpProcess.WorkingSet64 > MaxRamAllowed)
+                        {
+                            PanicKill("RAM overflow detected in MCP Server.");
+                            break;
+                        }
+                    }
+                    
                 }
                 catch (Exception ex)
                 {
@@ -391,14 +414,19 @@ namespace Logic.Backend
                 {
                     _sherpaProcess.Kill(true);
                 }
+                if (_searchProcess != null && !_searchProcess.HasExited)
+                {
+                    _searchProcess.Kill(true);
+                }
             }
             catch (Exception ex)
             {
                 GD.PrintErr($"BackendLauncher: Secondary fault executing process purge (Kill): {ex.Message}");
             }
 
-            // GARANTÍA ANTIMUERTE: Destrucción forzada a nivel de OS en caso de Pánico
+            // GARANTÍA ANTIMUERTE: Destrucción forzada a nivel de OS en caso de Pánico.
             OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
+            OS.Execute("pkill", new string[] { "-f", "search_server.py" }, new Godot.Collections.Array(), true);
 
             _retryCount = MaxRetries;
             
