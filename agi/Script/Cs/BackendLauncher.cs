@@ -7,9 +7,6 @@ using SysPath = System.IO.Path;
 
 namespace Logic.Backend
 {
-    /// <summary>
-    /// Manages the lifecycle of Docker-isolated engines (Llama, Whisper, Sherpa-ONNX).
-    /// </summary>
     public partial class BackendLauncher : Node
     {
         [Signal]
@@ -115,8 +112,8 @@ namespace Logic.Backend
                 {
                     OS.Execute("pkill", new string[] { "-f", "search_server.py" }, new Godot.Collections.Array(), true);
                     OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
+                    OS.Execute("pkill", new string[] { "-f", "mcp_server.py" }, new Godot.Collections.Array(), true);
                 }
-
                 GD.Print("ResourceMonitor: Infrastructure cleanup completed. System ready for C++ engine initialization.");
             }
             catch (Exception ex)
@@ -424,9 +421,9 @@ namespace Logic.Backend
                 GD.PrintErr($"BackendLauncher: Secondary fault executing process purge (Kill): {ex.Message}");
             }
 
-            // GARANTÍA ANTIMUERTE: Destrucción forzada a nivel de OS en caso de Pánico.
             OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
             OS.Execute("pkill", new string[] { "-f", "search_server.py" }, new Godot.Collections.Array(), true);
+            OS.Execute("pkill", new string[] { "-f", "mcp_server.py" }, new Godot.Collections.Array(), true);
 
             _retryCount = MaxRetries;
             

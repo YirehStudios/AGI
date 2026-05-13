@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://s8tuasw0blu"]
 
 [ext_resource type="Script" uid="uid://cburckky6i8de" path="res://Script/Cs/MainApp.cs" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://bolcjtvklqbax" path="res://Scenes/IAScene/Chatbot.tscn" id="2_dpcee"]
+[ext_resource type="PackedScene" uid="uid://kckvakahwmwp" path="res://Scenes/IAScene/ChatbotMobile.tscn" id="2_dpcee"]
 [ext_resource type="Texture2D" uid="uid://dxui8em8fu8w3" path="res://Resources/logo.png" id="2_logo"]
 [ext_resource type="PackedScene" uid="uid://bx5yq2jklxap" path="res://Scenes/IAScene/Livemode.tscn" id="3_l7jlp"]
 [ext_resource type="Script" uid="uid://cdvmgal6gjip" path="res://Resources/UI_Themes/FondoUI.cs" id="4_ide7w"]
@@ -94,11 +94,7 @@ _data = {
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_line_edit"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sidebar_bg"]
-bg_color = Color(1, 1, 1, 1)
-shadow_color = Color(0, 0, 0, 0.05)
-shadow_size = 10
-shadow_offset = Vector2(2, 0)
+[sub_resource type="ButtonGroup" id="ButtonGroup_header_modes"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mode_btn_normal"]
 content_margin_left = 15.0
@@ -111,40 +107,6 @@ corner_radius_top_right = 99
 corner_radius_bottom_right = 99
 corner_radius_bottom_left = 99
 anti_aliasing_size = 1.5
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mode_btn_pressed"]
-content_margin_left = 15.0
-content_margin_top = 12.0
-content_margin_right = 15.0
-content_margin_bottom = 12.0
-bg_color = Color(0.898, 0.898, 0.902, 1)
-corner_radius_top_left = 99
-corner_radius_top_right = 99
-corner_radius_bottom_right = 99
-corner_radius_bottom_left = 99
-anti_aliasing_size = 1.5
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_menu_active"]
-content_margin_left = 15.0
-content_margin_top = 12.0
-content_margin_right = 15.0
-content_margin_bottom = 12.0
-bg_color = Color(0.898, 0.898, 0.902, 1)
-corner_radius_top_left = 99
-corner_radius_top_right = 99
-corner_radius_bottom_right = 99
-corner_radius_bottom_left = 99
-anti_aliasing_size = 1.5
-
-[sub_resource type="ButtonGroup" id="ButtonGroup_header_modes"]
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_menu_normal"]
-content_margin_left = 15.0
-content_margin_top = 12.0
-content_margin_right = 15.0
-content_margin_bottom = 12.0
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_header_bg"]
 
 [sub_resource type="SystemFont" id="SystemFont_bold"]
 font_names = PackedStringArray("Sans-Serif")
@@ -246,15 +208,6 @@ theme_override_constants/margin_bottom = 10
 [node name="SidebarLayout" type="VBoxContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin" unique_id=1182709975]
 layout_mode = 2
 theme_type_variation = &"Siderbard"
-theme_override_constants/margin_left = 15
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 15
-theme_override_constants/margin_bottom = 10
-
-[node name="SidebarLayout" type="VBoxContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin" unique_id=1182709975]
-layout_mode = 2
-theme_type_variation = &"Siderbard"
-theme_override_constants/separation = 10
 
 [node name="LogoMargin" type="MarginContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout" unique_id=359839589]
 layout_mode = 2
@@ -351,6 +304,11 @@ icon = ExtResource("icon_settings")
 alignment = 0
 text_overrun_behavior = 3
 clip_text = true
+
+[node name="SidebarLayout2" type="VBoxContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin" unique_id=1127506517]
+layout_mode = 2
+theme_type_variation = &"Siderbard"
+theme_override_constants/separation = 10
 
 [node name="RightColumn" type="VBoxContainer" parent="MainLayout" unique_id=405211898]
 layout_mode = 2

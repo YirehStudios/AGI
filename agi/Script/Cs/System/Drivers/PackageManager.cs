@@ -133,12 +133,13 @@ namespace Logic.System.Drivers
         /// Provisions a dedicated Python environment for the Search and MCP Microservices.
         /// Performs full deployment including script synchronization, portable distribution setup, 
         /// and dependency installation (FastAPI, MCP, httpx, Search tools).
+        /// Updated with resilient download logic and physical file presence verification.
         /// </summary>
         /// <param name="pythonUrl">The remote URL for the portable Python distribution (Windows).</param>
         /// <param name="searchServerUrl">The remote URL for the search_server.py script from manifest.</param>
         /// <param name="mcpServerUrl">The remote URL for the mcp_server.py script from manifest.</param>
         /// <returns>True if the environment and all microservice dependencies are ready; otherwise, false.</returns>
-        public async Task<bool> EnsureSearchEnvironmentAsync(string pythonUrl, string searchServerUrl, string mcpServerUrl)
+        public async Task<bool> EnsureMicroservicesEnvironmentAsync(string pythonUrl, string searchServerUrl, string mcpServerUrl)
         {
             // Validates operational support for the current hardware platform.
             if (_environmentManager.IsUIOnlyMode || _environmentManager.IsAndroid) return true;
@@ -147,12 +148,26 @@ namespace Logic.System.Drivers
             if (!Directory.Exists(envPath)) Directory.CreateDirectory(envPath);
 
             // Synchronizes the microservice logic from the repository to the local system.
-            bool searchDownload = await _downloadManager.DownloadFileAsync(searchServerUrl, _environmentManager.BinPath, "search_server.py");
-            bool mcpDownload = await _downloadManager.DownloadFileAsync(mcpServerUrl, _environmentManager.BinPath, "mcp_server.py");
+            // Uses resilient logic to tolerate empty URLs from the manifest.
+            bool searchDownload = true;
+            if (!string.IsNullOrEmpty(searchServerUrl))
+                searchDownload = await _downloadManager.DownloadFileAsync(searchServerUrl, _environmentManager.BinPath, "search_server.py");
+
+            bool mcpDownload = true;
+            if (!string.IsNullOrEmpty(mcpServerUrl))
+                mcpDownload = await _downloadManager.DownloadFileAsync(mcpServerUrl, _environmentManager.BinPath, "mcp_server.py");
             
+            // Strictly verifies physical file presence to prevent silent uv/pip execution failures.
+            string mcpLocalPath = Path.Combine(_environmentManager.BinPath, "mcp_server.py");
+            if (!File.Exists(mcpLocalPath))
+            {
+                GD.PrintErr($"[PackageManager] Fatal: mcp_server.py is missing from disk. URL was: '{mcpServerUrl}'. Check your manifest.");
+                return false;
+            }
+
             if (!searchDownload || !mcpDownload)
             {
-                GD.PrintErr("[PackageManager] Fatal: Failed to download microservice scripts (search/mcp).");
+                GD.PrintErr("[PackageManager] Error: Failed to synchronize microservice scripts.");
                 return false;
             }
 
@@ -161,7 +176,7 @@ namespace Logic.System.Drivers
             {
                 string uvCommand = GetUvPath();
                 string pythonBin = Path.Combine(envPath, "bin", "python");
-                var output = new Godot.Collections.Array();
+                var output = new global::Godot.Collections.Array();
 
                 if (!File.Exists(pythonBin))
                 {
@@ -172,9 +187,9 @@ namespace Logic.System.Drivers
                 }
 
                 output.Clear();
-                GD.Print($"[PackageManager] Search Env: Installing pip dependencies (fastapi, mcp, httpx, etc.) via uv...");
+                GD.Print($"[PackageManager] Search Env: Installing pip dependencies via uv...");
                 
-                // Updated dependency list to support the new MCP server architecture.
+                // Includes mcp and httpx as core dependencies for the tool gateway.
                 string[] dependencies = { "pip", "install", "--python", envPath, "fastapi", "uvicorn", "ddgs", "trafilatura", "mcp", "httpx" };
                 int exitCode = OS.Execute(uvCommand, dependencies, output, true);
                 
@@ -207,10 +222,10 @@ namespace Logic.System.Drivers
                         File.WriteAllText(pthFiles[0], content);
                     }
 
-                    OS.Execute(pythonExe, new string[] { Path.Combine(envPath, "get-pip.py") }, new Godot.Collections.Array(), true);
+                    OS.Execute(pythonExe, new string[] { Path.Combine(envPath, "get-pip.py") }, new global::Godot.Collections.Array(), true);
                 }
 
-                var output = new Godot.Collections.Array();
+                var output = new global::Godot.Collections.Array();
                 GD.Print($"[PackageManager] Search Env: Installing pip dependencies on Windows...");
                 
                 // Added mcp and httpx to the Windows pip installation command.
