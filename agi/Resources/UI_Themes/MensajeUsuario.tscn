@@ -1,0 +1,136 @@
+[gd_scene format=3 uid="uid://bfavd0je1gt1r"]
+
+[ext_resource type="Script" uid="uid://ckqu8l2463r02" path="res://Resources/UI_Themes/MensajeUsuarioUI.cs" id="1_n85ua"]
+[ext_resource type="FontFile" uid="uid://ogy7poywqv0f" path="res://Resources/Fonts/Inter/Inter-VariableFont_opsz,wght.ttf" id="1_u4w6o"]
+[ext_resource type="FontFile" uid="uid://dh2m6i0ene4mw" path="res://Resources/Fonts/Inter/static/Inter_18pt-Bold.ttf" id="2_xr5qu"]
+[ext_resource type="FontFile" uid="uid://cnn7lrla24g7y" path="res://Resources/Fonts/Inter/static/Inter_18pt-BoldItalic.ttf" id="3_n85ua"]
+[ext_resource type="FontFile" uid="uid://c2w5e8cbsm7yt" path="res://Resources/Fonts/Inter/Inter-Italic-VariableFont_opsz,wght.ttf" id="4_536sc"]
+[ext_resource type="FontFile" uid="uid://c88eronmj27o0" path="res://Resources/Fonts/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf" id="5_e1h77"]
+[ext_resource type="Script" uid="uid://dbap0gqox0ty1" path="res://addons/markdownlabel/markdownlabel.gd" id="6_4mv37"]
+[ext_resource type="Script" uid="uid://dcx7crs23nf4" path="res://addons/markdownlabel/header_formats/h1_format.gd" id="7_uc6w0"]
+[ext_resource type="Script" uid="uid://d0sin64i4v3op" path="res://addons/markdownlabel/header_formats/h2_format.gd" id="8_5hh2h"]
+[ext_resource type="Script" uid="uid://dlok0dv1tq2bf" path="res://addons/markdownlabel/header_formats/h3_format.gd" id="9_v8ecj"]
+[ext_resource type="Script" uid="uid://bayuh2vafablg" path="res://addons/markdownlabel/header_formats/h4_format.gd" id="10_4554d"]
+[ext_resource type="Script" uid="uid://dfr1w7u3jgni3" path="res://addons/markdownlabel/header_formats/h5_format.gd" id="11_dqivh"]
+[ext_resource type="Script" uid="uid://bsi6dexoofpe6" path="res://addons/markdownlabel/header_formats/h6_format.gd" id="12_rvpnq"]
+[ext_resource type="Texture2D" uid="uid://debnuc10m0as" path="res://Resources/Images/Icons/JirehStudiosIcon.png" id="13_jrq12"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_spacer"]
+content_margin_left = 0.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_line_edit"]
+content_margin_left = 0.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_xr5qu"]
+
+[sub_resource type="Resource" id="Resource_js05h"]
+resource_local_to_scene = true
+script = ExtResource("7_uc6w0")
+
+[sub_resource type="Resource" id="Resource_rp26x"]
+resource_local_to_scene = true
+script = ExtResource("8_5hh2h")
+
+[sub_resource type="Resource" id="Resource_2c06c"]
+resource_local_to_scene = true
+script = ExtResource("9_v8ecj")
+
+[sub_resource type="Resource" id="Resource_wyifx"]
+resource_local_to_scene = true
+script = ExtResource("10_4554d")
+
+[sub_resource type="Resource" id="Resource_cdhtr"]
+resource_local_to_scene = true
+script = ExtResource("11_dqivh")
+
+[sub_resource type="Resource" id="Resource_8f5ok"]
+resource_local_to_scene = true
+script = ExtResource("12_rvpnq")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_avatar_container"]
+bg_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 35
+corner_radius_top_right = 35
+corner_radius_bottom_right = 35
+corner_radius_bottom_left = 35
+shadow_color = Color(0, 0, 0, 0.05)
+shadow_size = 8
+shadow_offset = Vector2(0, 2)
+anti_aliasing_size = 1.5
+
+[node name="UserMessageTemplate" type="HBoxContainer" unique_id=502626770 node_paths=PackedStringArray("_messageBody", "_copyBtn", "_minimizeBtn")]
+theme_override_constants/separation = 15
+alignment = 2
+script = ExtResource("1_n85ua")
+_messageBody = NodePath("MessageBubble/MessageBody")
+_copyBtn = NodePath("UserActions/CopyUserBtn")
+_minimizeBtn = NodePath("UserActions/MinimizeUserBtn")
+
+[node name="LeftSpacer" type="Panel" parent="." unique_id=1493116569]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxEmpty_spacer")
+
+[node name="UserActions" type="VBoxContainer" parent="." unique_id=1496257252]
+layout_mode = 2
+alignment = 1
+
+[node name="CopyUserBtn" type="Button" parent="UserActions" unique_id=414764968]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
+theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+text = "Copiar"
+
+[node name="MinimizeUserBtn" type="Button" parent="UserActions" unique_id=796861987]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
+theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+text = "Minimizar"
+
+[node name="MessageBubble" type="PanelContainer" parent="." unique_id=1605861971]
+layout_mode = 2
+size_flags_vertical = 3
+theme_type_variation = &"BubbleUser2"
+
+[node name="MessageBody" type="RichTextLabel" parent="MessageBubble" unique_id=1147132934]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+focus_mode = 2
+theme_override_colors/default_color = Color(1, 1, 1, 1)
+theme_override_fonts/normal_font = ExtResource("1_u4w6o")
+theme_override_fonts/bold_font = ExtResource("2_xr5qu")
+theme_override_fonts/bold_italics_font = ExtResource("3_n85ua")
+theme_override_fonts/italics_font = ExtResource("4_536sc")
+theme_override_fonts/mono_font = ExtResource("5_e1h77")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_xr5qu")
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 2
+context_menu_enabled = true
+selection_enabled = true
+script = ExtResource("6_4mv37")
+h1 = SubResource("Resource_js05h")
+h2 = SubResource("Resource_rp26x")
+h3 = SubResource("Resource_2c06c")
+h4 = SubResource("Resource_wyifx")
+h5 = SubResource("Resource_cdhtr")
+h6 = SubResource("Resource_8f5ok")
+
+[node name="AvatarPanel" type="PanelContainer" parent="." unique_id=435576645]
+clip_children = 1
+custom_minimum_size = Vector2(70, 70)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_container")
+
+[node name="UserAvatar" type="TextureRect" parent="AvatarPanel" unique_id=456316811]
+layout_mode = 2
+texture = ExtResource("13_jrq12")
+expand_mode = 1
+stretch_mode = 6

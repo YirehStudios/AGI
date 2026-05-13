@@ -30,10 +30,11 @@ driver/enable_input=true
 NetworkManager="*uid://dd0kvqdfb8yt5"
 ChatManager="*uid://dkwmatdh8pqge"
 BackendLauncher="*uid://d2ggr6q7smtv6"
-ConfigManager="*uid://r3isoxio4wpf"
+ConfigManager="*uid://bxb56ylt82ckt"
 EnvironmentManager="*uid://cs671kefxiink"
 PackageManager="*uid://byupl1skovdap"
 DownloadManager="*uid://cqsbifwhnnad8"
+ThemeManager="*uid://bh8vc1plbkd3q"
 
 [display]
 
