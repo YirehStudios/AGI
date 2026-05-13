@@ -1,9 +1,10 @@
 [gd_scene format=3 uid="uid://bolcjtvklqbax"]
 
 [ext_resource type="Script" uid="uid://laxqt8bmvnnx" path="res://Script/Cs/ChatbotMain.cs" id="1_8rl47"]
+[ext_resource type="PackedScene" uid="uid://bfavd0je1gt1r" path="res://Resources/UI_Themes/MensajeUsuario.tscn" id="2_jta4j"]
 [ext_resource type="Texture2D" uid="uid://ctvihwjmfflos" path="res://Resources/img1.png" id="2_q7f8p"]
+[ext_resource type="PackedScene" uid="uid://d3608t272an7q" path="res://Resources/UI_Themes/MensajeBot.tscn" id="3_amhcu"]
 [ext_resource type="Texture2D" uid="uid://cwv014ynmrq3l" path="res://Resources/img2.png" id="3_jta4j"]
-[ext_resource type="Texture2D" uid="uid://debnuc10m0as" path="res://Resources/Images/Icons/JirehStudiosIcon.png" id="3_ug3aw"]
 [ext_resource type="Texture2D" uid="uid://ca48hqiwv2eiy" path="res://Resources/img3.png" id="4_amhcu"]
 [ext_resource type="Texture2D" uid="uid://b5w5qmdk33hhg" path="res://Resources/img4.png" id="5_675c4"]
 [ext_resource type="Texture2D" uid="uid://b0gc5q4xau83j" path="res://Resources/flecha_enviar.png" id="5_ug3aw"]
@@ -11,267 +12,49 @@
 [ext_resource type="VideoStream" uid="uid://0esyq17ynyll" path="res://Resources/Farming-Simulator.ogv" id="7_amhcu"]
 [ext_resource type="VideoStream" uid="uid://bc7xtarwn1qiv" path="res://Resources/Paisaje.ogv" id="8_675c4"]
 [ext_resource type="VideoStream" uid="uid://b7hhl2fcqhlrl" path="res://Resources/Super-Tux.ogv" id="9_u6rn7"]
-[ext_resource type="FontFile" uid="uid://ogy7poywqv0f" path="res://Resources/Fonts/Inter/Inter-VariableFont_opsz,wght.ttf" id="12_b06b1"]
-[ext_resource type="Script" uid="uid://dbap0gqox0ty1" path="res://addons/markdownlabel/markdownlabel.gd" id="12_w5qr0"]
-[ext_resource type="Script" uid="uid://dcx7crs23nf4" path="res://addons/markdownlabel/header_formats/h1_format.gd" id="13_ogl8u"]
-[ext_resource type="FontFile" uid="uid://dh2m6i0ene4mw" path="res://Resources/Fonts/Inter/static/Inter_18pt-Bold.ttf" id="13_rq6ts"]
-[ext_resource type="Script" uid="uid://d0sin64i4v3op" path="res://addons/markdownlabel/header_formats/h2_format.gd" id="14_2d4k7"]
-[ext_resource type="FontFile" uid="uid://cnn7lrla24g7y" path="res://Resources/Fonts/Inter/static/Inter_18pt-BoldItalic.ttf" id="14_cae2h"]
-[ext_resource type="Script" uid="uid://dlok0dv1tq2bf" path="res://addons/markdownlabel/header_formats/h3_format.gd" id="15_143c2"]
-[ext_resource type="FontFile" uid="uid://c2w5e8cbsm7yt" path="res://Resources/Fonts/Inter/Inter-Italic-VariableFont_opsz,wght.ttf" id="15_js05h"]
-[ext_resource type="Script" uid="uid://bayuh2vafablg" path="res://addons/markdownlabel/header_formats/h4_format.gd" id="16_b06b1"]
-[ext_resource type="Script" uid="uid://dfr1w7u3jgni3" path="res://addons/markdownlabel/header_formats/h5_format.gd" id="17_rq6ts"]
-[ext_resource type="Script" uid="uid://bsi6dexoofpe6" path="res://addons/markdownlabel/header_formats/h6_format.gd" id="18_cae2h"]
-[ext_resource type="FontFile" uid="uid://c88eronmj27o0" path="res://Resources/Fonts/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf" id="23_rq6ts"]
-[ext_resource type="Texture2D" uid="uid://c_thinking_svg" path="res://Resources/Images/Icons/Util/Thinking.svg" id="id_thinking"]
-[ext_resource type="Texture2D" uid="uid://c_avatar_bot_png" path="res://Resources/avatar_bot.png" id="id_agi_logo"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_popup_hover"]
-content_margin_left = 12.0
-content_margin_right = 12.0
-bg_color = Color(0.95, 0.95, 0.96, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-anti_aliasing_size = 1.5
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_amhcu"]
+bg_color = Color(1.1551381e-06, 0.6489031, 0.89848536, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_popup"]
-content_margin_left = 12.0
-content_margin_top = 12.0
-content_margin_right = 12.0
-content_margin_bottom = 12.0
-bg_color = Color(1, 1, 1, 1)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-shadow_color = Color(0, 0, 0, 0.08)
-shadow_size = 8
-shadow_offset = Vector2(0, 4)
-anti_aliasing_size = 1.5
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_675c4"]
+bg_color = Color(0, 0.25700295, 0.67390674, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_grabber"]
-bg_color = Color(0.8, 0.8, 0.8, 0.5)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-anti_aliasing_size = 1.5
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pdmg7"]
+bg_color = Color(0, 0.3529412, 0.8980392, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_scroll"]
-content_margin_left = 0.0
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_u6rn7"]
+bg_color = Color(0, 0.14242893, 0.31401196, 1)
 
-[sub_resource type="SystemFont" id="SystemFont_regular"]
-font_names = PackedStringArray("Sans-Serif")
-hinting = 2
-subpixel_positioning = 0
-multichannel_signed_distance_field = true
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lgxif"]
+bg_color = Color(1, 0.22723916, 0.691225, 1)
 
-[sub_resource type="Theme" id="Theme_global"]
-default_font = SubResource("SystemFont_regular")
-default_font_size = 16
-Button/colors/font_color = Color(0.2, 0.2, 0.2, 1)
-Button/colors/font_hover_color = Color(0.1, 0.1, 0.1, 1)
-Button/colors/font_pressed_color = Color(0, 0, 0, 1)
-PopupMenu/colors/font_color = Color(0.2, 0.2, 0.2, 1)
-PopupMenu/colors/font_hover_color = Color(0, 0.478, 1, 1)
-PopupMenu/constants/v_separation = 10
-PopupMenu/styles/hover = SubResource("StyleBoxFlat_popup_hover")
-PopupMenu/styles/panel = SubResource("StyleBoxFlat_popup")
-RichTextLabel/colors/default_color = Color(0.15, 0.15, 0.15, 1)
-VScrollBar/styles/grabber = SubResource("StyleBoxFlat_grabber")
-VScrollBar/styles/grabber_highlight = SubResource("StyleBoxFlat_grabber")
-VScrollBar/styles/grabber_pressed = SubResource("StyleBoxFlat_grabber")
-VScrollBar/styles/scroll = SubResource("StyleBoxEmpty_scroll")
-VScrollBar/styles/scroll_focus = SubResource("StyleBoxEmpty_scroll")
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_main_bg"]
-bg_color = Color(0.949, 0.949, 0.969, 1)
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_spacer"]
-content_margin_left = 0.0
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_user_bubble"]
-content_margin_left = 24.0
-content_margin_top = 18.0
-content_margin_right = 24.0
-content_margin_bottom = 18.0
-bg_color = Color(0, 0.478, 1, 1)
-corner_radius_top_left = 20
-corner_radius_top_right = 20
-corner_radius_bottom_right = 20
-corner_radius_bottom_left = 20
-shadow_color = Color(0, 0, 0, 0.05)
-shadow_size = 10
-shadow_offset = Vector2(0, 2)
-anti_aliasing_size = 1.5
-
-[sub_resource type="Resource" id="Resource_js05h"]
-resource_local_to_scene = true
-script = ExtResource("13_ogl8u")
-
-[sub_resource type="Resource" id="Resource_rp26x"]
-resource_local_to_scene = true
-script = ExtResource("14_2d4k7")
-
-[sub_resource type="Resource" id="Resource_2c06c"]
-resource_local_to_scene = true
-script = ExtResource("15_143c2")
-
-[sub_resource type="Resource" id="Resource_wyifx"]
-resource_local_to_scene = true
-script = ExtResource("16_b06b1")
-
-[sub_resource type="Resource" id="Resource_cdhtr"]
-resource_local_to_scene = true
-script = ExtResource("17_rq6ts")
-
-[sub_resource type="Resource" id="Resource_8f5ok"]
-resource_local_to_scene = true
-script = ExtResource("18_cae2h")
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_avatar_container"]
-bg_color = Color(1, 1, 1, 1)
-corner_radius_top_left = 35
-corner_radius_top_right = 35
-corner_radius_bottom_right = 35
-corner_radius_bottom_left = 35
-shadow_color = Color(0, 0, 0, 0.05)
-shadow_size = 8
-shadow_offset = Vector2(0, 2)
-anti_aliasing_size = 1.5
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_avatar"]
-
-[sub_resource type="Shader" id="Shader_bot_glow"]
-code = "shader_type canvas_item;
-uniform float glow_intensity : hint_range(0.0, 1.0) = 0.0;
-void fragment() {
-    vec4 c = texture(TEXTURE, UV);
-    vec2 spread = TEXTURE_PIXEL_SIZE * 8.0 * glow_intensity;
-    float aura = texture(TEXTURE, UV + vec2(spread.x, 0.0)).a;
-    aura += texture(TEXTURE, UV + vec2(-spread.x, 0.0)).a;
-    aura += texture(TEXTURE, UV + vec2(0.0, spread.y)).a;
-    aura += texture(TEXTURE, UV + vec2(0.0, -spread.y)).a;
-    if (c.a < 0.1 && aura > 0.0) {
-        COLOR = vec4(0.4, 0.8, 1.0, (aura / 4.0) * glow_intensity * 0.6);
-    } else if (distance(c.rgb, vec3(1.0)) < 0.2 || distance(c.rgb, vec3(0.0)) < 0.2) {
-        COLOR = c;
-    } else {
-        COLOR = vec4(mix(c.rgb, vec3(1.0), glow_intensity * 0.3), c.a);
-    }
-}"
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_bot_avatar"]
-shader = SubResource("Shader_bot_glow")
-shader_parameter/glow_intensity = 0.0
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bot_bubble"]
-content_margin_left = 24.0
-content_margin_top = 18.0
-content_margin_right = 24.0
-content_margin_bottom = 18.0
-bg_color = Color(0.898, 0.898, 0.902, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.93, 0.89, 0.84, 1)
-corner_radius_top_left = 20
-corner_radius_top_right = 20
-corner_radius_bottom_right = 20
-corner_radius_bottom_left = 20
-shadow_color = Color(0, 0, 0, 0.05)
-shadow_size = 10
-shadow_offset = Vector2(0, 2)
-anti_aliasing_size = 1.5
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_input_bg"]
-content_margin_left = 24.0
-content_margin_top = 12.0
-content_margin_right = 12.0
-content_margin_bottom = 12.0
-bg_color = Color(1, 1, 1, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.85, 0.85, 0.85, 1)
-corner_radius_top_left = 32
-corner_radius_top_right = 32
-corner_radius_bottom_right = 32
-corner_radius_bottom_left = 32
-shadow_color = Color(0, 0, 0, 0.05)
-shadow_size = 10
-shadow_offset = Vector2(0, 2)
-anti_aliasing_size = 1.5
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tool_base"]
-content_margin_left = 18.0
-content_margin_right = 18.0
-bg_color = Color(0.898, 0.898, 0.902, 1)
-corner_radius_top_left = 20
-corner_radius_top_right = 20
-corner_radius_bottom_right = 20
-corner_radius_bottom_left = 20
-anti_aliasing_size = 1.5
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_line_edit"]
-content_margin_left = 0.0
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_send_normal"]
-bg_color = Color(0, 0.478, 1, 1)
-corner_radius_top_left = 25
-corner_radius_top_right = 25
-corner_radius_bottom_right = 25
-corner_radius_bottom_left = 25
-anti_aliasing_size = 1.5
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_send_pressed"]
-bg_color = Color(0, 0.35, 0.8, 1)
-corner_radius_top_left = 25
-corner_radius_top_right = 25
-corner_radius_bottom_right = 25
-corner_radius_bottom_left = 25
-anti_aliasing_size = 1.5
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_send_hover"]
-bg_color = Color(0.2, 0.6, 1, 1)
-corner_radius_top_left = 25
-corner_radius_top_right = 25
-corner_radius_bottom_right = 25
-corner_radius_bottom_left = 25
-anti_aliasing_size = 1.5
-
-[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "UserMessageTemplate", "BotMessageTemplate", "UserMessageMarkdownNode", "BotMessageMarkdownNode", "BotMessageLayoutNode", "ToolSelector", "BottomInputPanel", "BotActionsContainer", "BotActions", "BotAvatarContainer", "GotaCuerpo", "AlaIzquierda", "AlaDerecha", "Pupilas", "Equis")]
+[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "ToolSelector", "BottomInputPanel")]
+self_modulate = Color(1, 1, 1, 0)
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme = SubResource("Theme_global")
-theme_override_styles/panel = SubResource("StyleBoxFlat_main_bg")
 script = ExtResource("1_8rl47")
 ChatScrollContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer")
 MessagesContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer")
 TextInputField = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/TextInputField")
 SendButton = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/SendButton")
-UserMessageTemplate = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate")
-BotMessageTemplate = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate")
-UserMessageMarkdownNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/MessageBubble/MessageBody")
-BotMessageMarkdownNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/MessageBody")
-BotMessageLayoutNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout")
+EscenaMensajeUsuario = ExtResource("2_jta4j")
+EscenaMensajeBot = ExtResource("3_amhcu")
 ToolSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolSelector")
-BottomInputPanel = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel")
-BotActionsContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer")
-BotActions = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer/BotActions")
-BotAvatarContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer")
-GotaCuerpo = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/GotaCuerpo")
-AlaIzquierda = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/AlaIzquierda")
-AlaDerecha = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/AlaDerecha")
-Pupilas = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/Pupilas")
-Equis = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/Equis")
 RandomImage1 = ExtResource("2_q7f8p")
 RandomImage2 = ExtResource("3_jta4j")
 RandomImage3 = ExtResource("4_amhcu")
@@ -280,6 +63,7 @@ RandomVideo1 = ExtResource("6_jta4j")
 RandomVideo2 = ExtResource("7_amhcu")
 RandomVideo3 = ExtResource("8_675c4")
 RandomVideo4 = ExtResource("9_u6rn7")
+BottomInputPanel = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel")
 
 [node name="MainContainer" type="HBoxContainer" parent="." unique_id=2091277489]
 layout_mode = 1
@@ -313,250 +97,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 25
 
-[node name="UserMessageTemplate" type="HBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer" unique_id=1840614817]
-layout_mode = 2
-theme_override_constants/separation = 15
-alignment = 2
-
-[node name="LeftSpacer" type="Panel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate" unique_id=966950275]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("StyleBoxEmpty_spacer")
-
-[node name="UserActions" type="VBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate"]
-layout_mode = 2
-alignment = 1
-
-[node name="CopyUserBtn" type="Button" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/UserActions"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
-text = "Copiar"
-
-[node name="MinimizeUserBtn" type="Button" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/UserActions"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
-text = "Minimizar"
-
-[node name="MessageBubble" type="PanelContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate" unique_id=995048799]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_user_bubble")
-
-[node name="MessageBody" type="RichTextLabel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/MessageBubble" unique_id=1616575454]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-focus_mode = 2
-theme_override_colors/default_color = Color(1, 1, 1, 1)
-theme_override_fonts/normal_font = ExtResource("12_b06b1")
-theme_override_fonts/bold_font = ExtResource("13_rq6ts")
-theme_override_fonts/bold_italics_font = ExtResource("14_cae2h")
-theme_override_fonts/italics_font = ExtResource("15_js05h")
-theme_override_fonts/mono_font = ExtResource("23_rq6ts")
-bbcode_enabled = true
-fit_content = true
-scroll_active = false
-autowrap_mode = 2
-context_menu_enabled = true
-selection_enabled = true
-script = ExtResource("12_w5qr0")
-h1 = SubResource("Resource_js05h")
-h2 = SubResource("Resource_rp26x")
-h3 = SubResource("Resource_2c06c")
-h4 = SubResource("Resource_wyifx")
-h5 = SubResource("Resource_cdhtr")
-h6 = SubResource("Resource_8f5ok")
-
-[node name="AvatarPanel" type="PanelContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate" unique_id=856509418]
-clip_children = 1
-custom_minimum_size = Vector2(70, 70)
-layout_mode = 2
-size_flags_vertical = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_container")
-
-[node name="UserAvatar" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/AvatarPanel" unique_id=2113709644]
-layout_mode = 2
-texture = ExtResource("3_ug3aw")
-expand_mode = 1
-stretch_mode = 6
-
-[node name="BotMessageTemplate" type="HBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer" unique_id=761105983]
-layout_mode = 2
-theme_override_constants/separation = 15
-
-[node name="AvatarPanel" type="PanelContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate" unique_id=1548062258]
-clip_children = 1
-custom_minimum_size = Vector2(70, 70)
-layout_mode = 2
-size_flags_vertical = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_container")
-
-[node name="BotAvatarContainer" type="Panel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel" unique_id=888000001]
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxEmpty_avatar")
-
-[node name="BotAvatar" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer" unique_id=1110000000]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-texture = ExtResource("id_agi_logo")
-expand_mode = 1
-stretch_mode = 6
-
-[node name="GotaCuerpo" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer" unique_id=888000002]
-material = SubResource("ShaderMaterial_bot_avatar")
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-expand_mode = 1
-stretch_mode = 6
-
-[node name="AlaIzquierda" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer" unique_id=888000003]
-material = SubResource("ShaderMaterial_bot_avatar")
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-expand_mode = 1
-stretch_mode = 6
-
-[node name="AlaDerecha" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer" unique_id=888000004]
-material = SubResource("ShaderMaterial_bot_avatar")
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-expand_mode = 1
-stretch_mode = 6
-
-[node name="Pupilas" type="Panel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer" unique_id=888000005]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_styles/panel = SubResource("StyleBoxEmpty_avatar")
-
-[node name="PupilaIzquierda" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/Pupilas" unique_id=888000006]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-expand_mode = 1
-stretch_mode = 6
-
-[node name="PupilaDerecha" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/Pupilas" unique_id=888000007]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-expand_mode = 1
-stretch_mode = 6
-
-[node name="Equis" type="Panel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer" unique_id=888000008]
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_styles/panel = SubResource("StyleBoxEmpty_avatar")
-
-[node name="XIzquierda" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/Equis" unique_id=888000009]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-expand_mode = 1
-stretch_mode = 6
-
-[node name="XDerecha" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/AvatarPanel/BotAvatarContainer/Equis" unique_id=888000010]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-expand_mode = 1
-stretch_mode = 6
-
-[node name="MessageBubble" type="PanelContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate" unique_id=1084390820]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_bot_bubble")
-
-[node name="MessageLayout" type="VBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble" unique_id=721234975]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="BotActionsContainer" type="HBoxContainer" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout" unique_id=999999991]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="ThinkingIcon" type="TextureRect" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer"]
-custom_minimum_size = Vector2(20, 20)
-layout_mode = 2
-texture = ExtResource("id_thinking")
-expand_mode = 1
-stretch_mode = 5
-
-[node name="BotActions" type="Label" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/BotActionsContainer" unique_id=999999992]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
-text = "Pensando..."
-
-[node name="MessageBody" type="RichTextLabel" parent="MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout" unique_id=2066634006]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-focus_mode = 2
-theme_override_colors/default_color = Color(0.11, 0.11, 0.118, 1)
-theme_override_fonts/normal_font = ExtResource("12_b06b1")
-theme_override_fonts/bold_font = ExtResource("13_rq6ts")
-theme_override_fonts/bold_italics_font = ExtResource("14_cae2h")
-theme_override_fonts/italics_font = ExtResource("15_js05h")
-theme_override_fonts/mono_font = ExtResource("23_rq6ts")
-bbcode_enabled = true
-fit_content = true
-scroll_active = false
-autowrap_mode = 2
-context_menu_enabled = true
-selection_enabled = true
-script = ExtResource("12_w5qr0")
-h1 = SubResource("Resource_js05h")
-h2 = SubResource("Resource_rp26x")
-h3 = SubResource("Resource_2c06c")
-h4 = SubResource("Resource_wyifx")
-h5 = SubResource("Resource_cdhtr")
-h6 = SubResource("Resource_8f5ok")
-
 [node name="InputAreaMargin" type="MarginContainer" parent="MainContainer/ChatAreaContainer" unique_id=1181423697]
 layout_mode = 2
 theme_override_constants/margin_left = 40
@@ -567,7 +107,6 @@ theme_override_constants/margin_bottom = 30
 [node name="InputPanel" type="PanelContainer" parent="MainContainer/ChatAreaContainer/InputAreaMargin" unique_id=1310120840]
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_input_bg")
 
 [node name="InputLayout" type="HBoxContainer" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel" unique_id=320672226]
 layout_mode = 2
@@ -577,14 +116,8 @@ theme_override_constants/separation = 15
 custom_minimum_size = Vector2(160, 40)
 layout_mode = 2
 size_flags_vertical = 4
-theme_override_colors/font_color = Color(0.15, 0.15, 0.15, 1)
-theme_override_colors/font_focus_color = Color(0.15, 0.15, 0.15, 1)
-theme_override_colors/font_pressed_color = Color(0.15, 0.15, 0.15, 1)
-theme_override_colors/font_hover_color = Color(0.15, 0.15, 0.15, 1)
-theme_override_styles/normal = SubResource("StyleBoxFlat_tool_base")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_tool_base")
-theme_override_styles/hover = SubResource("StyleBoxFlat_tool_base")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+theme_override_constants/align_to_largest_stylebox = 50
+theme_override_font_sizes/font_size = 16
 selected = 0
 item_count = 3
 popup/item_0/text = "Chat Normal"
@@ -598,11 +131,6 @@ popup/item_2/id = 2
 custom_minimum_size = Vector2(0, 45)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.15, 0.15, 0.15, 1)
-theme_override_colors/font_placeholder_color = Color(0.4, 0.4, 0.4, 1)
-theme_override_colors/caret_color = Color(0.15, 0.15, 0.15, 1)
-theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 placeholder_text = "Escribe tu mensaje aquí..."
 wrap_mode = 1
 caret_blink = true
@@ -611,10 +139,11 @@ caret_blink = true
 custom_minimum_size = Vector2(50, 50)
 layout_mode = 2
 size_flags_vertical = 4
-theme_override_styles/normal = SubResource("StyleBoxFlat_send_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_send_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_send_hover")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+theme_override_styles/normal = SubResource("StyleBoxFlat_amhcu")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_675c4")
+theme_override_styles/hover = SubResource("StyleBoxFlat_pdmg7")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_u6rn7")
+theme_override_styles/focus = SubResource("StyleBoxFlat_lgxif")
 icon = ExtResource("5_ug3aw")
 icon_alignment = 1
 expand_icon = true
