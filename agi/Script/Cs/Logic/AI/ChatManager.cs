@@ -101,7 +101,7 @@ namespace Logic.Lite
 
         /// <summary>
         /// Initializes the chat manager by resolving directory paths, connecting to the network manager, 
-        /// and bootstrapping the initial session and MCP tool schemas.
+        /// and bootstrapping the initial session.
         /// </summary>
         public override void _Ready()
         {
@@ -120,11 +120,7 @@ namespace Logic.Lite
             _ttsManager = GetNodeOrNull<Logic.Backend.NativeTTSManager>("/root/NativeTTSManager");
 
             InitializeNewSession("Chat_Default");
-            
-            // Triggers the asynchronous synchronization sequence to fetch available tool schemas from the MCP server.
-            _ = SyncMCPTools();
         }
-
         /// <summary>
         /// Instantiates a new context window and writes the initial structured payload to the OS filesystem.
         /// </summary>
@@ -178,6 +174,8 @@ namespace Logic.Lite
             SaveSession();
 
             // Step 2: Construct the initial LLM prompt based on the current conversation state.
+            // Ensures the MCP Server is fully booted and network-accessible before querying schemas.
+            await SyncMCPTools();
             string prompt = BuildPrompt();
 
             // Notify UI layer that inference has commenced.

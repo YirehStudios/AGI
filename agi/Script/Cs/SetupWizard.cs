@@ -368,12 +368,13 @@ namespace Logic.Utils
                 await _downloadManager.DownloadFileAsync(engineConfigs.TtsServer.Url, shareBinPath, "tts_server.py");
             }
 
-            // Provisioning both the legacy TTS and the new Search Python environments independently.
-            // Dynamically retrieves the Search Server URL from the engine manifest.
+            // Provisioning both the legacy TTS and the new Search/MCP Python environments independently.
+            // Dynamically retrieves the Search Server and MCP Gateway URLs from the engine manifest.
             string searchServerUrl = engineConfigs.search_server?.Url ?? ""; 
             string mcpServerUrl = engineConfigs.McpServer?.Url ?? ""; 
             
-            bool searchOk = await _packageManager.EnsureSearchEnvironmentAsync(currentPythonUrl, searchServerUrl, mcpServerUrl);
+            // Updated call targeting the refactored microservices environment provisioning logic.
+            bool searchOk = await _packageManager.EnsureMicroservicesEnvironmentAsync(currentPythonUrl, searchServerUrl, mcpServerUrl);
             bool ttsOk = await _packageManager.EnsurePythonEnvironmentAsync(currentPythonUrl);
             bool pythonOk = searchOk && ttsOk;
 
