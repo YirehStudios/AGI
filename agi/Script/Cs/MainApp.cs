@@ -165,9 +165,13 @@ namespace Logic.UI
                 DirAccess.MakeDirAbsolute(historyPath);
                 return;
             }
+        }
 
-            using var dir = DirAccess.Open(historyPath);
-            if (dir != null)
+        private void OnDarkModeToggled(bool isPressed)
+        {
+            _isCurrentlyDark = isPressed;
+            
+            if (ThemeManager.Instance != null)
             {
                 dir.ListDirBegin();
                 string fileName = dir.GetNext();

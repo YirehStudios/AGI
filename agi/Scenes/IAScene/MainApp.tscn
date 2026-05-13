@@ -4,31 +4,13 @@
 [ext_resource type="PackedScene" uid="uid://bolcjtvklqbax" path="res://Scenes/IAScene/Chatbot.tscn" id="2_dpcee"]
 [ext_resource type="Texture2D" uid="uid://dxui8em8fu8w3" path="res://Resources/logo.png" id="2_logo"]
 [ext_resource type="PackedScene" uid="uid://bx5yq2jklxap" path="res://Scenes/IAScene/Livemode.tscn" id="3_l7jlp"]
+[ext_resource type="Script" uid="uid://cdvmgal6gjip" path="res://Resources/UI_Themes/FondoUI.cs" id="4_ide7w"]
 [ext_resource type="Texture2D" uid="uid://c4uj1r172utru" path="res://Resources/Images/Icons/Util/ChatMode.svg" id="5_ide7w"]
 [ext_resource type="Texture2D" uid="uid://dxcnkms337jlm" path="res://Resources/Images/Icons/Util/LiveMode.svg" id="6_8bqqk"]
 [ext_resource type="Texture2D" uid="uid://b1vmdijvvtehk" path="res://Resources/Images/Icons/Util/Modo3D.svg" id="7_ide7w"]
 [ext_resource type="Texture2D" uid="uid://br187aqkvne0f" path="res://Resources/Images/Icons/Util/History.svg" id="icon_history"]
 [ext_resource type="Texture2D" uid="uid://cr40nman7fa0v" path="res://Resources/Images/Icons/Util/Menu.svg" id="icon_menu"]
 [ext_resource type="Texture2D" uid="uid://b4lil6k3srfwq" path="res://Resources/Images/Icons/Util/Settings.svg" id="icon_settings"]
-
-[sub_resource type="SystemFont" id="SystemFont_regular"]
-font_names = PackedStringArray("Sans-Serif")
-subpixel_positioning = 0
-
-[sub_resource type="Theme" id="Theme_global"]
-default_font = SubResource("SystemFont_regular")
-default_font_size = 15
-Button/colors/font_color = Color(0.2, 0.2, 0.2, 1)
-Button/colors/font_focus_color = Color(0.2, 0.2, 0.2, 1)
-Button/colors/font_hover_color = Color(0.1, 0.1, 0.1, 1)
-Button/colors/font_pressed_color = Color(1, 1, 1, 1)
-Button/colors/icon_focus_color = Color(0.15, 0.15, 0.15, 1)
-Button/colors/icon_hover_color = Color(0.05, 0.05, 0.05, 1)
-Button/colors/icon_normal_color = Color(0.15, 0.15, 0.15, 1)
-Button/colors/icon_pressed_color = Color(1, 1, 1, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_main_bg"]
-bg_color = Color(0.949, 0.949, 0.969, 1)
 
 [sub_resource type="Animation" id="Animation_logo_idle"]
 resource_name = "logo_idle"
@@ -194,8 +176,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme = SubResource("Theme_global")
-theme_override_styles/panel = SubResource("StyleBoxFlat_main_bg")
 script = ExtResource("1_script")
 ChatbotScene = ExtResource("2_dpcee")
 LivemodeScene = ExtResource("3_l7jlp")
@@ -219,6 +199,15 @@ SettingsTitle = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsC
 DarkSettingsLabel = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3/Label")
 SidebarContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer")
 SidebarSettingsButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/SettingsButton")
+
+[node name="FondoGlobal" type="ColorRect" parent="." unique_id=1109724638]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_ide7w")
 
 [node name="UiAnimator" type="AnimationPlayer" parent="." unique_id=365541031]
 libraries/ = SubResource("AnimationLibrary_ui")
@@ -246,7 +235,6 @@ anchors_preset = 9
 anchor_bottom = 1.0
 offset_right = 250.0
 grow_vertical = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_sidebar_bg")
 
 [node name="SidebarMargin" type="MarginContainer" parent="MainLayout/SidebarWrapper/SidebarContainer" unique_id=111222333]
 layout_mode = 2
@@ -257,6 +245,15 @@ theme_override_constants/margin_bottom = 10
 
 [node name="SidebarLayout" type="VBoxContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin" unique_id=1182709975]
 layout_mode = 2
+theme_type_variation = &"Siderbard"
+theme_override_constants/margin_left = 15
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 15
+theme_override_constants/margin_bottom = 10
+
+[node name="SidebarLayout" type="VBoxContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin" unique_id=1182709975]
+layout_mode = 2
+theme_type_variation = &"Siderbard"
 theme_override_constants/separation = 10
 
 [node name="LogoMargin" type="MarginContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout" unique_id=359839589]
@@ -283,10 +280,6 @@ stretch_mode = 5
 [node name="ChatBotModeButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout" unique_id=99832900]
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_mode_btn_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_mode_btn_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 toggle_mode = true
 button_pressed = true
 button_group = SubResource("ButtonGroup_header_modes")
@@ -300,8 +293,6 @@ clip_text = true
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_mode_btn_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_mode_btn_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 toggle_mode = true
 button_group = SubResource("ButtonGroup_header_modes")
@@ -315,12 +306,10 @@ clip_text = true
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_mode_btn_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_mode_btn_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 toggle_mode = true
 button_group = SubResource("ButtonGroup_header_modes")
-text = " Modo AGI"
+text = "NORA"
 icon = ExtResource("7_ide7w")
 alignment = 0
 text_overrun_behavior = 3
@@ -339,10 +328,6 @@ layout_mode = 2
 [node name="HistoryButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout" unique_id=2128652110]
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
-theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = " Historial"
 icon = ExtResource("icon_history")
 alignment = 0
@@ -361,10 +346,6 @@ size_flags_horizontal = 3
 [node name="SettingsButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout" unique_id=452873594]
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxEmpty_menu_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_menu_active")
-theme_override_styles/hover = SubResource("StyleBoxFlat_menu_active")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = " Configuración"
 icon = ExtResource("icon_settings")
 alignment = 0
@@ -378,7 +359,6 @@ theme_override_constants/separation = 0
 
 [node name="HeaderPanel" type="PanelContainer" parent="MainLayout/RightColumn" unique_id=1136298823]
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxEmpty_header_bg")
 
 [node name="HeaderMargin" type="MarginContainer" parent="MainLayout/RightColumn/HeaderPanel" unique_id=2066912587]
 layout_mode = 2
@@ -394,16 +374,19 @@ theme_override_constants/separation = 15
 [node name="MenuToggleButton" type="Button" parent="MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout" unique_id=410067647]
 custom_minimum_size = Vector2(50, 50)
 layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/pressed = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/hover = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_focus_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+text = "
+"
 icon = ExtResource("icon_menu")
+expand_icon = true
 
 [node name="HeaderTitle" type="RichTextLabel" parent="MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout" unique_id=947088159]
 layout_mode = 2
 size_flags_vertical = 4
-theme_override_colors/default_color = Color(0.2, 0.2, 0.2, 1)
+theme_override_colors/default_color = Color(0.41598046, 0.41598043, 0.4159804, 1)
 theme_override_fonts/normal_font = SubResource("SystemFont_bold")
 theme_override_font_sizes/normal_font_size = 19
 text = "Chat"

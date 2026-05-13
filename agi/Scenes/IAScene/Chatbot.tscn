@@ -1,9 +1,10 @@
 [gd_scene format=3 uid="uid://bolcjtvklqbax"]
 
 [ext_resource type="Script" uid="uid://laxqt8bmvnnx" path="res://Script/Cs/ChatbotMain.cs" id="1_8rl47"]
+[ext_resource type="PackedScene" uid="uid://bfavd0je1gt1r" path="res://Resources/UI_Themes/MensajeUsuario.tscn" id="2_jta4j"]
 [ext_resource type="Texture2D" uid="uid://ctvihwjmfflos" path="res://Resources/img1.png" id="2_q7f8p"]
+[ext_resource type="PackedScene" uid="uid://d3608t272an7q" path="res://Resources/UI_Themes/MensajeBot.tscn" id="3_amhcu"]
 [ext_resource type="Texture2D" uid="uid://cwv014ynmrq3l" path="res://Resources/img2.png" id="3_jta4j"]
-[ext_resource type="Texture2D" uid="uid://debnuc10m0as" path="res://Resources/Images/Icons/JirehStudiosIcon.png" id="3_ug3aw"]
 [ext_resource type="Texture2D" uid="uid://ca48hqiwv2eiy" path="res://Resources/img3.png" id="4_amhcu"]
 [ext_resource type="Texture2D" uid="uid://b5w5qmdk33hhg" path="res://Resources/img4.png" id="5_675c4"]
 [ext_resource type="Texture2D" uid="uid://b0gc5q4xau83j" path="res://Resources/flecha_enviar.png" id="5_ug3aw"]
@@ -250,18 +251,13 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme = SubResource("Theme_global")
-theme_override_styles/panel = SubResource("StyleBoxFlat_main_bg")
 script = ExtResource("1_8rl47")
 ChatScrollContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer")
 MessagesContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer")
 TextInputField = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/TextInputField")
 SendButton = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/SendButton")
-UserMessageTemplate = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate")
-BotMessageTemplate = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate")
-UserMessageMarkdownNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/UserMessageTemplate/MessageBubble/MessageBody")
-BotMessageMarkdownNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout/MessageBody")
-BotMessageLayoutNode = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/BotMessageTemplate/MessageBubble/MessageLayout")
+EscenaMensajeUsuario = ExtResource("2_jta4j")
+EscenaMensajeBot = ExtResource("3_amhcu")
 ToolSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolSelector")
 RandomImage1 = ExtResource("2_q7f8p")
 RandomImage2 = ExtResource("3_jta4j")
@@ -567,7 +563,6 @@ theme_override_constants/margin_bottom = 30
 [node name="InputPanel" type="PanelContainer" parent="MainContainer/ChatAreaContainer/InputAreaMargin" unique_id=1310120840]
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_input_bg")
 
 [node name="InputLayout" type="HBoxContainer" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel" unique_id=320672226]
 layout_mode = 2
@@ -577,14 +572,8 @@ theme_override_constants/separation = 15
 custom_minimum_size = Vector2(160, 40)
 layout_mode = 2
 size_flags_vertical = 4
-theme_override_colors/font_color = Color(0.15, 0.15, 0.15, 1)
-theme_override_colors/font_focus_color = Color(0.15, 0.15, 0.15, 1)
-theme_override_colors/font_pressed_color = Color(0.15, 0.15, 0.15, 1)
-theme_override_colors/font_hover_color = Color(0.15, 0.15, 0.15, 1)
-theme_override_styles/normal = SubResource("StyleBoxFlat_tool_base")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_tool_base")
-theme_override_styles/hover = SubResource("StyleBoxFlat_tool_base")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+theme_override_constants/align_to_largest_stylebox = 50
+theme_override_font_sizes/font_size = 16
 selected = 0
 item_count = 3
 popup/item_0/text = "Chat Normal"
