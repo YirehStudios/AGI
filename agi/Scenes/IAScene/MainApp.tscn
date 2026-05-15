@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://s8tuasw0blu"]
 
 [ext_resource type="Script" uid="uid://cburckky6i8de" path="res://Script/Cs/MainApp.cs" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://kckvakahwmwp" path="res://Scenes/IAScene/ChatbotMobile.tscn" id="2_dpcee"]
+[ext_resource type="PackedScene" uid="uid://bolcjtvklqbax" path="res://Scenes/IAScene/Chatbot.tscn" id="2_dpcee"]
 [ext_resource type="Texture2D" uid="uid://dxui8em8fu8w3" path="res://Resources/logo.png" id="2_logo"]
 [ext_resource type="PackedScene" uid="uid://bx5yq2jklxap" path="res://Scenes/IAScene/Livemode.tscn" id="3_l7jlp"]
 [ext_resource type="Script" uid="uid://cdvmgal6gjip" path="res://Resources/UI_Themes/FondoUI.cs" id="4_ide7w"]
@@ -92,8 +92,6 @@ _data = {
 &"sidebar_open": SubResource("Animation_sidebar_open")
 }
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_line_edit"]
-
 [sub_resource type="ButtonGroup" id="ButtonGroup_header_modes"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mode_btn_normal"]
@@ -108,31 +106,14 @@ corner_radius_bottom_right = 99
 corner_radius_bottom_left = 99
 anti_aliasing_size = 1.5
 
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_line_edit"]
+
 [sub_resource type="SystemFont" id="SystemFont_bold"]
 font_names = PackedStringArray("Sans-Serif")
 font_weight = 700
 subpixel_positioning = 0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_glass_panel_apple"]
-bg_color = Color(0.92, 0.92, 0.95, 0.65)
-border_width_left = 1
-border_color = Color(1, 1, 1, 0.5)
-corner_radius_top_left = 40
-corner_radius_bottom_left = 40
-shadow_color = Color(0, 0, 0, 0.12)
-shadow_size = 60
-shadow_offset = Vector2(-20, 0)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pink_tab_apple"]
-bg_color = Color(0.95, 0.35, 0.6, 0.35)
-border_width_left = 1
-border_width_top = 1
-border_width_bottom = 1
-border_color = Color(1, 1, 1, 0.4)
-corner_radius_top_left = 20
-corner_radius_bottom_left = 20
-
-[node name="MainApp" type="Panel" unique_id=488006737 node_paths=PackedStringArray("SidebarWrapper", "ContentContainer", "WelcomeOverlay", "CompanyLogo", "MenuToggleButton", "ChatBotModeButton", "LiveModeButton", "AgiModeButton", "HeaderTitle", "HistoryButton", "HistoryScroll", "HistoryListContainer", "UiAnimator", "SettingsTabBtn", "SettingsPanel", "DarkModeToggle", "SettingsTitle", "DarkSettingsLabel", "SidebarContainer", "SidebarSettingsButton")]
+[node name="MainApp" type="Panel" unique_id=488006737 node_paths=PackedStringArray("SidebarWrapper", "ContentContainer", "WelcomeOverlay", "SettingsPanel", "SidebarContainer", "CompanyLogo", "MenuToggleButton", "ChatBotModeButton", "LiveModeButton", "AgiModeButton", "HeaderTitle", "HistoryButton", "SettingsTabBtn", "SidebarSettingsButton", "DarkModeToggle", "HistoryScroll", "HistoryListContainer", "UiAnimator")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -144,6 +125,8 @@ LivemodeScene = ExtResource("3_l7jlp")
 SidebarWrapper = NodePath("MainLayout/SidebarWrapper")
 ContentContainer = NodePath("MainLayout/RightColumn/ViewWrapper/ContentContainer")
 WelcomeOverlay = NodePath("MainLayout/RightColumn/ViewWrapper/WelcomeOverlay")
+SettingsPanel = NodePath("SettingsOverlay/SettingsPanel")
+SidebarContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer")
 CompanyLogo = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/LogoMargin/LogoContainer/CompanyLogo")
 MenuToggleButton = NodePath("MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout/MenuToggleButton")
 ChatBotModeButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/ChatBotModeButton")
@@ -151,16 +134,12 @@ LiveModeButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMar
 AgiModeButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/AgiModeButton")
 HeaderTitle = NodePath("MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout/HeaderTitle")
 HistoryButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/HistoryButton")
+SettingsTabBtn = NodePath("SettingsOverlay/SettingsPanel/SettingsTabBtn")
+SidebarSettingsButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/SettingsButton")
+DarkModeToggle = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3/CheckButton")
 HistoryScroll = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/HistoryScroll")
 HistoryListContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/HistoryScroll/HistoryListContainer")
 UiAnimator = NodePath("UiAnimator")
-SettingsTabBtn = NodePath("SettingsOverlay/SettingsPanel/SettingsTabBtn")
-SettingsPanel = NodePath("SettingsOverlay/SettingsPanel")
-DarkModeToggle = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3/CheckButton")
-SettingsTitle = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/Title")
-DarkSettingsLabel = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3/Label")
-SidebarContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer")
-SidebarSettingsButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/SettingsButton")
 
 [node name="FondoGlobal" type="ColorRect" parent="." unique_id=1109724638]
 layout_mode = 1
@@ -188,9 +167,10 @@ theme_override_constants/separation = 0
 clip_contents = true
 custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxEmpty_line_edit")
+theme_type_variation = &"Siderbard"
 
 [node name="SidebarContainer" type="PanelContainer" parent="MainLayout/SidebarWrapper" unique_id=1808261517]
+self_modulate = Color(1, 1, 1, 0)
 custom_minimum_size = Vector2(250, 0)
 layout_mode = 1
 anchors_preset = 9
@@ -200,6 +180,7 @@ grow_vertical = 2
 
 [node name="SidebarMargin" type="MarginContainer" parent="MainLayout/SidebarWrapper/SidebarContainer" unique_id=111222333]
 layout_mode = 2
+theme_type_variation = &"Siderbard"
 theme_override_constants/margin_left = 15
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 15
@@ -208,6 +189,7 @@ theme_override_constants/margin_bottom = 10
 [node name="SidebarLayout" type="VBoxContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin" unique_id=1182709975]
 layout_mode = 2
 theme_type_variation = &"Siderbard"
+theme_override_constants/separation = 10
 
 [node name="LogoMargin" type="MarginContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout" unique_id=359839589]
 layout_mode = 2
@@ -305,11 +287,6 @@ alignment = 0
 text_overrun_behavior = 3
 clip_text = true
 
-[node name="SidebarLayout2" type="VBoxContainer" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin" unique_id=1127506517]
-layout_mode = 2
-theme_type_variation = &"Siderbard"
-theme_override_constants/separation = 10
-
 [node name="RightColumn" type="VBoxContainer" parent="MainLayout" unique_id=405211898]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -356,8 +333,9 @@ layout_mode = 2
 size_flags_vertical = 3
 
 [node name="ContentContainer" type="Panel" parent="MainLayout/RightColumn/ViewWrapper" unique_id=33346608]
+self_modulate = Color(1, 1, 1, 0)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxEmpty_line_edit")
+theme_type_variation = &"FondoApp"
 
 [node name="WelcomeOverlay" type="CenterContainer" parent="MainLayout/RightColumn/ViewWrapper" unique_id=777666555]
 layout_mode = 2
@@ -372,6 +350,7 @@ text = "Bienvenido a AGI de que hablamos hoy"
 horizontal_alignment = 1
 
 [node name="SettingsOverlay" type="Panel" parent="." unique_id=664321001]
+self_modulate = Color(1, 1, 1, 0)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -379,9 +358,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxEmpty_line_edit")
 
 [node name="SettingsPanel" type="Panel" parent="SettingsOverlay" unique_id=778899221]
+self_modulate = Color(1, 1, 1, 0.58431375)
 layout_mode = 1
 anchors_preset = 11
 anchor_left = 1.0
@@ -390,7 +369,6 @@ anchor_bottom = 1.0
 offset_right = 640.0
 grow_horizontal = 0
 grow_vertical = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_glass_panel_apple")
 
 [node name="SettingsTabBtn" type="Button" parent="SettingsOverlay/SettingsPanel" unique_id=889900332]
 layout_mode = 1
@@ -401,10 +379,7 @@ offset_left = -20.0
 offset_top = 120.0
 offset_bottom = 220.0
 grow_vertical = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_pink_tab_apple")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_pink_tab_apple")
-theme_override_styles/hover = SubResource("StyleBoxFlat_pink_tab_apple")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
+theme_type_variation = &"Confi"
 icon = ExtResource("icon_settings")
 icon_alignment = 1
 expand_icon = true
@@ -427,7 +402,6 @@ theme_override_constants/separation = 30
 
 [node name="Title" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent" unique_id=332211009]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.1, 0.1, 0.1, 1)
 theme_override_fonts/font = SubResource("SystemFont_bold")
 theme_override_font_sizes/font_size = 32
 text = "Configuración"
@@ -441,7 +415,6 @@ layout_mode = 2
 [node name="Label" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3" unique_id=66554466]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.2, 0.2, 0.2, 1)
 theme_override_font_sizes/font_size = 18
 text = "Modo Oscuro"
 
