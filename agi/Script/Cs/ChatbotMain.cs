@@ -13,11 +13,13 @@ namespace Logic.UI
         [Export] public float MaxInputHeight = 150f;
         [Export] public Button SendButton;
         
-        // --- NUEVAS ESCENAS EMPAQUETADAS (COMPONENTE) ---
         [Export] public PackedScene EscenaMensajeUsuario;
         [Export] public PackedScene EscenaMensajeBot;
 
         [Export] public OptionButton ToolSelector; 
+        [Export] public OptionButton ModelSelector;
+        private global::System.Collections.Generic.Dictionary<int, string> _rutasModelos = new global::System.Collections.Generic.Dictionary<int, string>();
+
         [Export] public PanelContainer CodeBlockTemplate;
         [Export] public Texture2D RandomImage1;
         [Export] public Texture2D RandomImage2;
@@ -42,7 +44,6 @@ namespace Logic.UI
         private const float SilenceThreshold = 0.05f;
         private bool _isRecording = false;
         
-        // Referencia al componente actual del bot
         private Logic.UI.Components.MensajeBotUI _mensajeBotActual;
 
         private bool _isLiveModeEnabled = true;
@@ -56,6 +57,7 @@ namespace Logic.UI
         /// </summary>
         public override void _Ready()
         {
+            
             if (SendButton != null)
             {
                 SendButton.Pressed += OnSendPressed;
@@ -82,13 +84,20 @@ namespace Logic.UI
             {
                 networkManager.STTCompleted += OnSTTCompleted;
             }
+            
+            CargarModelosEnMenu();
+            if (ModelSelector != null)
+            {
+                ModelSelector.ItemSelected += OnModelSelected;
+            }
+            
         }
 
         /// <summary>
         /// Evaluates microphone input frame-by-frame by querying the peak volume.
         /// </summary>
         public override void _Process(double delta)
-        {
+        {   
             if (!_isLiveModeEnabled || _recorder == null) return;
 
             int recordBusIndex = AudioServer.GetBusIndex("Record");
@@ -184,7 +193,6 @@ namespace Logic.UI
 
             _isWaitingForResponse = true;
 
-            // Ocultar mensaje de bienvenida si existe
             Node current = this;
             while (current != null)
             {
@@ -200,10 +208,8 @@ namespace Logic.UI
             TextInputField.CustomMinimumSize = new Vector2(TextInputField.CustomMinimumSize.X, MinInputHeight);
             if (SendButton != null) SendButton.Disabled = true;
 
-            // --- INSTANCIACIÓN DEL COMPONENTE DE USUARIO ---
             var nuevoMsgUsuario = EscenaMensajeUsuario.Instantiate<Logic.UI.Components.MensajeUsuarioUI>();
             
-            // AGREGAR ESTA LÍNEA AQUÍ:
             if (MessagesContainer.Theme != null) nuevoMsgUsuario.Theme = MessagesContainer.Theme;
             
             MessagesContainer.AddChild(nuevoMsgUsuario);
@@ -258,22 +264,20 @@ namespace Logic.UI
         private async Task GenerateMockMediaResponse(string prompt, bool isVideo)
 {
     OnBotStartedThinking();
-    // Simulamos que la IA está "generando" el archivo por 3 segundos
     await ToSignal(GetTree().CreateTimer(3.0f), SceneTreeTimer.SignalName.Timeout);
 
     if (_mensajeBotActual != null) _mensajeBotActual.FinalizarRespuesta();
 
-    // Buscamos dónde meter la imagen/video dentro de la burbuja del bot
     Control messageLayout = _mensajeBotActual?.FindChild("MessageLayout", true, false) as Control;
     
     if (messageLayout != null)
     {
-        int rand = _randomGenerator.Next(1, 5); // Número aleatorio del 1 al 4
+        int rand = _randomGenerator.Next(1, 5); 
 
         if (isVideo)
         {
             VideoStreamPlayer videoPlayer = new VideoStreamPlayer();
-            videoPlayer.CustomMinimumSize = new Vector2(400, 300); // Tamaño del video
+            videoPlayer.CustomMinimumSize = new Vector2(400, 300); 
             videoPlayer.Expand = true;
             videoPlayer.Autoplay = true;
             videoPlayer.Loop = true;
@@ -364,8 +368,7 @@ namespace Logic.UI
                 }
                 else 
                 {
-                    // Lógica de creación de PanelContainer para código...
-                    // (Se mantiene tu lógica original de extracción de lenguaje y botones)
+                    
                 }
             }
         }
@@ -401,11 +404,8 @@ namespace Logic.UI
     string path = isDark ? "res://Resources/UI_Themes/minimal_theme.tres" : "res://Resources/UI_Themes/tema_claro.tres";
     Theme temaCorrecto = ResourceLoader.Load<Theme>(path);
 
-    // ¡EL CAMBIO MAESTRO! 
-    // Inyectamos el tema en la RAÍZ de la escena (this) para que bañe a todos los hijos por igual.
     this.Theme = temaCorrecto;
 
-    // Obligamos a los mensajes que ya están en pantalla a recibir el tema (por si acaso)
     if (MessagesContainer != null)
     {
         foreach (Node child in MessagesContainer.GetChildren())
@@ -417,6 +417,67 @@ namespace Logic.UI
         }
     }
 }
+        private void CargarModelosEnMenu()
+        {
+            if (ModelSelector == null) return;
+            ModelSelector.Clear();
+            _rutasModelos.Clear();
+
+            string rutaModelos = "user://models"; 
+            
+            using var dir = DirAccess.Open(rutaModelos);
+            if (dir != null)
+            {
+                dir.ListDirBegin();
+                string fileName = dir.GetNext();
+                int index = 0;
+
+                while (fileName != "")
+                {
+                    if (!dir.CurrentIsDir() && fileName.EndsWith(".json"))
+                    {
+                        using var file = FileAccess.Open($"{rutaModelos}/{fileName}", FileAccess.ModeFlags.Read);
+                        if (file != null)
+                        {
+                            string contenidoJson = file.GetAsText();
+                            var json = new Json();
+                            
+                            if (json.Parse(contenidoJson) == Error.Ok)
+                            {
+                                var data = json.Data.AsGodotDictionary();
+                                string nombreModelo = data.ContainsKey("nombre") ? (string)data["nombre"] : fileName.Replace(".json", "");
+                                
+                                ModelSelector.AddItem(nombreModelo, index);
+                                _rutasModelos[index] = $"{rutaModelos}/{fileName}";
+                                index++;
+                            }
+                        }
+                    }
+                    fileName = dir.GetNext();
+                }
+                
+                if (ModelSelector.ItemCount == 0)
+                {
+                    ModelSelector.AddItem("Sin modelos instalados", 0);
+                    ModelSelector.Disabled = true;
+                }
+            }
+            else
+            {
+                GD.PrintErr($"[SISTEMA] No se encontró la carpeta de modelos en: {rutaModelos}");
+            }
+        }
+
+        private void OnModelSelected(long index)
+        {
+            int intIndex = (int)index;
+            if (_rutasModelos.ContainsKey(intIndex))
+            {
+                string rutaJsonSeleccionada = _rutasModelos[intIndex];
+                GD.Print($"[IA] Preparando modelo desde configuración: {rutaJsonSeleccionada}");
+                
+            }
+        }
     }
     
 }
