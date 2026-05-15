@@ -5,7 +5,6 @@ using Logic.System.Config;
 using Logic.System.Drivers;
 using Logic.Network;
 using System.Threading.Tasks;
-
 namespace Logic.Utils
 {
     /// <summary>
@@ -29,6 +28,10 @@ namespace Logic.Utils
         [Export] public Control PanelModeSelection;
         [Export] public Control PanelModelSelection;
         [Export] public Control PanelDownloading;
+
+        [Export] public Button BtnTemaOscuro;
+        [Export] public Button BtnTemaClaro;
+        [Export] public Control SetupBackground;
 
         [Export] public RichTextLabel TerminalLog;
         [Export] public ProgressBar InstallProgress;
@@ -61,9 +64,15 @@ namespace Logic.Utils
         private ConfigManager.ModelPreset _selectedLLM;
         private ConfigManager.ModelPreset _selectedSTT;
         private ConfigManager.ModelPreset _selectedTTS;
+        
 
         //Delete
         private List<ConfigManager.ModelPreset> _debugSelectedList = new List<ConfigManager.ModelPreset>();
+
+        // --- AGREGA ESTA LÍNEA AQUÍ ---
+        private bool _esModoOscuro = true; 
+        // ------------------------------
+
 
         /// <summary>
         /// Initializes the core managers and child nodes, and binds the UI signals to their respective handlers.
@@ -71,6 +80,7 @@ namespace Logic.Utils
         /// </summary>
         public override void _Ready()
         {
+            
             _configManager = GetNode<ConfigManager>("/root/ConfigManager");
             _packageManager = GetNode<PackageManager>("/root/PackageManager");
             _environmentManager = GetNode<EnvironmentManager>("/root/EnvironmentManager");
@@ -80,9 +90,19 @@ namespace Logic.Utils
 
             _downloadManager = GetNode<DownloadManager>("/root/DownloadManager");
 
-            // Subscribes local handlers to the real-time progress events emitted by DownloadManager.
             _downloadManager.DownloadCompleted += OnModelDownloadCompleted;
             _downloadManager.DownloadProgress += OnModelDownloadProgress;
+
+            if (BtnTemaOscuro != null)
+                BtnTemaOscuro.Pressed += () => SeleccionarTema(true);
+            
+            if (BtnTemaClaro != null)
+                BtnTemaClaro.Pressed += () => SeleccionarTema(false);
+
+            if (Logic.Config.ConfigManager.Instance != null)
+            {
+                SeleccionarTema(Logic.Config.ConfigManager.Instance.DarkMode);
+            }
 
             if (BtnComenzar != null)
             {
@@ -287,39 +307,38 @@ namespace Logic.Utils
         /// Unlocks the batch download operation once all semantic dependencies are assigned.
         /// </summary>
         /// <param name="preset">The configuration object of the selected model.</param>
-        private void OnModelSelected(ConfigManager.ModelPreset preset, Button clickedButton)
+       private void OnModelSelected(global::Logic.System.Config.ConfigManager.ModelPreset preset, Button clickedButton, bool isPressed)
         {
-            clickedButton.Text = "¡Seleccionado!";
-            clickedButton.Disabled = true;
-
-            // Agregamos a la lista de depuración para contar clics
-            if (!_debugSelectedList.Contains(preset))
+            if (isPressed)
             {
-                _debugSelectedList.Add(preset);
+                clickedButton.Text = "¡Seleccionado!";
+                if (!_debugSelectedList.Contains(preset)) _debugSelectedList.Add(preset);
+                
+                if (preset.Name.Contains("Whisper")) _selectedSTT = preset;
+                else if (preset.Name.Contains("Sherpa") || preset.Name.Contains("Piper") || preset.Name.Contains("Kokoro")) _selectedTTS = preset;
+                else _selectedLLM = preset;
+            }
+            else
+            {
+                clickedButton.Text = "Seleccionar";
+                if (_debugSelectedList.Contains(preset)) _debugSelectedList.Remove(preset);
+                
+                if (preset.Name.Contains("Whisper")) _selectedSTT = null;
+                else if (preset.Name.Contains("Sherpa") || preset.Name.Contains("Piper") || preset.Name.Contains("Kokoro")) _selectedTTS = null;
+                else _selectedLLM = null;
             }
 
-            // Intentamos la asignación lógica normal (por si los nombres coinciden)
-            if (preset.Name.Contains("Whisper")) _selectedSTT = preset;
-            else if (preset.Name.Contains("Sherpa") || preset.Name.Contains("Piper") || preset.Name.Contains("Kokoro")) _selectedTTS = preset;
-            else _selectedLLM = preset;
-
-            // PARCHE RÁPIDO: Si ya seleccionaste 3 cosas, forzamos el botón
-            if (_debugSelectedList.Count >= 3)
+            if (BtnStartBatchDownload != null)
             {
-                // Para evitar que StartModelDownload truene por valores nulos, 
-                // llenamos los huecos con lo que sea que hayamos seleccionado.
-                _selectedLLM ??= _debugSelectedList[0];
-                _selectedSTT ??= _debugSelectedList[1];
-                _selectedTTS ??= _debugSelectedList[2];
-
-                if (BtnStartBatchDownload != null)
-                {
-                    BtnStartBatchDownload.Disabled = false;
-                    BtnStartBatchDownload.Text = "Depuración: Iniciar con 3 Selecciones";
-                }
+                bool listo = _debugSelectedList.Count >= 3;
+                BtnStartBatchDownload.Disabled = !listo;
+                BtnStartBatchDownload.Text = listo ? 
+                    $"Descargar {_debugSelectedList.Count} Componentes" : 
+                    "Selecciona 3 modelos para continuar";
+                
+                BtnStartBatchDownload.Modulate = listo ? new Color(1, 1, 1, 1) : new Color(1, 1, 1, 0.5f);
             }
         }
-
         /// <summary>
         /// Orchestrates the asynchronous retrieval of execution engines, Python environments, and selected models.
         /// Resolves all URLs via the JSON manifest to ensure environment consistency and data-driven updates.
@@ -741,59 +760,79 @@ namespace Logic.Utils
         /// PanelContainers and Control UI elements for each parsed JSON mapping.
         /// </summary>
         private async void PopulateModelPresets()
-		{
-			if (ModelListContainer != null)
-			{
-				foreach (Node child in ModelListContainer.GetChildren())
-				{
-					child.QueueFree();
-				}
-			}
+        {
+            if (ModelListContainer != null)
+            {
+                foreach (Node child in ModelListContainer.GetChildren())
+                {
+                    child.QueueFree();
+                }
+            }
 
-			List<ConfigManager.ModelPreset> presets = await _configManager.GetOrDownloadPresetsAsync();
+            // 1. TU CÓDIGO ORIGINAL (Descarga asíncrona perfecta)
+            List<ConfigManager.ModelPreset> presets = await _configManager.GetOrDownloadPresetsAsync();
 
-			if (presets == null || presets.Count == 0) return;
+            if (presets == null || presets.Count == 0) return;
 
-			// Creamos un estilo de tarjeta claro y limpio desde C#
-			StyleBoxFlat cardStyle = new StyleBoxFlat
-			{
-				BgColor = new Color(1, 1, 1, 1),
-				BorderColor = new Color(0.85f, 0.85f, 0.85f, 1),
-				BorderWidthBottom = 1, BorderWidthTop = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
-				CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8, CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
-				ContentMarginLeft = 20, ContentMarginTop = 20, ContentMarginRight = 20, ContentMarginBottom = 20
-			};
+            // 2. Revisamos el tema desde tu ConfigManager de interfaz (usando ruta global para no confundir)
+            bool esOscuro = _esModoOscuro;
 
-			foreach (ConfigManager.ModelPreset preset in presets)
-			{
-				PanelContainer cardPanel = new PanelContainer();
-				cardPanel.AddThemeStyleboxOverride("panel", cardStyle);
+            foreach (ConfigManager.ModelPreset preset in presets)
+            {
+                // 3. LA TARJETA APPLE (Con sus márgenes y redondeos)
+                PanelContainer cardPanel = new PanelContainer();
+                
+                Godot.StyleBoxFlat cardStyle = new Godot.StyleBoxFlat
+                {
+                    BgColor = esOscuro ? new Color(0.12f, 0.12f, 0.12f, 0.85f) : new Color(1f, 1f, 1f, 0.9f),
+                    BorderColor = esOscuro ? new Color(0.3f, 0.3f, 0.3f, 0.4f) : new Color(0.85f, 0.85f, 0.85f, 0.8f),
+                    BorderWidthLeft = 1, BorderWidthTop = 1, BorderWidthRight = 1, BorderWidthBottom = 1,
+                    CornerRadiusTopLeft = 20, CornerRadiusTopRight = 20,
+                    CornerRadiusBottomLeft = 20, CornerRadiusBottomRight = 20,
+                    ContentMarginLeft = 25, ContentMarginTop = 25, 
+                    ContentMarginRight = 25, ContentMarginBottom = 25
+                };
+                cardPanel.AddThemeStyleboxOverride("panel", cardStyle);
 
-				HBoxContainer cardLayout = new HBoxContainer();
-				VBoxContainer textContainer = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+                // 4. TU ESTRUCTURA ORIGINAL (HBoxContainer para separar texto a la izquierda y botón a la derecha)
+                HBoxContainer cardLayout = new HBoxContainer();
+                VBoxContainer textContainer = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
 
-				Label nameLabel = new Label { Text = preset.Name };
-				// LÍNEA CORREGIDA: Se eliminó la búsqueda de la fuente inexistente que causaba el Crash.
-				nameLabel.AddThemeColorOverride("font_color", new Color(0.1f, 0.1f, 0.1f, 1));
+                // 5. TEXTOS INTELIGENTES (Blancos en modo oscuro, negros en claro)
+                Label nameLabel = new Label { Text = preset.Name };
+                nameLabel.AddThemeFontSizeOverride("font_size", 22);
+                nameLabel.AddThemeColorOverride("font_color", esOscuro ? new Color(0.9f, 0.9f, 0.9f, 1) : new Color(0.1f, 0.1f, 0.1f, 1));
 
-				Label descLabel = new Label { Text = preset.Description };
-				descLabel.AddThemeColorOverride("font_color", new Color(0.4f, 0.4f, 0.4f, 1));
+                Label descLabel = new Label { Text = preset.Description, AutowrapMode = TextServer.AutowrapMode.WordSmart };
+                descLabel.AddThemeColorOverride("font_color", esOscuro ? new Color(0.7f, 0.7f, 0.7f, 1) : new Color(0.4f, 0.4f, 0.4f, 1));
+                
+                textContainer.AddChild(nameLabel);
+                textContainer.AddChild(descLabel);
+                
+                // Espaciador invisible para que el botón no se pegue al texto
+                Control spacer = new Control { CustomMinimumSize = new Vector2(15, 0) };
 
-				Button actionButton = new Button { Text = "Seleccionar" };
+                // 6. TU BOTÓN ORIGINAL
+                Button actionButton = new Button();
+                actionButton.Text = "Seleccionar";
+                actionButton.ToggleMode = true;
+                actionButton.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter; // Para que no se estire a lo alto
 
-				// Pasamos el botón mismo al evento para poder cambiarle el texto al hacer clic
-				actionButton.Pressed += () => OnModelSelected(preset, actionButton);
+                actionButton.Toggled += (isPressed) => 
+                {
+                    var presetExacto = (Logic.System.Config.ConfigManager.ModelPreset)preset;
+                    OnModelSelected(presetExacto, actionButton, isPressed);
+                };
+                
+                // Ensamblamos todo como tú lo tenías
+                cardLayout.AddChild(textContainer);
+                cardLayout.AddChild(spacer);
+                cardLayout.AddChild(actionButton);
+                cardPanel.AddChild(cardLayout);
 
-				textContainer.AddChild(nameLabel);
-				textContainer.AddChild(descLabel);
-				cardLayout.AddChild(textContainer);
-				cardLayout.AddChild(actionButton);
-				cardPanel.AddChild(cardLayout);
-
-				if (ModelListContainer != null) ModelListContainer.AddChild(cardPanel);
-			}
-		}
-
+                if (ModelListContainer != null) ModelListContainer.AddChild(cardPanel);
+            }
+        }
         /// <summary>
         /// Validates the disk size constraint of the allocated binary asset through the ConfigManager's internal evaluation function.
         /// Persists configuration states mapped to the scene transitions upon validating the file.
@@ -861,5 +900,30 @@ namespace Logic.Utils
                 }
             }
         }
+        private void SeleccionarTema(bool esOscuro)
+        {
+            _esModoOscuro = esOscuro;
+
+            if (Logic.Config.ConfigManager.Instance != null)
+            {
+                Logic.Config.ConfigManager.Instance.DarkMode = esOscuro;
+                Logic.Config.ConfigManager.Instance.SaveSettings();
+            }
+
+            string path = esOscuro ? "res://Resources/UI_Themes/minimal_theme.tres" : "res://Resources/UI_Themes/tema_claro.tres";
+            Theme temaCorrecto = ResourceLoader.Load<Theme>(path);
+            this.Theme = temaCorrecto; // Aplicar a todo el Wizard
+
+            if (SetupBackground is ColorRect bgRect)
+            {
+                bgRect.Color = esOscuro ? new Color("#131313") : new Color("#f5f5f7");
+            }
+            else if (SetupBackground is PanelContainer bgPanel)
+            {
+                var style = new StyleBoxFlat { BgColor = esOscuro ? new Color("#131313") : new Color("#f5f5f7") };
+                bgPanel.AddThemeStyleboxOverride("panel", style);
+            }
+        }
+
     }
 }

@@ -55,7 +55,8 @@ namespace Logic.UI
                 LiveModeButton.Pressed += () => ChangeMode(LivemodeScene, "Modo Live");
             
             if (AgiModeButton != null)
-                AgiModeButton.Pressed += () => GD.Print("AGI Mode Pressed - Not Implemented");
+                AgiModeButton.Pressed += () => ChangeMode(null, "Modo AGI");
+
             if (HistoryButton != null)
             {
                 HistoryButton.Pressed += () =>
@@ -63,7 +64,7 @@ namespace Logic.UI
                     if (HistoryScroll != null)
                         HistoryScroll.Visible = !HistoryScroll.Visible;
                 };
-            } 
+            }
 
             if (SettingsTabBtn != null)
             {
@@ -124,33 +125,33 @@ namespace Logic.UI
         }
 
         private void ChangeMode(PackedScene sceneToLoad, string titleText)
+{
+    if (ContentContainer != null)
+    {
+        foreach (Node child in ContentContainer.GetChildren())
         {
-            if (ContentContainer != null)
-            {
-                foreach (Node child in ContentContainer.GetChildren())
-                {
-                    child.QueueFree();
-                }
-            }
-
-            if (sceneToLoad == null) return;
-
-            // Instanciamos la nueva
-            _currentView = sceneToLoad.Instantiate();
-            ContentContainer.AddChild(_currentView);
-
-            if (_currentView is Control controlView)
-            {
-                controlView.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-                controlView.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-                controlView.SizeFlagsVertical = SizeFlags.ExpandFill;
-            }
-
-            if (_currentView.HasMethod("UpdateTheme"))
-            {
-                _currentView.Call("UpdateTheme", _isCurrentlyDark);
-            }
+            child.QueueFree();
         }
+    }
+
+    if (sceneToLoad == null) return;
+
+    // Instanciamos la nueva
+    _currentView = sceneToLoad.Instantiate();
+    ContentContainer.AddChild(_currentView);
+
+    if (_currentView is Control controlView)
+    {
+        controlView.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        controlView.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        controlView.SizeFlagsVertical = SizeFlags.ExpandFill;
+    }
+
+    if (_currentView.HasMethod("UpdateTheme"))
+    {
+        _currentView.Call("UpdateTheme", _isCurrentlyDark);
+    }
+}
 
         public void ToggleSidebar()
         {
@@ -162,43 +163,43 @@ namespace Logic.UI
         }
 
         private void LoadHistoryFiles()
+{
+    if (HistoryListContainer == null) return;
+    foreach (Node child in HistoryListContainer.GetChildren()) child.QueueFree();
+
+    string historyPath = "user://history/";
+    if (!DirAccess.DirExistsAbsolute(historyPath))
+    {
+        DirAccess.MakeDirAbsolute(historyPath);
+        return;
+    }
+
+    using var dir = DirAccess.Open(historyPath);
+    if (dir != null)
+    {
+        dir.ListDirBegin();
+        string fileName = dir.GetNext();
+        while (fileName != "")
         {
-            if (HistoryListContainer == null) return;
-            foreach (Node child in HistoryListContainer.GetChildren()) child.QueueFree();
-
-            string historyPath = "user://history/";
-            if (!DirAccess.DirExistsAbsolute(historyPath))
+            if (!dir.CurrentIsDir() && fileName.EndsWith(".json"))
             {
-                DirAccess.MakeDirAbsolute(historyPath);
-                return;
+                string chatName = fileName.Replace(".json", "");
+                Button historyBtn = new Button();
+                historyBtn.Text = chatName;
+                historyBtn.Alignment = HorizontalAlignment.Left;
+                historyBtn.ClipText = true;
+                historyBtn.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+                historyBtn.CustomMinimumSize = new Vector2(10, 0);
+                
+                
+                string capturedFileName = fileName;
+                historyBtn.Pressed += () => GD.Print(capturedFileName);
+                HistoryListContainer.AddChild(historyBtn);
             }
-
-            using var dir = DirAccess.Open(historyPath);
-            if (dir != null)
-            {
-                dir.ListDirBegin();
-                string fileName = dir.GetNext();
-                while (fileName != "")
-                {
-                    if (!dir.CurrentIsDir() && fileName.EndsWith(".json"))
-                    {
-                        string chatName = fileName.Replace(".json", "");
-                        Button historyBtn = new Button();
-                        historyBtn.Text = chatName;
-                        historyBtn.Alignment = HorizontalAlignment.Left;
-                        historyBtn.ClipText = true;
-                        historyBtn.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-                        historyBtn.CustomMinimumSize = new Vector2(10, 0);
-                        
-                        
-                        string capturedFileName = fileName;
-                        historyBtn.Pressed += () => GD.Print(capturedFileName);
-                        HistoryListContainer.AddChild(historyBtn);
-                    }
-                    fileName = dir.GetNext();
-                }
-            }
+            fileName = dir.GetNext();
         }
+    }
+}
 
         private void OnSettingsTabHovered()
         {
