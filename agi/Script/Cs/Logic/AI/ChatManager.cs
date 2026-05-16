@@ -234,7 +234,7 @@ namespace Logic.Lite
                         CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolExecutionStarted, toolName);
 
                         // --- INTERCEPTOR DE SEGURIDAD (ASK FIRST) ---
-                        bool requiresApproval = toolName == "os_command" || toolName == "create_new_file" || toolName == "read_file";
+                        bool requiresApproval = toolName == "os_command" || toolName == "create_new_file" || toolName == "read_file" || toolName == "fetch_url_content" || toolName == "edit_existing_file" || toolName == "single_find_and_replace" || toolName == "delete_file" || toolName == "rename_file";
                         string finalArgsJson = argsJson;
                         bool toolApproved = true;
 

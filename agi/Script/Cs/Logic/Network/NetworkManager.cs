@@ -24,7 +24,10 @@ namespace Logic.Network
         [Signal]
         public delegate void SearchCompletedEventHandler(string markdownResults);
 
-        private readonly global::System.Net.Http.HttpClient _httpClient = new global::System.Net.Http.HttpClient();
+        private readonly global::System.Net.Http.HttpClient _httpClient = new global::System.Net.Http.HttpClient
+        {
+            Timeout = global::System.Threading.Timeout.InfiniteTimeSpan
+        };
 
         public async void PerformHandshake()
         {
