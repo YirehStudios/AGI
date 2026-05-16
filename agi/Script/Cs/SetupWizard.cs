@@ -337,8 +337,20 @@ namespace Logic.Utils
         {
             SwitchState(WizardState.Downloading);
 
+            // ==========================================
+            // NUEVO: Limpieza preventiva pre-descarga
+            // ==========================================
+            Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
+            if (backend != null)
+            {
+                GD.Print("SetupWizard: Ejecutando purga preventiva de procesos para liberar bloqueos de archivos...");
+                backend.TerminateOrphanedResources();
+            }
+            // ==========================================
+
             // Manifest retrieval of engines from remote source or local cache.
             ConfigManager.EngineConfig engineConfigs = await _configManager.GetOrDownloadEnginesAsync();
+            
 
             if (engineConfigs == null)
             {
