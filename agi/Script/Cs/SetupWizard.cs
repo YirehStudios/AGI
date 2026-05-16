@@ -66,12 +66,8 @@ namespace Logic.Utils
         private ConfigManager.ModelPreset _selectedTTS;
         
 
-        //Delete
         private List<ConfigManager.ModelPreset> _debugSelectedList = new List<ConfigManager.ModelPreset>();
-
-        // --- AGREGA ESTA LÍNEA AQUÍ ---
         private bool _esModoOscuro = true; 
-        // ------------------------------
 
 
         /// <summary>
@@ -80,7 +76,6 @@ namespace Logic.Utils
         /// </summary>
         public override void _Ready()
         {
-            
             _configManager = GetNode<ConfigManager>("/root/ConfigManager");
             _packageManager = GetNode<PackageManager>("/root/PackageManager");
             _environmentManager = GetNode<EnvironmentManager>("/root/EnvironmentManager");
@@ -99,9 +94,9 @@ namespace Logic.Utils
             if (BtnTemaClaro != null)
                 BtnTemaClaro.Pressed += () => SeleccionarTema(false);
 
-            if (Logic.Config.ConfigManager.Instance != null)
+            if (Logic.System.Config.ConfigManager.Instance != null)
             {
-                SeleccionarTema(Logic.Config.ConfigManager.Instance.DarkMode);
+                SeleccionarTema(Logic.System.Config.ConfigManager.Instance.DarkMode);
             }
 
             if (BtnComenzar != null)
@@ -127,18 +122,15 @@ namespace Logic.Utils
             {
                 BtnConnect.Pressed += () =>
                 {
-                    // Extracts and sanitizes string values from the text inputs.
                     string urlIngresada = TxtRemoteUrlInput != null ? TxtRemoteUrlInput.Text.Trim() : "";
                     string puerto = TxtCustomPort != null && !string.IsNullOrWhiteSpace(TxtCustomPort.Text) ? TxtCustomPort.Text.Trim() : "8080";
                     bool isLan = ChkIsLan != null && ChkIsLan.ButtonPressed;
 
-                    // Assigns a default local IP address fallback if the parsed string is empty.
                     if (string.IsNullOrWhiteSpace(urlIngresada))
                     {
                         urlIngresada = "192.168.1.100";
                     }
 
-                    // Validates that the user input contains a protocol schema, appending http:// if missing.
                     if (!urlIngresada.StartsWith("http"))
                         urlIngresada = "http://" + urlIngresada;
 
@@ -159,10 +151,9 @@ namespace Logic.Utils
             if (BtnStartBatchDownload != null)
             {
                 BtnStartBatchDownload.Disabled = true;
-                BtnStartBatchDownload.Pressed += StartModelDownload;
+                        BtnStartBatchDownload.Pressed += StartModelDownload;
             }
 
-            // Evaluates the configuration flag. Bypasses the initial UI setup if the environment is already configured.
             if (_configManager.SetupCompleted)
             {
                 FastBootSequence();
@@ -172,7 +163,6 @@ namespace Logic.Utils
             string osName = OS.GetName();
             bool isMobile = osName == "Android" || osName == "iOS";
 
-            // Evaluates the operating system to conditionally render the LocalHost button and route the initial state.
             if (isMobile)
             {
                 if (BtnLocalHost != null) BtnLocalHost.Visible = false;
@@ -900,19 +890,24 @@ namespace Logic.Utils
                 }
             }
         }
+        /// <summary>
+        /// Sets the internal configuration theme variable, updates the unified configuration singleton property,
+        /// triggers global data persistence, and loads the corresponding theme resource layout file.
+        /// </summary>
+        /// <param name="esOscuro">A boolean evaluation flag representing dark mode selection state.</param>
         private void SeleccionarTema(bool esOscuro)
         {
             _esModoOscuro = esOscuro;
 
-            if (Logic.Config.ConfigManager.Instance != null)
+            if (Logic.System.Config.ConfigManager.Instance != null)
             {
-                Logic.Config.ConfigManager.Instance.DarkMode = esOscuro;
-                Logic.Config.ConfigManager.Instance.SaveSettings();
+                Logic.System.Config.ConfigManager.Instance.DarkMode = esOscuro;
+                Logic.System.Config.ConfigManager.Instance.SaveConfiguration();
             }
 
             string path = esOscuro ? "res://Resources/UI_Themes/minimal_theme.tres" : "res://Resources/UI_Themes/tema_claro.tres";
             Theme temaCorrecto = ResourceLoader.Load<Theme>(path);
-            this.Theme = temaCorrecto; // Aplicar a todo el Wizard
+            this.Theme = temaCorrecto; 
 
             if (SetupBackground is ColorRect bgRect)
             {

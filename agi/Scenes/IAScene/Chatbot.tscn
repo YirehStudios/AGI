@@ -1,9 +1,9 @@
 [gd_scene format=3 uid="uid://bolcjtvklqbax"]
 
 [ext_resource type="Script" uid="uid://laxqt8bmvnnx" path="res://Script/Cs/ChatbotMain.cs" id="1_8rl47"]
-[ext_resource type="PackedScene" uid="uid://bfavd0je1gt1r" path="res://Resources/UI_Themes/MensajeUsuario.tscn" id="2_jta4j"]
+[ext_resource type="PackedScene" uid="uid://e7a4l123cery" path="res://Scenes/IAScene/MensajeUsuario.tscn" id="2_jta4j"]
 [ext_resource type="Texture2D" uid="uid://ctvihwjmfflos" path="res://Resources/img1.png" id="2_q7f8p"]
-[ext_resource type="PackedScene" uid="uid://d3608t272an7q" path="res://Resources/UI_Themes/MensajeBot.tscn" id="3_amhcu"]
+[ext_resource type="PackedScene" uid="uid://cxhlka18ibgc0" path="res://Scenes/IAScene/MensajeBot.tscn" id="3_amhcu"]
 [ext_resource type="Texture2D" uid="uid://cwv014ynmrq3l" path="res://Resources/img2.png" id="3_jta4j"]
 [ext_resource type="Texture2D" uid="uid://ca48hqiwv2eiy" path="res://Resources/img3.png" id="4_amhcu"]
 [ext_resource type="Texture2D" uid="uid://b5w5qmdk33hhg" path="res://Resources/img4.png" id="5_675c4"]
@@ -40,7 +40,7 @@ bg_color = Color(0, 0.14242893, 0.31401196, 1)
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lgxif"]
 bg_color = Color(1, 0.22723916, 0.691225, 1)
 
-[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "ToolSelector", "BottomInputPanel", "ModelSelector")]
+[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "ToolSelector", "BottomInputPanel")]
 self_modulate = Color(1, 1, 1, 0)
 anchors_preset = 15
 anchor_right = 1.0
@@ -55,7 +55,6 @@ SendButton = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPane
 EscenaMensajeUsuario = ExtResource("2_jta4j")
 EscenaMensajeBot = ExtResource("3_amhcu")
 ToolSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolSelector")
-ModelSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ModelSelector")
 RandomImage1 = ExtResource("2_q7f8p")
 RandomImage2 = ExtResource("3_jta4j")
 RandomImage3 = ExtResource("4_amhcu")
@@ -128,13 +127,12 @@ popup/item_1/id = 1
 popup/item_2/text = "Generar Video"
 popup/item_2/id = 2
 
-[node name="ModelSelector" type="OptionButton" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout"]
+[node name="ModelSelector" type="OptionButton" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=212855774]
 custom_minimum_size = Vector2(160, 40)
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_constants/align_to_largest_stylebox = 50
 theme_override_font_sizes/font_size = 16
-selected = -1
 
 [node name="TextInputField" type="TextEdit" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=733254512]
 custom_minimum_size = Vector2(0, 45)

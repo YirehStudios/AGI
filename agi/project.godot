@@ -33,8 +33,8 @@ BackendLauncher="*uid://d2ggr6q7smtv6"
 EnvironmentManager="*uid://cs671kefxiink"
 PackageManager="*uid://byupl1skovdap"
 DownloadManager="*uid://cqsbifwhnnad8"
-ThemeManager="*uid://bh8vc1plbkd3q"
 ConfigManager="*uid://r3isoxio4wpf"
+ThemeManager="*uid://cyfyr5s4khbg4"
 
 [display]
 
@@ -52,6 +52,10 @@ project/assembly_name="AGI"
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/markdownlabel/plugin.cfg")
+
+[gui]
+
+theme/custom_font="uid://eeyew7a4rkic"
 
 [physics]
 

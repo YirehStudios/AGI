@@ -1,6 +1,6 @@
-[gd_scene format=3 uid="uid://bfavd0je1gt1r"]
+[gd_scene format=3 uid="uid://e7a4l123cery"]
 
-[ext_resource type="Script" uid="uid://ckqu8l2463r02" path="res://Resources/UI_Themes/MensajeUsuarioUI.cs" id="1_n85ua"]
+[ext_resource type="Script" uid="uid://df7257uom7ur8" path="res://Script/Cs/Logic/Theme/MensajeUsuarioUI.cs" id="1_frmkv"]
 [ext_resource type="FontFile" uid="uid://ogy7poywqv0f" path="res://Resources/Fonts/Inter/Inter-VariableFont_opsz,wght.ttf" id="1_u4w6o"]
 [ext_resource type="FontFile" uid="uid://dh2m6i0ene4mw" path="res://Resources/Fonts/Inter/static/Inter_18pt-Bold.ttf" id="2_xr5qu"]
 [ext_resource type="FontFile" uid="uid://cnn7lrla24g7y" path="res://Resources/Fonts/Inter/static/Inter_18pt-BoldItalic.ttf" id="3_n85ua"]
@@ -61,7 +61,7 @@ anti_aliasing_size = 1.5
 [node name="UserMessageTemplate" type="HBoxContainer" unique_id=502626770 node_paths=PackedStringArray("_messageBody", "_copyBtn", "_minimizeBtn")]
 theme_override_constants/separation = 15
 alignment = 2
-script = ExtResource("1_n85ua")
+script = ExtResource("1_frmkv")
 _messageBody = NodePath("MessageBubble/MessageBody")
 _copyBtn = NodePath("UserActions/CopyUserBtn")
 _minimizeBtn = NodePath("UserActions/MinimizeUserBtn")
@@ -92,6 +92,7 @@ text = "Minimizar"
 
 [node name="MessageBubble" type="PanelContainer" parent="." unique_id=1605861971]
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"BubbleUser2"
 

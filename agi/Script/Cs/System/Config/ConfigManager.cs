@@ -55,6 +55,16 @@ namespace Logic.System.Config
         public string ActiveTTSModel { get; set; } = "vits-piper-es_ES-miro-high";
 
         /// <summary>
+        /// Provides a global static reference to the active configuration manager instance.
+        /// </summary>
+        public static ConfigManager Instance { get; private set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the dark user interface theme is active.
+        /// </summary>
+        public bool DarkMode { get; set; } = true;
+
+        /// <summary>
         /// Define la estructura para las URLs de descarga de motores en diferentes plataformas.
         /// </summary>
         public class EngineUrls
@@ -127,6 +137,7 @@ namespace Logic.System.Config
             public string CloudApiUrl { get; set; }
             public string CloudApiKey { get; set; }
             public string CloudModelName { get; set; }
+            public bool? DarkMode { get; set; }
         }
 
         /// <summary>
@@ -136,6 +147,7 @@ namespace Logic.System.Config
         /// </summary>
         public override void _Ready()
         {
+            Instance = this;
             _settingsDirectory = ProjectSettings.GlobalizePath("user://settings");
             _configFilePath = Path.Combine(_settingsDirectory, "preferences.json"); 
             _presetsFilePath = ProjectSettings.GlobalizePath("user://presets.json");
@@ -255,7 +267,8 @@ namespace Logic.System.Config
                     ActiveTTSModel = ActiveTTSModel,
                     CloudApiUrl = CloudApiUrl,
                     CloudApiKey = CloudApiKey,
-                    CloudModelName = CloudModelName
+                    CloudModelName = CloudModelName,
+                    DarkMode = DarkMode
                 };
 
                 JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
@@ -302,6 +315,9 @@ namespace Logic.System.Config
                     CloudApiUrl = state.CloudApiUrl ?? "https://api.openai.com/v1";
                     CloudApiKey = state.CloudApiKey ?? string.Empty;
                     CloudModelName = state.CloudModelName ?? "gemini-1.5-pro";
+
+                    // Restores the theme preference using a nullable fallback evaluation to maintain default state integrity.
+                    DarkMode = state.DarkMode ?? true;
                 }
             }
             catch (Exception ex)

@@ -1,6 +1,7 @@
 import os
 import subprocess
 import uvicorn
+import argparse
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Any, Dict, List
@@ -92,5 +93,9 @@ async def call_tool(request: ToolCallRequest):
     raise HTTPException(status_code=404, detail=f"Tool '{name}' not found.")
 
 if __name__ == "__main__":
-    # Standard MCP Port configuration as requested for the AGI ecosystem.
-    uvicorn.run(app, host="127.0.0.1", port=8002)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=8002)
+    args = parser.parse_args()
+
+    # Mantenemos 127.0.0.1 y ahora respetamos el puerto de Godot
+    uvicorn.run(app, host="127.0.0.1", port=args.port)

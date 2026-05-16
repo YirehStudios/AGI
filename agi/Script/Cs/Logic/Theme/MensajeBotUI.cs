@@ -51,7 +51,11 @@ namespace Logic.UI.Components
         {
             _textoCompleto = "";
             _baseActionText = accion;
-            if (_messageBody != null) _messageBody.Set("markdown_text", "");
+            if (_messageBody != null) 
+            {
+                _messageBody.Set("markdown_text", "");
+                _messageBody.Text = "";
+            }
             if (_botActionsContainer != null) _botActionsContainer.Visible = true;
             _dotsTimer.Start();
         }
@@ -59,7 +63,11 @@ namespace Logic.UI.Components
         public void AgregarToken(string token)
         {
             _textoCompleto += token;
-            if (_messageBody != null) _messageBody.Set("markdown_text", _textoCompleto);
+            if (_messageBody != null) 
+            {
+                _messageBody.Set("markdown_text", _textoCompleto);
+                _messageBody.Text = _textoCompleto;
+            }
         }
 
         public void FinalizarRespuesta()
