@@ -11,10 +11,10 @@ app = FastAPI(title="AI Search & Research Microservice")
 class SearchRequest(BaseModel):
     """
     Data transfer object for incoming search requests.
-    Validates that query is a string and deep_research is a boolean.
+    Validates that query is a string and deep_research is a boolean (defaults to False).
     """
     query: str
-    deep_research: bool
+    deep_research: bool = False
 
 def execute_basic_search(query: str) -> str:
     """

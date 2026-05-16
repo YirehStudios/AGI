@@ -47,6 +47,9 @@ namespace Logic.UI.Components
             if (_botActionsLabel != null) _botActionsLabel.AddThemeColorOverride("font_color", colorPensando);
         }
 
+        /// <summary>
+        /// Prepares the message component for the initial processing state, resetting text fields and starting the processing timer.
+        /// </summary>
         public void IniciarEstadoPensando(string accion = "Pensando")
         {
             _textoCompleto = "";
@@ -58,6 +61,24 @@ namespace Logic.UI.Components
             }
             if (_botActionsContainer != null) _botActionsContainer.Visible = true;
             _dotsTimer.Start();
+        }
+
+        /// <summary>
+        /// Updates the execution state text, ensures tracking timers are active, and clears 
+        /// residual token string allocations to prevent JSON payload leakage in the user interface.
+        /// </summary>
+        public void CambiarEstadoAccion(string nuevaAccion)
+        {
+            _baseActionText = nuevaAccion;
+            if (_botActionsContainer != null) _botActionsContainer.Visible = true;
+            if (_dotsTimer.IsStopped()) _dotsTimer.Start();
+            
+            _textoCompleto = "";
+            if (_messageBody != null) 
+            {
+                _messageBody.Set("markdown_text", "");
+                _messageBody.Text = "";
+            }
         }
 
         public void AgregarToken(string token)

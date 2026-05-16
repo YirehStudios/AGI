@@ -53,11 +53,10 @@ namespace Logic.UI
         private Random _randomGenerator = new Random();
 
         /// <summary>
-        /// Initializes UI component event subscriptions and establishes event delegates.
+        /// Initializes UI component event subscriptions and establishes event delegates for network and system workflows.
         /// </summary>
         public override void _Ready()
         {
-            
             if (SendButton != null)
             {
                 SendButton.Pressed += OnSendPressed;
@@ -77,6 +76,7 @@ namespace Logic.UI
                 chatManager.OnBotStartedThinking += OnBotStartedThinking;
                 chatManager.OnBotMessageTokenReceived += OnTokenReceived;
                 chatManager.OnBotFinishedSpeaking += OnBotFinishedSpeaking;
+                chatManager.OnBotToolExecutionStarted += OnBotToolExecutionStarted;
             }
 
             var networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
@@ -90,7 +90,6 @@ namespace Logic.UI
             {
                 ModelSelector.ItemSelected += OnModelSelected;
             }
-            
         }
 
         /// <summary>
@@ -261,7 +260,7 @@ namespace Logic.UI
             ScrollToBottom();
         }
 
-                private async Task GenerateMockMediaResponse(string prompt, bool isVideo)
+        private async Task GenerateMockMediaResponse(string prompt, bool isVideo)
         {
             OnBotStartedThinking();
             await ToSignal(GetTree().CreateTimer(3.0f), SceneTreeTimer.SignalName.Timeout);
@@ -383,23 +382,6 @@ namespace Logic.UI
                 vScroll.Value = vScroll.MaxValue;
             }
         }
-
-        public override void _ExitTree()
-        {
-            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
-            if (chatManager != null) 
-            {
-                chatManager.OnBotStartedThinking -= OnBotStartedThinking;
-                chatManager.OnBotMessageTokenReceived -= OnTokenReceived;
-                chatManager.OnBotFinishedSpeaking -= OnBotFinishedSpeaking;
-            }
-
-            var networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
-            if (networkManager != null) 
-            {
-                networkManager.STTCompleted -= OnSTTCompleted;
-            }
-        }
         
         public void UpdateTheme(bool isDark)
         {
@@ -479,6 +461,46 @@ namespace Logic.UI
                 string rutaJsonSeleccionada = _rutasModelos[intIndex];
                 GD.Print($"[IA] Preparando modelo desde configuración: {rutaJsonSeleccionada}");
                 
+            }
+        }
+
+        /// <summary>
+        /// Processes tool execution tracking to update the current message UI container based on the current active MCP schema key.
+        /// </summary>
+        private void OnBotToolExecutionStarted(string toolName)
+        {
+            if (_mensajeBotActual == null) return;
+            
+            string accionTexto = "Pensando";
+            switch(toolName)
+            {
+                case "web_search": accionTexto = "Buscando"; break;
+                case "os_command": accionTexto = "Ejecutando comando"; break;
+                case "file_read": accionTexto = "Leyendo archivo"; break;
+                default: accionTexto = $"Usando {toolName}"; break;
+            }
+            
+            _mensajeBotActual.CambiarEstadoAccion(accionTexto);
+        }
+
+        /// <summary>
+        /// Handles cleanup operations for active event subscriptions when the node is processed out of the scene tree.
+        /// </summary>
+        public override void _ExitTree()
+        {
+            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+            if (chatManager != null) 
+            {
+                chatManager.OnBotStartedThinking -= OnBotStartedThinking;
+                chatManager.OnBotMessageTokenReceived -= OnTokenReceived;
+                chatManager.OnBotFinishedSpeaking -= OnBotFinishedSpeaking;
+                chatManager.OnBotToolExecutionStarted -= OnBotToolExecutionStarted;
+            }
+
+            var networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
+            if (networkManager != null) 
+            {
+                networkManager.STTCompleted -= OnSTTCompleted;
             }
         }
     }

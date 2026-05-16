@@ -72,6 +72,11 @@ namespace Logic.Lite
         [Signal] public delegate void OnBotThoughtFinishedEventHandler();
         [Signal] public delegate void OnBotMessageTokenReceivedEventHandler(string token); 
         [Signal] public delegate void OnBotFinishedSpeakingEventHandler(string fullResponse);
+        
+        /// <summary>
+        /// Signal emitted when an autonomous MCP tool execution sequence is initiated by the engine.
+        /// </summary>
+        [Signal] public delegate void OnBotToolExecutionStartedEventHandler(string toolName);
         /// <summary>
         /// Defines the foundational behavior, empathy constraints, and tool-set availability for the AGI agent.
         /// Implements a multi-tool Agentic pattern that allows the model to switch between web exploration 
@@ -225,6 +230,9 @@ namespace Logic.Lite
                         // Log the interception and notify the UI of agent activity.
                         GD.Print($"\n[AGENT] Unified MCP Tool Call Intercepted: {toolName}");
                         CallDeferred(MethodName.EmitSignal, SignalName.OnBotThoughtTokenReceived, $"\n[AGENTE: Ejecutando herramienta MCP '{toolName}']...\n");
+                        
+                        // Propagates the exact tool identifier to the UI pipeline for dynamic state rendering.
+                        CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolExecutionStarted, toolName);
 
                         // Generic Dispatch: Replaces the old if/else hardcoded handlers with a unified call to the MCP gateway.
                         await _networkManager.RequestMCPExecution(toolName, jsonBlock);
@@ -266,6 +274,26 @@ namespace Logic.Lite
                 }
             }
             // --- AGENT LOOP END ---
+
+            // --- FLUSH DE TEXTO RETENIDO (Falso positivo de JSON) ---
+            string visibleTextFinal = "";
+            if (_currentAssistantBuffer.Contains("</think>"))
+            {
+                int index = _currentAssistantBuffer.IndexOf("</think>") + 8;
+                visibleTextFinal = _currentAssistantBuffer.Substring(index).TrimStart();
+            }
+            else if (!_currentAssistantBuffer.Contains("<think>"))
+            {
+                visibleTextFinal = _currentAssistantBuffer;
+            }
+
+            // Evaluates text differential allocations to capture lookahead false positives.
+            if (visibleTextFinal.Length > _uiBuffer.Length)
+            {
+                string missingChars = visibleTextFinal.Substring(_uiBuffer.Length);
+                CallDeferred(MethodName.EmitSignal, SignalName.OnBotMessageTokenReceived, missingChars);
+                _uiBuffer = visibleTextFinal;
+            }
 
             // Step 4: Finalize audio playback for any remaining TTS fragments.
             if (!string.IsNullOrWhiteSpace(_ttsBuffer))
@@ -331,17 +359,14 @@ namespace Logic.Lite
             EmitSignal(SignalName.OnBotFinishedSpeaking, safeTtsText);
         }
 
-        /// <summary>
+       /// <summary>
         /// Operates as real-time evaluation middleware traversing the token streaming pipeline.
-        /// Silences UI and TTS output when a tool call JSON structure is detected.
+        /// Silences UI and TTS output when a tool call JSON structure is detected via structural lookahead validation.
         /// </summary>
         /// <param name="token">The atomic text fragment received from the inference stream.</param>
         private void HandleTokenReceived(string token)
         {
             _currentAssistantBuffer += token;
-            
-            // Agent Interception: If the stream starts with a JSON bracket, it's a tool call. Silence the UI and TTS.
-            if (_currentAssistantBuffer.TrimStart().StartsWith("{")) return;
 
             if (!_isInsideThinkBlock && _currentAssistantBuffer.Contains("<think>") && !_currentAssistantBuffer.Contains("</think>"))
             {
@@ -367,28 +392,32 @@ namespace Logic.Lite
             }
             else
             {
+                string visibleText = "";
+                
                 if (_currentAssistantBuffer.Contains("</think>"))
                 {
                     int index = _currentAssistantBuffer.IndexOf("</think>") + 8;
-                    string visibleText = _currentAssistantBuffer.Substring(index).TrimStart();
-
-                    if (visibleText.Length > _uiBuffer.Length)
-                    {
-                        string newChars = visibleText.Substring(_uiBuffer.Length);
-                        _uiBuffer = visibleText;
-                        _ttsBuffer += newChars;
-                        CallDeferred(MethodName.EmitSignal, SignalName.OnBotMessageTokenReceived, newChars);
-                    }
+                    visibleText = _currentAssistantBuffer.Substring(index).TrimStart();
                 }
                 else if (!_currentAssistantBuffer.Contains("<think>"))
                 {
-                    if (_currentAssistantBuffer.Length > _uiBuffer.Length)
-                    {
-                        string newChars = _currentAssistantBuffer.Substring(_uiBuffer.Length);
-                        _uiBuffer = _currentAssistantBuffer;
-                        _ttsBuffer += newChars;
-                        CallDeferred(MethodName.EmitSignal, SignalName.OnBotMessageTokenReceived, newChars);
-                    }
+                    visibleText = _currentAssistantBuffer;
+                }
+
+                // --- NUEVO FILTRO: OCULTAR JSON EN TIEMPO REAL ---
+                int jsonStart = visibleText.IndexOf('{');
+                if (jsonStart != -1)
+                {
+                    // Freezes visible output string configurations prior to the intercepted symbol delimiter.
+                    visibleText = visibleText.Substring(0, jsonStart);
+                }
+
+                if (visibleText.Length > _uiBuffer.Length)
+                {
+                    string newChars = visibleText.Substring(_uiBuffer.Length);
+                    _uiBuffer = visibleText;
+                    _ttsBuffer += newChars;
+                    CallDeferred(MethodName.EmitSignal, SignalName.OnBotMessageTokenReceived, newChars);
                 }
 
                 if (_ttsBuffer.Contains(". ") || _ttsBuffer.Contains(", ") || 
