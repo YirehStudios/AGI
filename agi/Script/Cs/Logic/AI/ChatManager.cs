@@ -72,16 +72,10 @@ namespace Logic.Lite
         [Signal] public delegate void OnBotThoughtFinishedEventHandler();
         [Signal] public delegate void OnBotMessageTokenReceivedEventHandler(string token); 
         [Signal] public delegate void OnBotFinishedSpeakingEventHandler(string fullResponse);
-        
-        /// <summary>
-        /// Signal emitted when an autonomous MCP tool execution sequence is initiated by the engine.
-        /// </summary>
         [Signal] public delegate void OnBotToolExecutionStartedEventHandler(string toolName);
-        /// <summary>
-        /// Defines the foundational behavior, empathy constraints, and tool-set availability for the AGI agent.
-        /// Implements a multi-tool Agentic pattern that allows the model to switch between web exploration 
-        /// and local system interaction via structured JSON intercepts.
-        /// </summary>
+        [Signal] public delegate void OnBotToolApprovalRequiredEventHandler(string toolName, string toolArgsJson);
+        [Signal] public delegate void OnUserToolApprovalResponseEventHandler(bool isApproved, string modifiedArgsJson);
+
         private static string SystemPromptInit = "Eres AGI, una asistente técnica altamente capacitada. Tienes acceso a tu propio entorno de ejecución mediante herramientas. " +
         "Herramientas disponibles:\n" +
         "1. Búsqueda Web: Úsala para obtener información actual o externa. Formato: {\"tool\": \"web_search\", \"query\": \"términos\"}\n" +
@@ -226,6 +220,11 @@ namespace Logic.Lite
                     if (doc.RootElement.TryGetProperty("tool", out var toolElement))
                     {
                         string toolName = toolElement.GetString();
+                        string argsJson = "{}";
+                        if (doc.RootElement.TryGetProperty("arguments", out var argsElement))
+                        {
+                            argsJson = argsElement.ToString();
+                        }
                         
                         // Log the interception and notify the UI of agent activity.
                         GD.Print($"\n[AGENT] Unified MCP Tool Call Intercepted: {toolName}");
@@ -234,12 +233,36 @@ namespace Logic.Lite
                         // Propagates the exact tool identifier to the UI pipeline for dynamic state rendering.
                         CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolExecutionStarted, toolName);
 
-                        // Generic Dispatch: Replaces the old if/else hardcoded handlers with a unified call to the MCP gateway.
-                        await _networkManager.RequestMCPExecution(toolName, jsonBlock);
-                        
-                        // Wait for the universal result signal from the networking layer.
-                        var mcpSignal = await ToSignal(_networkManager, Logic.Network.NetworkManager.SignalName.SearchCompleted);
-                        string contextResult = $"[MCP TOOL RESULT: {toolName}]\n{mcpSignal[0].AsString()}";
+                        // --- INTERCEPTOR DE SEGURIDAD (ASK FIRST) ---
+                        bool requiresApproval = toolName == "os_command" || toolName == "create_new_file" || toolName == "read_file";
+                        string finalArgsJson = argsJson;
+                        bool toolApproved = true;
+
+                        if (requiresApproval)
+                        {
+                            CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolApprovalRequired, toolName, argsJson);
+                            
+                            // Pausamos el hilo del backend hasta que el usuario haga clic en la UI
+                            var userDecision = await ToSignal(this, SignalName.OnUserToolApprovalResponse);
+                            toolApproved = userDecision[0].AsBool();
+                            finalArgsJson = userDecision[1].AsString();
+                        }
+
+                        string contextResult = "";
+                        if (!toolApproved)
+                        {
+                            GD.Print($"[AGENT] Ejecución de herramienta '{toolName}' denegada por el usuario.");
+                            contextResult = $"[MCP TOOL RESULT: {toolName}]\nExecution denied by the user. Do not attempt this specific action again without asking differently.";
+                        }
+                        else
+                        {
+                            // Re-empaquetar el JSON con los argumentos (posiblemente modificados por el usuario)
+                            string payloadToSend = $"{{\"tool\": \"{toolName}\", \"arguments\": {finalArgsJson}}}";
+                            await _networkManager.RequestMCPExecution(toolName, payloadToSend);
+                            
+                            var mcpSignal = await ToSignal(_networkManager, Logic.Network.NetworkManager.SignalName.SearchCompleted);
+                            contextResult = $"[MCP TOOL RESULT: {toolName}]\n{mcpSignal[0].AsString()}";
+                        }
 
                         // Step 3.1: Temporarily inject the tool result into memory to ground the final response.
                         _currentSession.Messages.Add(new ChatMessage { Id = newId + 1, Role = "system", Content = contextResult });

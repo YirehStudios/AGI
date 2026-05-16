@@ -69,10 +69,41 @@ namespace Logic.Backend
         }
 
         /// <summary>
+        /// Intercepts and parses continuous output streams from background microservices.
+        /// Performs conditional pattern analysis to detect execution errors and routes telemetry to the appropriate diagnostic interface.
+        /// </summary>
+        private void LogMicroserviceStream(string serviceName, string data, bool isErrorStream = false)
+        {
+            if (string.IsNullOrEmpty(data)) return;
+
+            string formattedLog = $"[{serviceName}] {data}";
+            string[] errorPatterns = { "ERR", "Error", "Exception", "Fault", "Critical", "Failure", "Unprocessable", "422", "500", "404" };
+            bool containsErrorPattern = false;
+
+            foreach (string pattern in errorPatterns)
+            {
+                if (data.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                {
+                    containsErrorPattern = true;
+                    break;
+                }
+            }
+
+            if (isErrorStream || containsErrorPattern)
+            {
+                GD.PrintErr($"[DIAGNOSTIC-ERR] {formattedLog}");
+            }
+            else
+            {
+                GD.Print($"[DIAGNOSTIC-INFO] {formattedLog}");
+            }
+        }
+
+        /// <summary>
         /// Executes a preemptive traversal of the operating system's active process tree prior to initialization,
         /// forcefully terminating detached binary instances to guarantee unhindered port binding and memory allocation.
         /// </summary>
-        public void TerminateOrphanedResources() // <- CAMBIADO A PUBLIC
+        public void TerminateOrphanedResources()
         {
             string[] targetResources = { "llama-server", "whisper-server", "sherpa-onnx-tts-server" };
             
@@ -83,6 +114,7 @@ namespace Logic.Backend
                 foreach (string resourceName in targetResources)
                 {
                     Process[] orphanedProcesses = Process.GetProcessesByName(resourceName);
+                    GD.Print($"ResourceMonitor: Found {orphanedProcesses.Length} instances matching tracking template '{resourceName}'.");
                     
                     foreach (Process process in orphanedProcesses)
                     {
@@ -90,9 +122,14 @@ namespace Logic.Backend
                         {
                             if (!process.HasExited)
                             {
+                                GD.Print($"ResourceMonitor: Active orphan detected (PID: {process.Id}). Executing conditional teardown...");
                                 process.Kill(true); 
                                 process.WaitForExit(1000); 
                                 GD.Print($"ResourceMonitor: Orphaned C++ native resource '{resourceName}' (PID: {process.Id}) terminated successfully.");
+                            }
+                            else
+                            {
+                                GD.Print($"ResourceMonitor: Orphan target (PID: {process.Id}) has already transitioned to an exited state.");
                             }
                         }
                         catch (Exception innerEx)
@@ -109,6 +146,7 @@ namespace Logic.Backend
                 // Enforces port release by eliminating any zombie instances of the Python microservices.
                 if (_environmentManager != null)
                 {
+                    GD.Print("ResourceMonitor: Dispatched active port clearing routines to operating system subsystems.");
                     if (_environmentManager.IsWindows)
                     {
                         // Barrido de puertos en Windows para evitar que scripts bloqueen la reinstalación
@@ -287,18 +325,18 @@ namespace Logic.Backend
                     _llamaProcess.BeginErrorReadLine();
                 }
 
-                // LIGHTWEIGHT MICROSERVICES: Always launched.
+                // LIGHTWEIGHT MICROSERVICES: Always launched with standardized diagnostic processing layers.
                 _searchProcess = new Process { StartInfo = searchInfo, EnableRaisingEvents = true };
-                _searchProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.Print($"[Search] {e.Data}"); };
-                _searchProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.PrintErr($"[Search ERR] {e.Data}"); };
+                _searchProcess.OutputDataReceived += (s, e) => LogMicroserviceStream("Search", e.Data, false);
+                _searchProcess.ErrorDataReceived += (s, e) => LogMicroserviceStream("Search", e.Data, true);
                 _searchProcess.Exited += OnProcessExited;
                 _searchProcess.Start();
                 _searchProcess.BeginOutputReadLine();
                 _searchProcess.BeginErrorReadLine();
 
                 _mcpProcess = new Process { StartInfo = mcpInfo, EnableRaisingEvents = true };
-                _mcpProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.Print($"[MCP] {e.Data}"); };
-                _mcpProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) GD.PrintErr($"[MCP ERR] {e.Data}"); };
+                _mcpProcess.OutputDataReceived += (s, e) => LogMicroserviceStream("MCP", e.Data, false);
+                _mcpProcess.ErrorDataReceived += (s, e) => LogMicroserviceStream("MCP", e.Data, true);
                 _mcpProcess.Exited += OnProcessExited;
                 _mcpProcess.Start();
                 _mcpProcess.BeginOutputReadLine();
@@ -307,6 +345,8 @@ namespace Logic.Backend
                 if (sherpaInfo != null)
                 {
                     _sherpaProcess = new Process { StartInfo = sherpaInfo, EnableRaisingEvents = true };
+                    _sherpaProcess.OutputDataReceived += (s, e) => LogMicroserviceStream("Sherpa-TTS", e.Data, false);
+                    _sherpaProcess.ErrorDataReceived += (s, e) => LogMicroserviceStream("Sherpa-TTS", e.Data, true);
                     _sherpaProcess.Exited += OnProcessExited;
                     _sherpaProcess.Start();
                     _sherpaProcess.BeginOutputReadLine();
@@ -408,11 +448,31 @@ namespace Logic.Backend
 
             try
             {
-                if (_llamaProcess != null && !_llamaProcess.HasExited) _llamaProcess.Kill(true);
-                if (_whisperProcess != null && !_whisperProcess.HasExited) _whisperProcess.Kill(true);
-                if (_sherpaProcess != null && !_sherpaProcess.HasExited) _sherpaProcess.Kill(true);
-                if (_searchProcess != null && !_searchProcess.HasExited) _searchProcess.Kill(true);
-                if (_mcpProcess != null && !_mcpProcess.HasExited) _mcpProcess.Kill(true); // FIX: Matar el proceso MCP explícitamente
+                if (_llamaProcess != null)
+                {
+                    GD.Print($"BackendLauncher: Evaluating Llama process context. Exited state: {_llamaProcess.HasExited}");
+                    if (!_llamaProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to Llama server."); _llamaProcess.Kill(true); }
+                }
+                if (_whisperProcess != null)
+                {
+                    GD.Print($"BackendLauncher: Evaluating Whisper process context. Exited state: {_whisperProcess.HasExited}");
+                    if (!_whisperProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to Whisper server."); _whisperProcess.Kill(true); }
+                }
+                if (_sherpaProcess != null)
+                {
+                    GD.Print($"BackendLauncher: Evaluating Sherpa process context. Exited state: {_sherpaProcess.HasExited}");
+                    if (!_sherpaProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to Sherpa server."); _sherpaProcess.Kill(true); }
+                }
+                if (_searchProcess != null)
+                {
+                    GD.Print($"BackendLauncher: Evaluating Search microservice context. Exited state: {_searchProcess.HasExited}");
+                    if (!_searchProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to Search microservice."); _searchProcess.Kill(true); }
+                }
+                if (_mcpProcess != null)
+                {
+                    GD.Print($"BackendLauncher: Evaluating MCP process context. Exited state: {_mcpProcess.HasExited}");
+                    if (!_mcpProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to MCP gateway."); _mcpProcess.Kill(true); }
+                }
             }
             catch (Exception ex)
             {
@@ -421,12 +481,14 @@ namespace Logic.Backend
 
             if (_environmentManager != null && _environmentManager.IsWindows)
             {
+                GD.Print("BackendLauncher: Executing secondary OS-level CIM pipeline purge on Windows hosts.");
                 OS.Execute("powershell", new string[] { "-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='python.exe' AND CommandLine LIKE '%tts_server.py%'\" | Invoke-CimMethod -MethodName Terminate" }, new Godot.Collections.Array(), true);
                 OS.Execute("powershell", new string[] { "-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='python.exe' AND CommandLine LIKE '%search_server.py%'\" | Invoke-CimMethod -MethodName Terminate" }, new Godot.Collections.Array(), true);
                 OS.Execute("powershell", new string[] { "-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='python.exe' AND CommandLine LIKE '%mcp_server.py%'\" | Invoke-CimMethod -MethodName Terminate" }, new Godot.Collections.Array(), true);
             }
             else
             {
+                GD.Print("BackendLauncher: Executing secondary Linux pkill process tree sweep.");
                 OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
                 OS.Execute("pkill", new string[] { "-f", "search_server.py" }, new Godot.Collections.Array(), true);
                 OS.Execute("pkill", new string[] { "-f", "mcp_server.py" }, new Godot.Collections.Array(), true);
@@ -505,13 +567,31 @@ namespace Logic.Backend
             
             try
             {
-                if (_llamaProcess != null && !_llamaProcess.HasExited) { _llamaProcess.Kill(); _llamaProcess.Dispose(); }
-                if (_whisperProcess != null && !_whisperProcess.HasExited) { _whisperProcess.Kill(); _whisperProcess.Dispose(); }
-                if (_sherpaProcess != null && !_sherpaProcess.HasExited) { _sherpaProcess.Kill(); _sherpaProcess.Dispose(); }
-                
-                // FIX: Asegurar el cierre estricto de los microservicios ligeros al cerrar la app normalmente
-                if (_searchProcess != null && !_searchProcess.HasExited) { _searchProcess.Kill(); _searchProcess.Dispose(); }
-                if (_mcpProcess != null && !_mcpProcess.HasExited) { _mcpProcess.Kill(); _mcpProcess.Dispose(); }
+                if (_llamaProcess != null)
+                {
+                    GD.Print($"BackendLauncher: Teardown validation for Llama process. Exited: {_llamaProcess.HasExited}");
+                    if (!_llamaProcess.HasExited) { _llamaProcess.Kill(); _llamaProcess.Dispose(); }
+                }
+                if (_whisperProcess != null)
+                {
+                    GD.Print($"BackendLauncher: Teardown validation for Whisper process. Exited: {_whisperProcess.HasExited}");
+                    if (!_whisperProcess.HasExited) { _whisperProcess.Kill(); _whisperProcess.Dispose(); }
+                }
+                if (_sherpaProcess != null)
+                {
+                    GD.Print($"BackendLauncher: Teardown validation for Sherpa process. Exited: {_sherpaProcess.HasExited}");
+                    if (!_sherpaProcess.HasExited) { _sherpaProcess.Kill(); _sherpaProcess.Dispose(); }
+                }
+                if (_searchProcess != null)
+                {
+                    GD.Print($"BackendLauncher: Teardown validation for Search process. Exited: {_searchProcess.HasExited}");
+                    if (!_searchProcess.HasExited) { _searchProcess.Kill(); _searchProcess.Dispose(); }
+                }
+                if (_mcpProcess != null)
+                {
+                    GD.Print($"BackendLauncher: Teardown validation for MCP process. Exited: {_mcpProcess.HasExited}");
+                    if (!_mcpProcess.HasExited) { _mcpProcess.Kill(); _mcpProcess.Dispose(); }
+                }
             }
             catch (Exception ex)
             {

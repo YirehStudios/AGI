@@ -77,6 +77,7 @@ namespace Logic.UI
                 chatManager.OnBotMessageTokenReceived += OnTokenReceived;
                 chatManager.OnBotFinishedSpeaking += OnBotFinishedSpeaking;
                 chatManager.OnBotToolExecutionStarted += OnBotToolExecutionStarted;
+                chatManager.OnBotToolApprovalRequired += OnBotToolApprovalRequired;
             }
 
             var networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
@@ -484,6 +485,60 @@ namespace Logic.UI
         }
 
         /// <summary>
+        /// Instantiates an interactive intercept UI container within the chat layout to allow human-in-the-loop validation of autonomous actions.
+        /// </summary>
+        private void OnBotToolApprovalRequired(string toolName, string toolArgsJson)
+        {
+            if (_mensajeBotActual == null) return;
+
+            _mensajeBotActual.CambiarEstadoAccion("Esperando autorización...");
+
+            Control messageLayout = _mensajeBotActual.FindChild("MessageLayout", true, false) as Control;
+            if (messageLayout == null) return;
+
+            VBoxContainer approvalContainer = new VBoxContainer();
+            
+            Label title = new Label { Text = $"⚠️ La IA quiere usar: {toolName}" };
+            approvalContainer.AddChild(title);
+
+            TextEdit argsEditor = new TextEdit 
+            { 
+                Text = toolArgsJson, 
+                CustomMinimumSize = new Vector2(0, 80),
+                WrapMode = TextEdit.LineWrappingMode.Boundary
+            };
+            approvalContainer.AddChild(argsEditor);
+
+            HBoxContainer btnContainer = new HBoxContainer();
+            Button acceptBtn = new Button { Text = "Accept" };
+            Button cancelBtn = new Button { Text = "Cancel" };
+            
+            btnContainer.AddChild(acceptBtn);
+            btnContainer.AddChild(cancelBtn);
+            approvalContainer.AddChild(btnContainer);
+
+            messageLayout.AddChild(approvalContainer);
+
+            var chatManager = GetNode<Logic.Lite.ChatManager>("/root/ChatManager");
+
+            acceptBtn.Pressed += () => 
+            {
+                approvalContainer.QueueFree();
+                _mensajeBotActual.CambiarEstadoAccion($"Ejecutando {toolName}...");
+                chatManager.EmitSignal(Logic.Lite.ChatManager.SignalName.OnUserToolApprovalResponse, true, argsEditor.Text);
+            };
+
+            cancelBtn.Pressed += () => 
+            {
+                approvalContainer.QueueFree();
+                _mensajeBotActual.CambiarEstadoAccion("Herramienta cancelada.");
+                chatManager.EmitSignal(Logic.Lite.ChatManager.SignalName.OnUserToolApprovalResponse, false, argsEditor.Text);
+            };
+
+            ScrollToBottom();
+        }
+
+        /// <summary>
         /// Handles cleanup operations for active event subscriptions when the node is processed out of the scene tree.
         /// </summary>
         public override void _ExitTree()
@@ -495,6 +550,7 @@ namespace Logic.UI
                 chatManager.OnBotMessageTokenReceived -= OnTokenReceived;
                 chatManager.OnBotFinishedSpeaking -= OnBotFinishedSpeaking;
                 chatManager.OnBotToolExecutionStarted -= OnBotToolExecutionStarted;
+                chatManager.OnBotToolApprovalRequired -= OnBotToolApprovalRequired;
             }
 
             var networkManager = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
