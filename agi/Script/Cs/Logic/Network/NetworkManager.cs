@@ -230,6 +230,12 @@ namespace Logic.Network
                 {
                     CallDeferred(MethodName.EmitSignal, SignalName.SearchCompleted, resElement.ToString());
                 }
+                else
+                {
+                    // Fallback to prevent infinite hangs if the JSON schema is violated
+                    GD.PrintErr("[NET ERROR] MCP response missing 'result' key.");
+                    CallDeferred(MethodName.EmitSignal, SignalName.SearchCompleted, $"Error: Unexpected JSON schema from MCP. Payload: {jsonResponse}");
+                }
             }
             catch (Exception ex)
             {

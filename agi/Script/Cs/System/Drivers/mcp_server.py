@@ -90,10 +90,9 @@ async def call_tool(request: ToolCallRequest):
         async with httpx.AsyncClient() as client:
             resp = await client.post("http://127.0.0.1:8000/search", json=args)
             data = resp.json()
-            return {"result": data.get("results", "Error: No data retrieved.")}
+            return {"result": data.get("results", "Error: No data retrieved from search.")}
 
     raise HTTPException(status_code=404, detail=f"Tool '{name}' not found.")
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8002)
