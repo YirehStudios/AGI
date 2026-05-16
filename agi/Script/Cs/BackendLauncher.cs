@@ -72,9 +72,8 @@ namespace Logic.Backend
         /// Executes a preemptive traversal of the operating system's active process tree prior to initialization,
         /// forcefully terminating detached binary instances to guarantee unhindered port binding and memory allocation.
         /// </summary>
-        private void TerminateOrphanedResources()
+        public void TerminateOrphanedResources() // <- CAMBIADO A PUBLIC
         {
-            // Asigna los descriptores exactos de los procesos nativos en C++ hacia el arreglo de rastreo.
             string[] targetResources = { "llama-server", "whisper-server", "sherpa-onnx-tts-server" };
             
             GD.Print("ResourceMonitor: Initiating resource reconciliation routine for native engines...");
@@ -108,11 +107,21 @@ namespace Logic.Backend
                 }
 
                 // Enforces port release by eliminating any zombie instances of the Python microservices.
-                if (_environmentManager != null && (_environmentManager.IsLinux || !_environmentManager.IsWindows))
+                if (_environmentManager != null)
                 {
-                    OS.Execute("pkill", new string[] { "-f", "search_server.py" }, new Godot.Collections.Array(), true);
-                    OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
-                    OS.Execute("pkill", new string[] { "-f", "mcp_server.py" }, new Godot.Collections.Array(), true);
+                    if (_environmentManager.IsWindows)
+                    {
+                        // Barrido de puertos en Windows para evitar que scripts bloqueen la reinstalación
+                        string portsToClear = $"{LlamaPort}, {WhisperPort}, {SherpaPort}, {SearchPort}, {SearchPort + 2}";
+                        string psCommand = $"foreach ($port in @({portsToClear})) {{ Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | ForEach-Object {{ Stop-Process -Id $_.OwningProcess -Force }} }}";
+                        OS.Execute("powershell", new string[] { "-NoProfile", "-Command", psCommand }, new Godot.Collections.Array(), true);
+                    }
+                    else
+                    {
+                        OS.Execute("pkill", new string[] { "-f", "search_server.py" }, new Godot.Collections.Array(), true);
+                        OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
+                        OS.Execute("pkill", new string[] { "-f", "mcp_server.py" }, new Godot.Collections.Array(), true);
+                    }
                 }
                 GD.Print("ResourceMonitor: Infrastructure cleanup completed. System ready for C++ engine initialization.");
             }
@@ -399,31 +408,29 @@ namespace Logic.Backend
 
             try
             {
-                if (_llamaProcess != null && !_llamaProcess.HasExited)
-                {
-                    _llamaProcess.Kill(true);
-                }
-                if (_whisperProcess != null && !_whisperProcess.HasExited)
-                {
-                    _whisperProcess.Kill(true);
-                }
-                if (_sherpaProcess != null && !_sherpaProcess.HasExited)
-                {
-                    _sherpaProcess.Kill(true);
-                }
-                if (_searchProcess != null && !_searchProcess.HasExited)
-                {
-                    _searchProcess.Kill(true);
-                }
+                if (_llamaProcess != null && !_llamaProcess.HasExited) _llamaProcess.Kill(true);
+                if (_whisperProcess != null && !_whisperProcess.HasExited) _whisperProcess.Kill(true);
+                if (_sherpaProcess != null && !_sherpaProcess.HasExited) _sherpaProcess.Kill(true);
+                if (_searchProcess != null && !_searchProcess.HasExited) _searchProcess.Kill(true);
+                if (_mcpProcess != null && !_mcpProcess.HasExited) _mcpProcess.Kill(true); // FIX: Matar el proceso MCP explícitamente
             }
             catch (Exception ex)
             {
                 GD.PrintErr($"BackendLauncher: Secondary fault executing process purge (Kill): {ex.Message}");
             }
 
-            OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
-            OS.Execute("pkill", new string[] { "-f", "search_server.py" }, new Godot.Collections.Array(), true);
-            OS.Execute("pkill", new string[] { "-f", "mcp_server.py" }, new Godot.Collections.Array(), true);
+            if (_environmentManager != null && _environmentManager.IsWindows)
+            {
+                OS.Execute("powershell", new string[] { "-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='python.exe' AND CommandLine LIKE '%tts_server.py%'\" | Invoke-CimMethod -MethodName Terminate" }, new Godot.Collections.Array(), true);
+                OS.Execute("powershell", new string[] { "-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='python.exe' AND CommandLine LIKE '%search_server.py%'\" | Invoke-CimMethod -MethodName Terminate" }, new Godot.Collections.Array(), true);
+                OS.Execute("powershell", new string[] { "-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='python.exe' AND CommandLine LIKE '%mcp_server.py%'\" | Invoke-CimMethod -MethodName Terminate" }, new Godot.Collections.Array(), true);
+            }
+            else
+            {
+                OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
+                OS.Execute("pkill", new string[] { "-f", "search_server.py" }, new Godot.Collections.Array(), true);
+                OS.Execute("pkill", new string[] { "-f", "mcp_server.py" }, new Godot.Collections.Array(), true);
+            }
 
             _retryCount = MaxRetries;
             
@@ -493,28 +500,18 @@ namespace Logic.Backend
         /// </summary>
         public override void _ExitTree()
         {
-            GD.Print("BackendLauncher: Purging native C++ processes (Preventing Zombies).");
+            GD.Print("BackendLauncher: Purging native C++ and Python processes (Preventing Zombies).");
             _isRunning = false;
             
             try
             {
-                if (_llamaProcess != null && !_llamaProcess.HasExited)
-                {
-                    _llamaProcess.Kill();
-                    _llamaProcess.Dispose();
-                }
+                if (_llamaProcess != null && !_llamaProcess.HasExited) { _llamaProcess.Kill(); _llamaProcess.Dispose(); }
+                if (_whisperProcess != null && !_whisperProcess.HasExited) { _whisperProcess.Kill(); _whisperProcess.Dispose(); }
+                if (_sherpaProcess != null && !_sherpaProcess.HasExited) { _sherpaProcess.Kill(); _sherpaProcess.Dispose(); }
                 
-                if (_whisperProcess != null && !_whisperProcess.HasExited)
-                {
-                    _whisperProcess.Kill();
-                    _whisperProcess.Dispose();
-                }
-
-                if (_sherpaProcess != null && !_sherpaProcess.HasExited)
-                {
-                    _sherpaProcess.Kill();
-                    _sherpaProcess.Dispose();
-                }
+                // FIX: Asegurar el cierre estricto de los microservicios ligeros al cerrar la app normalmente
+                if (_searchProcess != null && !_searchProcess.HasExited) { _searchProcess.Kill(); _searchProcess.Dispose(); }
+                if (_mcpProcess != null && !_mcpProcess.HasExited) { _mcpProcess.Kill(); _mcpProcess.Dispose(); }
             }
             catch (Exception ex)
             {
