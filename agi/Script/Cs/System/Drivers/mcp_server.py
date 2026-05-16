@@ -71,7 +71,8 @@ async def list_tools():
 async def call_tool(request: ToolCallRequest):
     """
     Universal entry point for tool execution.
-    Routes requests to specialized handlers based on the tool identifier.
+    Routes requests to specialized handlers based on the tool identifier,
+    ensuring downstream responses conform to standard payload contract constraints.
     """
     name = request.tool
     args = request.arguments
@@ -88,7 +89,8 @@ async def call_tool(request: ToolCallRequest):
         import httpx
         async with httpx.AsyncClient() as client:
             resp = await client.post("http://127.0.0.1:8000/search", json=args)
-            return resp.json()
+            data = resp.json()
+            return {"result": data.get("results", "Error: No data retrieved.")}
 
     raise HTTPException(status_code=404, detail=f"Tool '{name}' not found.")
 
