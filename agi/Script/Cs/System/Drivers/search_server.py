@@ -1,4 +1,5 @@
 import uvicorn
+import argparse
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from ddgs import DDGS
@@ -96,5 +97,8 @@ async def search_endpoint(request: SearchRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    # Starts the web server on the specified host and port
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=8000)
+    args = parser.parse_args()
+
+    uvicorn.run(app, host="127.0.0.1", port=args.port)

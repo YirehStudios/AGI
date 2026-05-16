@@ -4,7 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://bolcjtvklqbax" path="res://Scenes/IAScene/Chatbot.tscn" id="2_dpcee"]
 [ext_resource type="Texture2D" uid="uid://dxui8em8fu8w3" path="res://Resources/logo.png" id="2_logo"]
 [ext_resource type="PackedScene" uid="uid://bx5yq2jklxap" path="res://Scenes/IAScene/Livemode.tscn" id="3_l7jlp"]
-[ext_resource type="Script" uid="uid://cdvmgal6gjip" path="res://Resources/UI_Themes/FondoUI.cs" id="4_ide7w"]
+[ext_resource type="Script" uid="uid://b3rw6k46obs1j" path="res://Script/Cs/Logic/Theme/FondoUI.cs" id="4_ide7w"]
 [ext_resource type="Texture2D" uid="uid://c4uj1r172utru" path="res://Resources/Images/Icons/Util/ChatMode.svg" id="5_ide7w"]
 [ext_resource type="Texture2D" uid="uid://dxcnkms337jlm" path="res://Resources/Images/Icons/Util/LiveMode.svg" id="6_8bqqk"]
 [ext_resource type="Texture2D" uid="uid://b1vmdijvvtehk" path="res://Resources/Images/Icons/Util/Modo3D.svg" id="7_ide7w"]
@@ -113,7 +113,7 @@ font_names = PackedStringArray("Sans-Serif")
 font_weight = 700
 subpixel_positioning = 0
 
-[node name="MainApp" type="Panel" unique_id=488006737 node_paths=PackedStringArray("SidebarWrapper", "ContentContainer", "WelcomeOverlay", "SettingsPanel", "SidebarContainer", "CompanyLogo", "MenuToggleButton", "ChatBotModeButton", "LiveModeButton", "AgiModeButton", "HeaderTitle", "HistoryButton", "SettingsTabBtn", "SidebarSettingsButton", "DarkModeToggle", "HistoryScroll", "HistoryListContainer", "UiAnimator")]
+[node name="MainApp" type="Panel" unique_id=488006737 node_paths=PackedStringArray("SidebarWrapper", "ContentContainer", "WelcomeOverlay", "CompanyLogo", "MenuToggleButton", "ChatBotModeButton", "LiveModeButton", "AgiModeButton", "HeaderTitle", "HistoryButton", "HistoryScroll", "HistoryListContainer", "UiAnimator", "SettingsTabBtn", "SettingsPanel", "DarkModeToggle", "SidebarContainer", "SidebarSettingsButton")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -125,8 +125,6 @@ LivemodeScene = ExtResource("3_l7jlp")
 SidebarWrapper = NodePath("MainLayout/SidebarWrapper")
 ContentContainer = NodePath("MainLayout/RightColumn/ViewWrapper/ContentContainer")
 WelcomeOverlay = NodePath("MainLayout/RightColumn/ViewWrapper/WelcomeOverlay")
-SettingsPanel = NodePath("SettingsOverlay/SettingsPanel")
-SidebarContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer")
 CompanyLogo = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/LogoMargin/LogoContainer/CompanyLogo")
 MenuToggleButton = NodePath("MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout/MenuToggleButton")
 ChatBotModeButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/ChatBotModeButton")
@@ -134,12 +132,14 @@ LiveModeButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMar
 AgiModeButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/AgiModeButton")
 HeaderTitle = NodePath("MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout/HeaderTitle")
 HistoryButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/HistoryButton")
-SettingsTabBtn = NodePath("SettingsOverlay/SettingsPanel/SettingsTabBtn")
-SidebarSettingsButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/SettingsButton")
-DarkModeToggle = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3/CheckButton")
 HistoryScroll = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/HistoryScroll")
 HistoryListContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/HistoryScroll/HistoryListContainer")
 UiAnimator = NodePath("UiAnimator")
+SettingsTabBtn = NodePath("SettingsOverlay/SettingsPanel/SettingsTabBtn")
+SettingsPanel = NodePath("SettingsOverlay/SettingsPanel")
+DarkModeToggle = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3/CheckButton")
+SidebarContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer")
+SidebarSettingsButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/SettingsButton")
 
 [node name="FondoGlobal" type="ColorRect" parent="." unique_id=1109724638]
 layout_mode = 1

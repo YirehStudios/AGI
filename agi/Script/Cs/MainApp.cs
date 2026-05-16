@@ -36,6 +36,10 @@ namespace Logic.UI
         private const float SettingsWidth = 640.0f;
         private bool _isCurrentlyDark = false;
 
+        /// <summary>
+        /// Initializes UI panel constraints, registers core signal connections, queries localized state tracking parameters 
+        /// from the updated unified ConfigManager singleton object, and executes the default startup scene transition loop.
+        /// </summary>
         public override void _Ready()
         {
             if (SidebarWrapper != null)
@@ -50,10 +54,10 @@ namespace Logic.UI
 
             if (ChatBotModeButton != null)
                 ChatBotModeButton.Pressed += () => ChangeMode(ChatbotScene, "Modo Chat Bot");
-            
+                    
             if (LiveModeButton != null)
                 LiveModeButton.Pressed += () => ChangeMode(LivemodeScene, "Modo Live");
-            
+                    
             if (AgiModeButton != null)
                 AgiModeButton.Pressed += () => ChangeMode(null, "Modo AGI");
 
@@ -83,10 +87,10 @@ namespace Logic.UI
                 DarkModeToggle.Toggled += OnDarkModeToggled;
             }
 
-            if (Logic.Config.ConfigManager.Instance != null && DarkModeToggle != null)
+            if (Logic.System.Config.ConfigManager.Instance != null && DarkModeToggle != null)
             {
-                DarkModeToggle.ButtonPressed = Logic.Config.ConfigManager.Instance.DarkMode;
-                OnDarkModeToggled(Logic.Config.ConfigManager.Instance.DarkMode);
+                DarkModeToggle.ButtonPressed = Logic.System.Config.ConfigManager.Instance.DarkMode;
+                OnDarkModeToggled(Logic.System.Config.ConfigManager.Instance.DarkMode);
             }
             else if (DarkModeToggle != null)
             {
@@ -125,81 +129,79 @@ namespace Logic.UI
         }
 
         private void ChangeMode(PackedScene sceneToLoad, string titleText)
-{
-    if (ContentContainer != null)
-    {
-        foreach (Node child in ContentContainer.GetChildren())
         {
-            child.QueueFree();
+            if (ContentContainer != null)
+            {
+                foreach (Node child in ContentContainer.GetChildren())
+                {
+                    child.QueueFree();
+                }
+            }
+
+            if (sceneToLoad == null) return;
+
+            _currentView = sceneToLoad.Instantiate();
+            ContentContainer.AddChild(_currentView);
+
+            if (_currentView is Control controlView)
+            {
+                controlView.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+                controlView.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+                controlView.SizeFlagsVertical = SizeFlags.ExpandFill;
+            }
+
+            if (_currentView.HasMethod("UpdateTheme"))
+            {
+                _currentView.Call("UpdateTheme", _isCurrentlyDark);
+            }
         }
-    }
-
-    if (sceneToLoad == null) return;
-
-    // Instanciamos la nueva
-    _currentView = sceneToLoad.Instantiate();
-    ContentContainer.AddChild(_currentView);
-
-    if (_currentView is Control controlView)
-    {
-        controlView.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        controlView.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        controlView.SizeFlagsVertical = SizeFlags.ExpandFill;
-    }
-
-    if (_currentView.HasMethod("UpdateTheme"))
-    {
-        _currentView.Call("UpdateTheme", _isCurrentlyDark);
-    }
-}
 
         public void ToggleSidebar()
         {
-            if (UiAnimator == null) return;
-            
+            if (UiAnimator == null) return;                    
             _isSidebarOpen = !_isSidebarOpen;
             if (_isSidebarOpen) UiAnimator.Play("sidebar_open");
             else UiAnimator.Play("sidebar_close");
         }
 
         private void LoadHistoryFiles()
-{
-    if (HistoryListContainer == null) return;
-    foreach (Node child in HistoryListContainer.GetChildren()) child.QueueFree();
-
-    string historyPath = "user://history/";
-    if (!DirAccess.DirExistsAbsolute(historyPath))
-    {
-        DirAccess.MakeDirAbsolute(historyPath);
-        return;
-    }
-
-    using var dir = DirAccess.Open(historyPath);
-    if (dir != null)
-    {
-        dir.ListDirBegin();
-        string fileName = dir.GetNext();
-        while (fileName != "")
         {
-            if (!dir.CurrentIsDir() && fileName.EndsWith(".json"))
+            if (HistoryListContainer == null) return;
+            foreach (Node child in HistoryListContainer.GetChildren()) child.QueueFree();
+
+            string historyPath = "user://history/";
+            if (!DirAccess.DirExistsAbsolute(historyPath))
             {
-                string chatName = fileName.Replace(".json", "");
-                Button historyBtn = new Button();
-                historyBtn.Text = chatName;
-                historyBtn.Alignment = HorizontalAlignment.Left;
-                historyBtn.ClipText = true;
-                historyBtn.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-                historyBtn.CustomMinimumSize = new Vector2(10, 0);
-                
-                
-                string capturedFileName = fileName;
-                historyBtn.Pressed += () => GD.Print(capturedFileName);
-                HistoryListContainer.AddChild(historyBtn);
+                DirAccess.MakeDirAbsolute(historyPath);
+                return;
             }
-            fileName = dir.GetNext();
+
+            using var dir = DirAccess.Open(historyPath);
+            if (dir != null)
+            {
+                dir.ListDirBegin();
+                string fileName = dir.GetNext();
+                while (fileName != "")
+                {
+                    if (!dir.CurrentIsDir() && fileName.EndsWith(".json"))
+                    {
+                        string chatName = fileName.Replace(".json", "");
+                        Button historyBtn = new Button();
+                        historyBtn.Text = chatName;
+                        historyBtn.Alignment = HorizontalAlignment.Left;
+                        historyBtn.ClipText = true;
+                        historyBtn.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+                        historyBtn.CustomMinimumSize = new Vector2(10, 0);
+                        
+                        
+                        string capturedFileName = fileName;
+                        historyBtn.Pressed += () => GD.Print(capturedFileName);
+                        HistoryListContainer.AddChild(historyBtn);
+                    }
+                    fileName = dir.GetNext();
+                }
+            }
         }
-    }
-}
 
         private void OnSettingsTabHovered()
         {
@@ -250,18 +252,23 @@ namespace Logic.UI
             }
         }
 
+        /// <summary>
+        /// Handles user-triggered theme alternation events, alters internal system execution variables, 
+        /// updates state attributes on the centralized configuration manager, and dispatches an immediate save pipeline command.
+        /// </summary>
+        /// <param name="isPressed">A boolean assessment indicating toggle switch placement coordinates.</param>
         private void OnDarkModeToggled(bool isPressed)
         {
             _isCurrentlyDark = isPressed;
-            
+                    
             if (ThemeManager.Instance != null)
             {
                 this.Theme = ThemeManager.Instance.ObtenerTemaGlobal(isPressed);
-                
-                if (Logic.Config.ConfigManager.Instance != null)
+                        
+                if (Logic.System.Config.ConfigManager.Instance != null)
                 {
-                    Logic.Config.ConfigManager.Instance.DarkMode = isPressed;
-                    Logic.Config.ConfigManager.Instance.SaveSettings();
+                    Logic.System.Config.ConfigManager.Instance.DarkMode = isPressed;
+                    Logic.System.Config.ConfigManager.Instance.SaveConfiguration();
                 }
 
                 if (_currentView != null && _currentView.HasMethod("UpdateTheme"))

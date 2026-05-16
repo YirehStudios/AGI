@@ -1,7 +1,7 @@
-[gd_scene format=3 uid="uid://d3608t272an7q"]
+[gd_scene format=3 uid="uid://cxhlka18ibgc0"]
 
 [ext_resource type="Texture2D" uid="uid://du3w0n73d40lw" path="res://Resources/avatar_bot.png" id="1_atrtv"]
-[ext_resource type="Script" uid="uid://dx8v4o02f5swg" path="res://Resources/UI_Themes/MensajeBotUI.cs" id="1_utauk"]
+[ext_resource type="Script" uid="uid://v8imubcwct7q" path="res://Script/Cs/Logic/Theme/MensajeBotUI.cs" id="1_jorcp"]
 [ext_resource type="Texture2D" uid="uid://bwewlane66cuh" path="res://Resources/Images/Icons/Util/Thinking.svg" id="2_utauk"]
 [ext_resource type="FontFile" uid="uid://ogy7poywqv0f" path="res://Resources/Fonts/Inter/Inter-VariableFont_opsz,wght.ttf" id="3_0iyyq"]
 [ext_resource type="FontFile" uid="uid://dh2m6i0ene4mw" path="res://Resources/Fonts/Inter/static/Inter_18pt-Bold.ttf" id="4_3m8ox"]
@@ -79,8 +79,12 @@ resource_local_to_scene = true
 script = ExtResource("14_d5m7m")
 
 [node name="BotMessageTemplate" type="HBoxContainer" unique_id=360042153 node_paths=PackedStringArray("_messageBody", "_botActionsContainer", "_botActionsLabel")]
+offset_left = 2.0
+offset_top = -2.0
+offset_right = 207.0
+offset_bottom = 68.0
 theme_override_constants/separation = 15
-script = ExtResource("1_utauk")
+script = ExtResource("1_jorcp")
 _messageBody = NodePath("MessageBubble/MessageLayout/MessageBody")
 _botActionsContainer = NodePath("MessageBubble/MessageLayout/BotActionsContainer")
 _botActionsLabel = NodePath("MessageBubble/MessageLayout/BotActionsContainer/BotActions")
@@ -201,6 +205,7 @@ stretch_mode = 6
 
 [node name="MessageBubble" type="PanelContainer" parent="." unique_id=35119802]
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"BubbleBot2"
 
@@ -231,7 +236,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
-theme_override_colors/default_color = Color(0.11, 0.11, 0.118, 1)
 theme_override_fonts/normal_font = ExtResource("3_0iyyq")
 theme_override_fonts/bold_font = ExtResource("4_3m8ox")
 theme_override_fonts/bold_italics_font = ExtResource("5_k5b3v")

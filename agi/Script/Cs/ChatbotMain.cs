@@ -261,56 +261,57 @@ namespace Logic.UI
             ScrollToBottom();
         }
 
-        private async Task GenerateMockMediaResponse(string prompt, bool isVideo)
-{
-    OnBotStartedThinking();
-    await ToSignal(GetTree().CreateTimer(3.0f), SceneTreeTimer.SignalName.Timeout);
-
-    if (_mensajeBotActual != null) _mensajeBotActual.FinalizarRespuesta();
-
-    Control messageLayout = _mensajeBotActual?.FindChild("MessageLayout", true, false) as Control;
-    
-    if (messageLayout != null)
-    {
-        int rand = _randomGenerator.Next(1, 5); 
-
-        if (isVideo)
+                private async Task GenerateMockMediaResponse(string prompt, bool isVideo)
         {
-            VideoStreamPlayer videoPlayer = new VideoStreamPlayer();
-            videoPlayer.CustomMinimumSize = new Vector2(400, 300); 
-            videoPlayer.Expand = true;
-            videoPlayer.Autoplay = true;
-            videoPlayer.Loop = true;
+            OnBotStartedThinking();
+            await ToSignal(GetTree().CreateTimer(3.0f), SceneTreeTimer.SignalName.Timeout);
 
-            // Seleccionamos el video aleatorio
-            if (rand == 1) videoPlayer.Stream = RandomVideo1;
-            else if (rand == 2) videoPlayer.Stream = RandomVideo2;
-            else if (rand == 3) videoPlayer.Stream = RandomVideo3;
-            else videoPlayer.Stream = RandomVideo4;
+            if (_mensajeBotActual != null) _mensajeBotActual.FinalizarRespuesta();
 
-            messageLayout.AddChild(videoPlayer);
+            Control messageLayout = _mensajeBotActual?.FindChild("MessageLayout", true, false) as Control;
+            
+            if (messageLayout != null)
+            {
+                int rand = _randomGenerator.Next(1, 5); 
+
+                if (isVideo)
+                {
+                    VideoStreamPlayer videoPlayer = new VideoStreamPlayer();
+                    videoPlayer.CustomMinimumSize = new Vector2(400, 300); 
+                    videoPlayer.Expand = true;
+                    videoPlayer.Autoplay = true;
+                    videoPlayer.Loop = true;
+
+                    // Seleccionamos el video aleatorio
+                    if (rand == 1) videoPlayer.Stream = RandomVideo1;
+                    else if (rand == 2) videoPlayer.Stream = RandomVideo2;
+                    else if (rand == 3) videoPlayer.Stream = RandomVideo3;
+                    else videoPlayer.Stream = RandomVideo4;
+
+                    messageLayout.AddChild(videoPlayer);
+                }
+                else
+                {
+                    TextureRect imageRect = new TextureRect();
+                    imageRect.CustomMinimumSize = new Vector2(400, 300); // Tamaño de la imagen
+                    imageRect.ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize;
+                    imageRect.StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered;
+
+                    // Seleccionamos la imagen aleatoria
+                    if (rand == 1) imageRect.Texture = RandomImage1;
+                    else if (rand == 2) imageRect.Texture = RandomImage2;
+                    else if (rand == 3) imageRect.Texture = RandomImage3;
+                    else imageRect.Texture = RandomImage4;
+
+                    messageLayout.AddChild(imageRect);
+                }
+            }
+
+            _isWaitingForResponse = false;
+            if (SendButton != null) SendButton.Disabled = false;
+            if (TextInputField != null) TextInputField.GrabFocus();
         }
-        else
-        {
-            TextureRect imageRect = new TextureRect();
-            imageRect.CustomMinimumSize = new Vector2(400, 300); // Tamaño de la imagen
-            imageRect.ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize;
-            imageRect.StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered;
 
-            // Seleccionamos la imagen aleatoria
-            if (rand == 1) imageRect.Texture = RandomImage1;
-            else if (rand == 2) imageRect.Texture = RandomImage2;
-            else if (rand == 3) imageRect.Texture = RandomImage3;
-            else imageRect.Texture = RandomImage4;
-
-            messageLayout.AddChild(imageRect);
-        }
-    }
-
-    _isWaitingForResponse = false;
-    if (SendButton != null) SendButton.Disabled = false;
-    if (TextInputField != null) TextInputField.GrabFocus();
-}
         /// <summary>
         /// Streams tokens directly to the active Bot Component.
         /// </summary>
@@ -345,7 +346,6 @@ namespace Logic.UI
             if (string.IsNullOrWhiteSpace(rawText) || !rawText.Contains("```")) return;
             if (_mensajeBotActual == null || CodeBlockTemplate == null) return;
 
-            // Se mantiene la lógica de inyección de bloques de código en el layout del componente actual
             Control messageLayout = _mensajeBotActual.FindChild("MessageLayout", true, false) as Control;
             RichTextLabel originalMarkdownNode = _mensajeBotActual.FindChild("MessageBody", true, false) as RichTextLabel;
             
@@ -364,6 +364,7 @@ namespace Logic.UI
                     RichTextLabel textBlock = (RichTextLabel)originalMarkdownNode.Duplicate();
                     textBlock.Visible = true;
                     textBlock.Set("markdown_text", blocks[i].Trim());
+                    textBlock.Text = blocks[i].Trim();
                     messageLayout.AddChild(textBlock);
                 }
                 else 
@@ -399,24 +400,26 @@ namespace Logic.UI
                 networkManager.STTCompleted -= OnSTTCompleted;
             }
         }
+        
         public void UpdateTheme(bool isDark)
-{
-    string path = isDark ? "res://Resources/UI_Themes/minimal_theme.tres" : "res://Resources/UI_Themes/tema_claro.tres";
-    Theme temaCorrecto = ResourceLoader.Load<Theme>(path);
-
-    this.Theme = temaCorrecto;
-
-    if (MessagesContainer != null)
-    {
-        foreach (Node child in MessagesContainer.GetChildren())
         {
-            if (child is Control controlChild)
+            string path = isDark ? "res://Resources/UI_Themes/minimal_theme.tres" : "res://Resources/UI_Themes/tema_claro.tres";
+            Theme temaCorrecto = ResourceLoader.Load<Theme>(path);
+
+            this.Theme = temaCorrecto;
+
+            if (MessagesContainer != null)
             {
-                controlChild.Theme = temaCorrecto;
+                foreach (Node child in MessagesContainer.GetChildren())
+                {
+                    if (child is Control controlChild)
+                    {
+                        controlChild.Theme = temaCorrecto;
+                    }
+                }
             }
         }
-    }
-}
+
         private void CargarModelosEnMenu()
         {
             if (ModelSelector == null) return;

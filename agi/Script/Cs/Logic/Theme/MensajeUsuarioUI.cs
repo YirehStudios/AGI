@@ -40,7 +40,11 @@ namespace Logic.UI.Components
         public void ConfigurarMensaje(string texto)
         {
             _textoOriginal = texto;
-            if (_messageBody != null) _messageBody.Set("markdown_text", texto);
+            if (_messageBody != null) 
+            {
+                _messageBody.Set("markdown_text", texto);
+                _messageBody.Text = texto;
+            }
             if (_copyBtn != null) _copyBtn.Pressed += () => DisplayServer.ClipboardSet(_textoOriginal);
             if (_minimizeBtn != null) _minimizeBtn.Pressed += AlternarMinimizado;
         }
