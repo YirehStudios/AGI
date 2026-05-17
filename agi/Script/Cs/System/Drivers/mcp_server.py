@@ -410,38 +410,3 @@ if __name__ == "__main__":
 
     # Mantenemos 127.0.0.1 y ahora respetamos el puerto de Godot
     uvicorn.run(app, host="127.0.0.1", port=args.port)
-@app.post("/call_tool")
-async def call_tool(request: ToolCallRequest):
-    """
-    Universal entry point for tool execution routing.
-    Dispatches schema payload structures cleanly to respective system and security-sanitized layers.
-    """
-    name = request.tool
-    args = request.arguments
-
-    if name == "os_command":
-        return {"result": execute_os_command(args.get("command", ""))}
-    elif name == "read_file":
-        return {"result": read_local_file(args.get("path", ""))}
-    elif name == "ls":
-        return {"result": list_directory(args.get("path", ""))}
-    elif name == "create_new_file":
-        return {"result": create_new_file(args.get("path", ""), args.get("content", ""))}
-    elif name == "file_glob_search":
-        return {"result": file_glob_search(args.get("pattern", "*"), args.get("path", str(SANDBOX_ROOT)))}
-    elif name == "fetch_url_content":
-        return {"result": fetch_url_content(args.get("url", ""))}
-    elif name == "edit_existing_file":
-        return {"result": edit_existing_file(args.get("path", ""), args.get("content", ""))}
-    elif name == "single_find_and_replace":
-        return {"result": single_find_and_replace(args.get("path", ""), args.get("find_string", ""), args.get("replace_string", ""))}
-    elif name == "grep_search":
-        return {"result": grep_search(args.get("directory", str(SANDBOX_ROOT)), args.get("regex_pattern", ""), args.get("file_pattern", "*"))}
-    elif name == "web_search":
-        import httpx
-        async with httpx.AsyncClient() as client:
-            resp = await client.post("http://127.0.0.1:8000/search", json=args)
-            data = resp.json()
-            return {"result": data.get("results", "Error: No data retrieved from search.")}
-
-    raise HTTPException(status_code=404, detail=f"Tool '{name}' not found.")

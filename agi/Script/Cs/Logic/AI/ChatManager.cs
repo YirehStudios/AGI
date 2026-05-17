@@ -76,17 +76,9 @@ namespace Logic.Lite
         [Signal] public delegate void OnBotToolApprovalRequiredEventHandler(string toolName, string toolArgsJson);
         [Signal] public delegate void OnUserToolApprovalResponseEventHandler(bool isApproved, string modifiedArgsJson);
 
-        private static string SystemPromptInit = "Eres AGI, una asistente técnica altamente capacitada. Tienes acceso a tu propio entorno de ejecución mediante herramientas. " +
-        "Herramientas disponibles:\n" +
-        "1. Búsqueda Web: Úsala para obtener información actual o externa. Formato: {\"tool\": \"web_search\", \"query\": \"términos\"}\n" +
-        "2. Consola Local: Úsala para ejecutar comandos en la PC del usuario (listar archivos, leer código, revisar sistema). Formato: {\"tool\": \"os_command\", \"command\": \"comando bash o cmd\"}\n" +
-        "REGLA ESTRICTA: Si necesitas usar una herramienta, detén tu respuesta y genera ÚNICAMENTE el JSON exacto de una herramienta a la vez. No escribas <think> ni texto adicional. " +
-        "El sistema ejecutará la acción y te devolverá los resultados. JAMÁS incluyas el código JSON en tu respuesta final visible para el usuario. " +
-        "Si NO usas herramientas, piensa paso a paso usando la etiqueta <think> al inicio de tu respuesta para separar tu razonamiento. " +
-        "Si la conversación cambia, incluye [SESSION_NAME: Nombre] y [SUMMARY: Resumen] al final de tu <think>.";
         private bool _isInsideThinkBlock = false;
 
-        private string SystemPrompt = $"{SystemPromptInit}";
+        private string SystemPrompt;
         private string _availableTools = "Sync tool MCP...";
         private ChatSession _currentSession;
         private string _historyDirectory;
@@ -104,6 +96,14 @@ namespace Logic.Lite
         /// </summary>
         public override void _Ready()
         {
+            string workspacePath = ProjectSettings.GlobalizePath("user://workspace");
+
+            SystemPrompt = "You are AGI (Asistente General de Interfaz), a highly capable open-source technical assistant developed by Yireh Studios under the GPL v3 license. You operate in a development environment and have access to a dynamic MCP tool execution ecosystem.\n" +
+            "STRICT TOOL RULE: To use a tool, you MUST first plan your action step-by-step inside <think>...</think> tags. Immediately after closing the </think> tag, output ONLY the exact JSON payload for ONE tool. You MUST use this exact strict schema: {\"tool\": \"tool_name\", \"arguments\": {\"param1\": \"value1\"}}. Do NOT use 'name' or 'parameters' as keys. NEVER add conversational text before or after the JSON block.\n" +
+            $"SANDBOX RULE: Your secure root workspace is located at '{workspacePath}'. All file and directory paths you provide to your tools MUST be absolute paths starting exactly with {workspacePath}. Do NOT output the literal string '{{workspacePath}}'.\n" +
+            "REASONING RULE: If you are NOT using tools, you must also use <think> tags at the very beginning. If the conversation changes topic, include [SESSION_NAME: Descriptive Name] and [SUMMARY: Brief Summary] inside your <think> block.\n" +
+            "LANGUAGE RULE: You must always respond to the user in the exact same language they used in their prompt, regardless of these English system instructions.";
+            
             _historyDirectory = ProjectSettings.GlobalizePath("user://history");
             if (!global::System.IO.Directory.Exists(_historyDirectory))
             {
@@ -120,6 +120,7 @@ namespace Logic.Lite
 
             InitializeNewSession("Chat_Default");
         }
+
         /// <summary>
         /// Instantiates a new context window and writes the initial structured payload to the OS filesystem.
         /// </summary>
@@ -202,6 +203,9 @@ namespace Logic.Lite
                 await _networkManager.StreamChatCompletion(prompt);
             }
 
+            // --- NUEVA TELEMETRÍA: IMPRIMIR BUFFER RAW DE LLAMA (TURNO INICIAL/HERRAMIENTA) ---
+            GD.Print($"\n[LLAMA RAW BUFFER]\n{_currentAssistantBuffer}\n===================================================\n");
+
             // --- AGENT LOOP START ---
             // Evaluates if the AI produced a tool-calling instruction (JSON) instead of natural language.
             string rawResponseAgent = _currentAssistantBuffer.Trim();
@@ -234,18 +238,21 @@ namespace Logic.Lite
                         CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolExecutionStarted, toolName);
 
                         // --- INTERCEPTOR DE SEGURIDAD (ASK FIRST) ---
+                        // Dynamic validation list includes newly expanded platform microservice tools.
                         bool requiresApproval = toolName == "os_command" || toolName == "create_new_file" || toolName == "read_file" || toolName == "fetch_url_content" || toolName == "edit_existing_file" || toolName == "single_find_and_replace" || toolName == "delete_file" || toolName == "rename_file";
-                        string finalArgsJson = argsJson;
+                        
+                        // Passes the holistic structured JSON block to maintain parameter token integrity during UI adjustments.
+                        string finalJsonPayload = jsonBlock; 
                         bool toolApproved = true;
 
                         if (requiresApproval)
                         {
-                            CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolApprovalRequired, toolName, argsJson);
+                            CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolApprovalRequired, toolName, finalJsonPayload);
                             
-                            // Pausamos el hilo del backend hasta que el usuario haga clic en la UI
+                            // Suspends the execution context task thread until user feedback is gathered from the client viewport.
                             var userDecision = await ToSignal(this, SignalName.OnUserToolApprovalResponse);
                             toolApproved = userDecision[0].AsBool();
-                            finalArgsJson = userDecision[1].AsString();
+                            finalJsonPayload = userDecision[1].AsString();
                         }
 
                         string contextResult = "";
@@ -256,9 +263,8 @@ namespace Logic.Lite
                         }
                         else
                         {
-                            // Re-empaquetar el JSON con los argumentos (posiblemente modificados por el usuario)
-                            string payloadToSend = $"{{\"tool\": \"{toolName}\", \"arguments\": {finalArgsJson}}}";
-                            await _networkManager.RequestMCPExecution(toolName, payloadToSend);
+                            // Dispatches the fully aggregated payload instruction buffer to the active network gateway client.
+                            await _networkManager.RequestMCPExecution(toolName, finalJsonPayload);
                             
                             var mcpSignal = await ToSignal(_networkManager, Logic.Network.NetworkManager.SignalName.SearchCompleted);
                             contextResult = $"[MCP TOOL RESULT: {toolName}]\n{mcpSignal[0].AsString()}";
@@ -326,6 +332,9 @@ namespace Logic.Lite
                 _ttsBuffer = string.Empty;
             }
 
+            // --- NUEVA TELEMETRÍA: IMPRIMIR BUFFER RAW DE LLAMA (TURNO FINAL) ---
+            GD.Print($"\n[LLAMA RAW BUFFER (FINAL)]\n{_currentAssistantBuffer}\n===================================================\n");
+
             // Step 5: Parse reasoning (think) and content for final storage.
             string rawResponse = _currentAssistantBuffer;
             string thoughtProcess = "";
@@ -379,10 +388,13 @@ namespace Logic.Lite
             string safeTtsText = CleanResponseForTTS(finalContent);
             if (string.IsNullOrWhiteSpace(safeTtsText)) safeTtsText = "Pensé demasiado y perdí el hilo. ¿Puedes repetirlo?";
             
+            // Outputs the completed text response to the native Godot logs for diagnostics.
+            GD.Print($"\n[AGI RESPONSE]\n{finalContent}\n");
+            
             EmitSignal(SignalName.OnBotFinishedSpeaking, safeTtsText);
         }
 
-       /// <summary>
+        /// <summary>
         /// Operates as real-time evaluation middleware traversing the token streaming pipeline.
         /// Silences UI and TTS output when a tool call JSON structure is detected via structural lookahead validation.
         /// </summary>
@@ -468,7 +480,7 @@ namespace Logic.Lite
             string currentTimeContext = $"Fecha y hora actual del sistema: {timeString}.";
             
             // Injects the synchronized MCP tool list into the foundational prompt instructions.
-            string dynamicSystemPrompt = $"{SystemPromptInit}\n\n[ MCP DYNAMIC TOOLS SCHEMA ]\n{_availableTools}";
+            string dynamicSystemPrompt = $"{SystemPrompt}\n\n[ MCP DYNAMIC TOOLS SCHEMA ]\n{_availableTools}";
             
             builder.Append($"<|im_start|>system\n{dynamicSystemPrompt}\n{currentTimeContext}\nMemoria actual: {_currentSession.Summary}<|im_end|>\n");
 

@@ -55,11 +55,12 @@ namespace Logic.Network
         }
 
         /// <summary>
-        /// Realiza la petición POST utilizando el esquema de OpenAI (chat/completions) y decodifica el flujo continuo.
+        /// Dispatches a POST request utilizing the OpenAI specification format, intercepts the 
+        /// server-sent events stream, and streams tokens to the console and engine delegates in real-time.
         /// </summary>
+        /// <param name="prompt">The absolute instruction and context template context payload.</param>
         public async Task StreamChatCompletion(string prompt)
         {
-            // --- CAMBIO CRUCIAL: Obtenemos la URL en el hilo principal antes de entrar al Task ---
             string urlSegura = GetActiveUrl(); 
             GD.Print($"[NET] Enviando petición a Llama en: {urlSegura}");
 
@@ -82,7 +83,6 @@ namespace Logic.Network
                         Content = content
                     };
 
-                    // Añadimos un timeout de seguridad de 60 segundos para la conexión inicial
                     using HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
                     response.EnsureSuccessStatusCode();
 
@@ -107,6 +107,7 @@ namespace Logic.Network
                                     string token = contentElement.GetString();
                                     if (!string.IsNullOrEmpty(token))
                                     {
+                                        GD.PrintRaw(token); 
                                         CallDeferred(MethodName.EmitSignal, SignalName.TokenReceived, token);
                                     }
                                 }
@@ -126,6 +127,7 @@ namespace Logic.Network
         /// Facilitates a high-performance streaming connection to cloud AI providers.
         /// Implements a Dual-Track protocol supporting native Google Gemini (streamGenerateContent) 
         /// and the standard OpenAI (chat/completions) Server-Sent Events (SSE) specification.
+        /// Prints raw textual chunks onto the engine console frame as they arrive.
         /// </summary>
         /// <param name="prompt">The fully context-augmented prompt string for inference.</param>
         public async Task StreamCloudCompletion(string prompt)
@@ -133,10 +135,8 @@ namespace Logic.Network
             var config = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
             if (config == null || string.IsNullOrEmpty(config.CloudApiKey)) return;
 
-            // Heuristic detection: Determines the provider based on the presence of the Google base domain.
             bool isGemini = config.CloudApiUrl.Contains("googleapis.com");
             
-            // 1. URL Construction: Native Gemini vs OpenAI Standard.
             string requestUrl = isGemini 
                 ? $"https://generativelanguage.googleapis.com/v1beta/models/{config.CloudModelName}:streamGenerateContent?alt=sse"
                 : $"{config.CloudApiUrl.TrimEnd('/')}/chat/completions";
@@ -145,7 +145,6 @@ namespace Logic.Network
 
             await Task.Run(async () => {
                 try {
-                    // 2. Payload Construction: contents/parts (Gemini) vs messages (OpenAI).
                     object requestBody = isGemini 
                         ? (object)new { contents = new[] { new { parts = new[] { new { text = prompt } } } } }
                         : (object)new { model = config.CloudModelName, messages = new[] { new { role = "user", content = prompt } }, stream = true };
@@ -154,13 +153,11 @@ namespace Logic.Network
                         Content = new StringContent(global::System.Text.Json.JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
                     };
 
-                    // 3. Header Injection: x-goog-api-key vs Authorization Bearer.
                     if (isGemini) request.Headers.Add("x-goog-api-key", config.CloudApiKey);
                     else request.Headers.Add("Authorization", $"Bearer {config.CloudApiKey}");
 
                     using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
                     
-                    // Error Handling: Provides exact rejection details for debugging cloud handshakes.
                     if (!response.IsSuccessStatusCode) {
                         string errorContext = await response.Content.ReadAsStringAsync();
                         GD.PrintErr($"[NET ERROR] Cloud AI API Failure: {response.StatusCode}. Details: {errorContext}");
@@ -176,7 +173,6 @@ namespace Logic.Network
                         using JsonDocument doc = JsonDocument.Parse(data);
                         string token = "";
 
-                        // 4. Token Extraction: candidates/content/parts (Gemini) vs choices/delta (OpenAI).
                         if (isGemini) {
                             if (doc.RootElement.TryGetProperty("candidates", out JsonElement candidates) && candidates.GetArrayLength() > 0) {
                                 var parts = candidates[0].GetProperty("content").GetProperty("parts");
@@ -193,8 +189,11 @@ namespace Logic.Network
                             }
                         }
                         
-                        // Emits tokens to the UI and TTS systems for real-time processing.
-                        if (!string.IsNullOrEmpty(token)) CallDeferred(MethodName.EmitSignal, SignalName.TokenReceived, token);
+                        if (!string.IsNullOrEmpty(token)) 
+                        {
+                            GD.PrintRaw(token);
+                            CallDeferred(MethodName.EmitSignal, SignalName.TokenReceived, token);
+                        }
                     }
                 } catch (Exception ex) { GD.PrintErr($"[NET CLOUD ERROR] {ex.Message}"); }
             });
@@ -209,7 +208,6 @@ namespace Logic.Network
             try
             {
                 using var doc = JsonDocument.Parse(jsonPayload);
-                // Explicitly resolved to the global System namespace.
                 var arguments = new global::System.Collections.Generic.Dictionary<string, object>();
                 
                 foreach (var prop in doc.RootElement.EnumerateObject())
@@ -221,13 +219,17 @@ namespace Logic.Network
                 string payload = JsonSerializer.Serialize(mcpRequest);
                 var content = new StringContent(payload, Encoding.UTF8, "application/json");
 
-                // Envía la petición al servidor MCP unificado.
+                // Continuous instrumentation log tracking outbox execution requests to the Python microservice.
+                GD.Print($"\n[NET -> MCP] Enviando payload:\n{payload}");
+
                 HttpResponseMessage response = await _httpClient.PostAsync("http://127.0.0.1:8002/call_tool", content);
                 response.EnsureSuccessStatusCode();
 
                 string jsonResponse = await response.Content.ReadAsStringAsync();
                 
-                // Extrae el resultado y notifica al ChatManager mediante la señal universal.
+                // Continuous instrumentation log tracking inbound execution responses from the Python microservice.
+                GD.Print($"\n[NET <- MCP] Respuesta recibida:\n{jsonResponse}");
+                
                 using JsonDocument resultDoc = JsonDocument.Parse(jsonResponse);
                 if (resultDoc.RootElement.TryGetProperty("result", out JsonElement resElement))
                 {
@@ -235,7 +237,6 @@ namespace Logic.Network
                 }
                 else
                 {
-                    // Fallback to prevent infinite hangs if the JSON schema is violated
                     GD.PrintErr("[NET ERROR] MCP response missing 'result' key.");
                     CallDeferred(MethodName.EmitSignal, SignalName.SearchCompleted, $"Error: Unexpected JSON schema from MCP. Payload: {jsonResponse}");
                 }
@@ -244,6 +245,50 @@ namespace Logic.Network
             {
                 GD.PrintErr($"[NET ERROR] MCP Execution Failed: {ex.Message}");
                 CallDeferred(MethodName.EmitSignal, SignalName.SearchCompleted, $"Error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Dispatches a search request to the local Python microservice to retrieve web-augmented data.
+        /// Sends a JSON payload containing the query and depth parameters to the FastAPI endpoint.
+        /// Upon success, it extracts the Markdown-formatted results and notifies the UI layer.
+        /// </summary>
+        /// <param name="query">The search string to be processed by DuckDuckGo.</param>
+        /// <param name="deepResearch">Flag to enable full-text extraction via Trafilatura.</param>
+        public async Task RequestWebSearch(string query, bool deepResearch)
+        {
+            try
+            {
+                var payload = new
+                {
+                    query = query,
+                    deep_research = deepResearch
+                };
+
+                string jsonPayload = JsonSerializer.Serialize(payload);
+                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                // Diagnostic log tracking outbox query requests to the search microservice engine.
+                GD.Print($"\n[NET -> SEARCH] Enviando consulta:\n{jsonPayload}");
+
+                HttpResponseMessage response = await _httpClient.PostAsync("http://127.0.0.1:8000/search", content);
+                response.EnsureSuccessStatusCode();
+
+                string jsonResponse = await response.Content.ReadAsStringAsync();
+                
+                // Diagnostic log tracking inbound data frame buffer characteristics received from the search endpoint.
+                GD.Print($"\n[NET <- SEARCH] Fragmentos recibidos (Longitud: {jsonResponse.Length} chars)");
+
+                using JsonDocument doc = JsonDocument.Parse(jsonResponse);
+                if (doc.RootElement.TryGetProperty("results", out JsonElement resultsElement))
+                {
+                    string markdownResults = resultsElement.GetString();
+                    CallDeferred(MethodName.EmitSignal, SignalName.SearchCompleted, markdownResults);
+                }
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"[NET ERROR] Search Microservice Request Failed: {ex.Message}");
             }
         }
 
@@ -349,48 +394,6 @@ namespace Logic.Network
                     GD.PrintErr($"[FLAG] STT ERROR: Whisper HTTP request failed. {ex.Message}");
                 }
             });
-        }
-
-        /// <summary>
-        /// Dispatches a search request to the local Python microservice to retrieve web-augmented data.
-        /// Sends a JSON payload containing the query and depth parameters to the FastAPI endpoint.
-        /// Upon success, it extracts the Markdown-formatted results and notifies the UI layer.
-        /// </summary>
-        /// <param name="query">The search string to be processed by DuckDuckGo.</param>
-        /// <param name="deepResearch">Flag to enable full-text extraction via Trafilatura.</param>
-        public async Task RequestWebSearch(string query, bool deepResearch)
-        {
-            try
-            {
-                // Constructs the data transfer object for the search microservice.
-                var payload = new
-                {
-                    query = query,
-                    deep_research = deepResearch
-                };
-
-                string jsonPayload = JsonSerializer.Serialize(payload);
-                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-                // Targets the dedicated search port as defined in the infrastructure orchestration.
-                HttpResponseMessage response = await _httpClient.PostAsync("http://127.0.0.1:8000/search", content);
-                response.EnsureSuccessStatusCode();
-
-                string jsonResponse = await response.Content.ReadAsStringAsync();
-                
-                // Parses the specialized "results" field containing the compiled Markdown string.
-                using JsonDocument doc = JsonDocument.Parse(jsonResponse);
-                if (doc.RootElement.TryGetProperty("results", out JsonElement resultsElement))
-                {
-                    string markdownResults = resultsElement.GetString();
-                    CallDeferred(MethodName.EmitSignal, SignalName.SearchCompleted, markdownResults);
-                }
-            }
-            catch (Exception ex)
-            {
-                // Logs connectivity or serialization faults specifically for the search service.
-                GD.PrintErr($"[NET ERROR] Search Microservice Request Failed: {ex.Message}");
-            }
         }
 
         private string GetActiveUrl()
