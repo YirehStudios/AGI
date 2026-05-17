@@ -150,12 +150,10 @@ namespace Logic.Lite
         }
         
         /// <summary>
-        /// Orchestrates the core AI interaction pipeline using an Agentic Loop pattern.
-        /// It manages session persistence, telemetry logging, and intercepts JSON tool calls 
-        /// to perform autonomous web searches before delivering the final response.
-        /// Dynamically routes inference between local Llama and Cloud API based on the active configuration.
+        /// Orchestrates the core AI interaction pipeline using an asynchronous multi-turn Agentic Loop configuration.
+        /// Manages state persistence, routes requests to native or cloud provider backends, and handles continuous tool call execution sequences.
         /// </summary>
-        /// <param name="userInput">The raw text input received from the user interface.</param>
+        /// <param name="userInput">The raw unstructured prompt string submitted by the user interface layer.</param>
         public async global::System.Threading.Tasks.Task SendToAI(string userInput)
         {
             if (string.IsNullOrWhiteSpace(userInput) || _networkManager == null) return;
@@ -174,7 +172,6 @@ namespace Logic.Lite
             SaveSession();
 
             // Step 2: Construct the initial LLM prompt based on the current conversation state.
-            // Ensures the MCP Server is fully booted and network-accessible before querying schemas.
             await SyncMCPTools();
             string prompt = BuildPrompt();
 
@@ -203,103 +200,102 @@ namespace Logic.Lite
                 await _networkManager.StreamChatCompletion(prompt);
             }
 
-            // --- NUEVA TELEMETRÍA: IMPRIMIR BUFFER RAW DE LLAMA (TURNO INICIAL/HERRAMIENTA) ---
+            // Telemetry logging tracking the unparsed character output stream from the first execution turn.
             GD.Print($"\n[LLAMA RAW BUFFER]\n{_currentAssistantBuffer}\n===================================================\n");
 
             // --- AGENT LOOP START ---
-            // Evaluates if the AI produced a tool-calling instruction (JSON) instead of natural language.
-            string rawResponseAgent = _currentAssistantBuffer.Trim();
-            int jsonStart = rawResponseAgent.IndexOf('{');
-            int jsonEnd = rawResponseAgent.LastIndexOf('}');
+            int maxAgentLoops = 15;
+            int currentLoop = 0;
+            bool toolExecuted = true;
 
-            // Validates the structural integrity of the potential JSON payload.
-            if (jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart && rawResponseAgent.Contains("\"tool\""))
+            while (toolExecuted && currentLoop < maxAgentLoops)
             {
-                try
+                toolExecuted = false;
+                string rawResponseAgent = _currentAssistantBuffer.Trim();
+                int jsonStart = rawResponseAgent.IndexOf('{');
+                int jsonEnd = rawResponseAgent.LastIndexOf('}');
+
+                // Validates structural boundaries to distinguish tool execution parameters from conversational tokens.
+                if (jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart && rawResponseAgent.Contains("\"tool\""))
                 {
-                    // Surgical extraction: Isolates the JSON block from any markdown or LLM stop tokens.
-                    string jsonBlock = rawResponseAgent.Substring(jsonStart, jsonEnd - jsonStart + 1);
-                    using var doc = global::System.Text.Json.JsonDocument.Parse(jsonBlock);
-                    
-                    if (doc.RootElement.TryGetProperty("tool", out var toolElement))
+                    try
                     {
-                        string toolName = toolElement.GetString();
-                        string argsJson = "{}";
-                        if (doc.RootElement.TryGetProperty("arguments", out var argsElement))
+                        // Isolate the exact JSON block payload substring from any preceding reasoning tokens or text content wrappers.
+                        string jsonBlock = rawResponseAgent.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                        using var doc = global::System.Text.Json.JsonDocument.Parse(jsonBlock);
+                        
+                        if (doc.RootElement.TryGetProperty("tool", out var toolElement))
                         {
-                            argsJson = argsElement.ToString();
-                        }
-                        
-                        // Log the interception and notify the UI of agent activity.
-                        GD.Print($"\n[AGENT] Unified MCP Tool Call Intercepted: {toolName}");
-                        CallDeferred(MethodName.EmitSignal, SignalName.OnBotThoughtTokenReceived, $"\n[AGENTE: Ejecutando herramienta MCP '{toolName}']...\n");
-                        
-                        // Propagates the exact tool identifier to the UI pipeline for dynamic state rendering.
-                        CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolExecutionStarted, toolName);
-
-                        // --- INTERCEPTOR DE SEGURIDAD (ASK FIRST) ---
-                        // Dynamic validation list includes newly expanded platform microservice tools.
-                        bool requiresApproval = toolName == "os_command" || toolName == "create_new_file" || toolName == "read_file" || toolName == "fetch_url_content" || toolName == "edit_existing_file" || toolName == "single_find_and_replace" || toolName == "delete_file" || toolName == "rename_file";
-                        
-                        // Passes the holistic structured JSON block to maintain parameter token integrity during UI adjustments.
-                        string finalJsonPayload = jsonBlock; 
-                        bool toolApproved = true;
-
-                        if (requiresApproval)
-                        {
-                            CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolApprovalRequired, toolName, finalJsonPayload);
+                            string toolName = toolElement.GetString();
                             
-                            // Suspends the execution context task thread until user feedback is gathered from the client viewport.
-                            var userDecision = await ToSignal(this, SignalName.OnUserToolApprovalResponse);
-                            toolApproved = userDecision[0].AsBool();
-                            finalJsonPayload = userDecision[1].AsString();
-                        }
+                            // Instrumentation notification to native logs and user interface layout systems.
+                            GD.Print($"\n[AGENT] Unified MCP Tool Call Intercepted: {toolName}");
+                            CallDeferred(MethodName.EmitSignal, SignalName.OnBotThoughtTokenReceived, $"\n[AGENTE: Ejecutando herramienta MCP '{toolName}']...\n");
+                            CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolExecutionStarted, toolName);
 
-                        string contextResult = "";
-                        if (!toolApproved)
-                        {
-                            GD.Print($"[AGENT] Ejecución de herramienta '{toolName}' denegada por el usuario.");
-                            contextResult = $"[MCP TOOL RESULT: {toolName}]\nExecution denied by the user. Do not attempt this specific action again without asking differently.";
-                        }
-                        else
-                        {
-                            // Dispatches the fully aggregated payload instruction buffer to the active network gateway client.
-                            await _networkManager.RequestMCPExecution(toolName, finalJsonPayload);
+                            // --- INTERCEPTOR DE SEGURIDAD (ASK FIRST) ---
+                            bool requiresApproval = toolName == "os_command" || toolName == "create_new_file" || toolName == "read_file" || toolName == "fetch_url_content" || toolName == "edit_existing_file" || toolName == "single_find_and_replace" || toolName == "delete_file" || toolName == "rename_file";
                             
-                            var mcpSignal = await ToSignal(_networkManager, Logic.Network.NetworkManager.SignalName.SearchCompleted);
-                            contextResult = $"[MCP TOOL RESULT: {toolName}]\n{mcpSignal[0].AsString()}";
-                        }
+                            string finalJsonPayload = jsonBlock; 
+                            bool toolApproved = true;
 
-                        // Step 3.1: Temporarily inject the tool result into memory to ground the final response.
-                        _currentSession.Messages.Add(new ChatMessage { Id = newId + 1, Role = "system", Content = contextResult });
+                            if (requiresApproval)
+                            {
+                                CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolApprovalRequired, toolName, finalJsonPayload);
+                                var userDecision = await ToSignal(this, SignalName.OnUserToolApprovalResponse);
+                                toolApproved = userDecision[0].AsBool();
+                                finalJsonPayload = userDecision[1].AsString();
+                            }
 
-                        // Step 3.2: Reset stateful buffers to prepare for the final natural language output.
-                        _currentAssistantBuffer = string.Empty;
-                        _uiBuffer = string.Empty;
-                        _ttsBuffer = string.Empty;
-                        _isInsideThinkBlock = false;
+                            string contextResult = "";
+                            if (!toolApproved)
+                            {
+                                GD.Print($"[AGENT] Ejecución de herramienta '{toolName}' denegada por el usuario.");
+                                contextResult = $"[MCP TOOL RESULT: {toolName}]\nExecution denied by the user. Do not attempt this specific action again without asking differently.";
+                            }
+                            else
+                            {
+                                await _networkManager.RequestMCPExecution(toolName, finalJsonPayload);
+                                var mcpSignal = await ToSignal(_networkManager, Logic.Network.NetworkManager.SignalName.SearchCompleted);
+                                contextResult = $"[MCP TOOL RESULT: {toolName}]\n{mcpSignal[0].AsString()}";
+                            }
 
-                        // Step 3.3: Re-generate the prompt with the newly acquired context.
-                        string newPrompt = BuildPrompt();
-                        
-                        // Step 3.4: Re-stream inference based on the active mode (Cloud vs Local).
-                        var configCheck = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
-                        if (configCheck != null && configCheck.CurrentMode == Logic.System.Config.ConfigManager.AppMode.CloudAPI)
-                        {
-                            await _networkManager.StreamCloudCompletion(newPrompt);
+                            // Step 3.1: Temporarily inject the tool result into memory to ground the final response.
+                            _currentSession.Messages.Add(new ChatMessage { Id = newId + 1, Role = "system", Content = contextResult });
+
+                            // Step 3.2: Reset stateful buffers to prepare for the final natural language output.
+                            _currentAssistantBuffer = string.Empty;
+                            _uiBuffer = string.Empty;
+                            _ttsBuffer = string.Empty;
+                            _isInsideThinkBlock = false;
+
+                            // Step 3.3: Re-generate the prompt with the newly acquired context.
+                            string newPrompt = BuildPrompt();
+                            
+                            // Step 3.4: Re-stream inference based on the active mode.
+                            var configCheck = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+                            if (configCheck != null && configCheck.CurrentMode == Logic.System.Config.ConfigManager.AppMode.CloudAPI)
+                            {
+                                await _networkManager.StreamCloudCompletion(newPrompt);
+                            }
+                            else
+                            {
+                                await _networkManager.StreamChatCompletion(newPrompt);
+                            }
+                            
+                            GD.Print($"\n[LLAMA RAW BUFFER (LOOP {currentLoop + 1})]\n{_currentAssistantBuffer}\n===================================================\n");
+
+                            // Step 3.5: Clean up the temporary system injection to maintain history purity.
+                            _currentSession.Messages.RemoveAt(_currentSession.Messages.Count - 1);
+                            
+                            toolExecuted = true;
+                            currentLoop++;
                         }
-                        else
-                        {
-                            await _networkManager.StreamChatCompletion(newPrompt);
-                        }
-                        
-                        // Step 3.5: Clean up the temporary system injection to maintain history purity.
-                        _currentSession.Messages.RemoveAt(_currentSession.Messages.Count - 1);
                     }
-                }
-                catch (global::System.Exception ex)
-                {
-                    GD.PrintErr($"[AGENT ERROR] Failed to parse or execute generic MCP tool call: {ex.Message}");
+                    catch (global::System.Exception ex)
+                    {
+                        GD.PrintErr($"[AGENT ERROR] Failed to parse or execute generic MCP tool call: {ex.Message}");
+                    }
                 }
             }
             // --- AGENT LOOP END ---
@@ -332,7 +328,7 @@ namespace Logic.Lite
                 _ttsBuffer = string.Empty;
             }
 
-            // --- NUEVA TELEMETRÍA: IMPRIMIR BUFFER RAW DE LLAMA (TURNO FINAL) ---
+            // Telemetry tracking logging final block generations prior to structural validation string parses.
             GD.Print($"\n[LLAMA RAW BUFFER (FINAL)]\n{_currentAssistantBuffer}\n===================================================\n");
 
             // Step 5: Parse reasoning (think) and content for final storage.
