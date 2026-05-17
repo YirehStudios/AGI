@@ -135,9 +135,9 @@ HistoryButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMarg
 HistoryScroll = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/HistoryScroll")
 HistoryListContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/HistoryScroll/HistoryListContainer")
 UiAnimator = NodePath("UiAnimator")
-SettingsTabBtn = NodePath("SettingsOverlay/SettingsPanel/SettingsTabBtn")
-SettingsPanel = NodePath("SettingsOverlay/SettingsPanel")
-DarkModeToggle = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3/CheckButton")
+SettingsTabBtn = NodePath("")
+SettingsPanel = NodePath("")
+DarkModeToggle = NodePath("")
 SidebarContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer")
 SidebarSettingsButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/SettingsButton")
 
@@ -348,75 +348,3 @@ theme_override_fonts/font = SubResource("SystemFont_bold")
 theme_override_font_sizes/font_size = 24
 text = "Bienvenido a AGI de que hablamos hoy"
 horizontal_alignment = 1
-
-[node name="SettingsOverlay" type="Panel" parent="." unique_id=664321001]
-self_modulate = Color(1, 1, 1, 0)
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-
-[node name="SettingsPanel" type="Panel" parent="SettingsOverlay" unique_id=778899221]
-self_modulate = Color(1, 1, 1, 0.58431375)
-layout_mode = 1
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_right = 640.0
-grow_horizontal = 0
-grow_vertical = 2
-
-[node name="SettingsTabBtn" type="Button" parent="SettingsOverlay/SettingsPanel" unique_id=889900332]
-layout_mode = 1
-anchors_preset = 4
-anchor_top = 0.5
-anchor_bottom = 0.5
-offset_left = -20.0
-offset_top = 120.0
-offset_bottom = 220.0
-grow_vertical = 2
-theme_type_variation = &"Confi"
-icon = ExtResource("icon_settings")
-icon_alignment = 1
-expand_icon = true
-
-[node name="SettingsMargin" type="MarginContainer" parent="SettingsOverlay/SettingsPanel" unique_id=554433221]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/margin_left = 50
-theme_override_constants/margin_top = 60
-theme_override_constants/margin_right = 50
-theme_override_constants/margin_bottom = 60
-
-[node name="SettingsContent" type="VBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsMargin" unique_id=443322110]
-layout_mode = 2
-theme_override_constants/separation = 30
-
-[node name="Title" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent" unique_id=332211009]
-layout_mode = 2
-theme_override_fonts/font = SubResource("SystemFont_bold")
-theme_override_font_sizes/font_size = 32
-text = "Configuración"
-
-[node name="HSeparator" type="HSeparator" parent="SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent" unique_id=221100998]
-layout_mode = 2
-
-[node name="SettingItem3" type="HBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent" unique_id=77665555]
-layout_mode = 2
-
-[node name="Label" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3" unique_id=66554466]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 18
-text = "Modo Oscuro"
-
-[node name="CheckButton" type="CheckButton" parent="SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3" unique_id=55443377]
-layout_mode = 2

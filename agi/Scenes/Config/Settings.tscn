@@ -1,0 +1,78 @@
+[gd_scene format=3 uid="uid://bvo0frg37bl"]
+
+[ext_resource type="Texture2D" uid="uid://b4lil6k3srfwq" path="res://Resources/Images/Icons/Util/Settings.svg" id="1_7fbcq"]
+
+[sub_resource type="SystemFont" id="SystemFont_hgn5h"]
+font_names = PackedStringArray("Sans-Serif")
+font_weight = 700
+subpixel_positioning = 0
+
+[node name="SettingsOverlay" type="Panel" unique_id=114843156]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SettingsPanel" type="Panel" parent="." unique_id=1027137377]
+self_modulate = Color(0, 0, 0, 0.14509805)
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -1920.0
+offset_right = -1280.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="SettingsTabBtn" type="Button" parent="SettingsPanel" unique_id=1131121692]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = 120.0
+offset_bottom = 220.0
+grow_vertical = 2
+theme_type_variation = &"Confi"
+icon = ExtResource("1_7fbcq")
+icon_alignment = 1
+expand_icon = true
+
+[node name="SettingsMargin" type="MarginContainer" parent="SettingsPanel" unique_id=313632587]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 50
+theme_override_constants/margin_top = 60
+theme_override_constants/margin_right = 50
+theme_override_constants/margin_bottom = 60
+
+[node name="SettingsContent" type="VBoxContainer" parent="SettingsPanel/SettingsMargin" unique_id=1923887634]
+layout_mode = 2
+theme_override_constants/separation = 30
+
+[node name="Title" type="Label" parent="SettingsPanel/SettingsMargin/SettingsContent" unique_id=2130871763]
+layout_mode = 2
+theme_override_fonts/font = SubResource("SystemFont_hgn5h")
+theme_override_font_sizes/font_size = 32
+text = "Configuración"
+
+[node name="HSeparator" type="HSeparator" parent="SettingsPanel/SettingsMargin/SettingsContent" unique_id=1251958130]
+layout_mode = 2
+
+[node name="SettingItem3" type="HBoxContainer" parent="SettingsPanel/SettingsMargin/SettingsContent" unique_id=1321809633]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="SettingsPanel/SettingsMargin/SettingsContent/SettingItem3" unique_id=1460594672]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "Modo Oscuro"
+
+[node name="CheckButton" type="CheckButton" parent="SettingsPanel/SettingsMargin/SettingsContent/SettingItem3" unique_id=427871258]
+layout_mode = 2
