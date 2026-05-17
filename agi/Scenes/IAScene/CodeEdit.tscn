@@ -1,0 +1,65 @@
+[gd_scene format=3 uid="uid://crfads6pfh14x"]
+
+[ext_resource type="Texture2D" uid="uid://bm4yy3xsabxce" path="res://Resources/Images/Icons/Util/Copy.svg" id="1_ou00u"]
+[ext_resource type="FontFile" uid="uid://c88eronmj27o0" path="res://Resources/Fonts/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf" id="2_8xt4q"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8xt4q"]
+
+[node name="CodeBlockTemplate" type="PanelContainer" unique_id=1328119999]
+custom_minimum_size = Vector2(0, 180)
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_8xt4q")
+
+[node name="ContentLayout" type="VBoxContainer" parent="." unique_id=1737955764]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="HeaderBar" type="PanelContainer" parent="ContentLayout" unique_id=442781638]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
+
+[node name="HeaderMargin" type="MarginContainer" parent="ContentLayout/HeaderBar" unique_id=574948672]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_right = 12
+
+[node name="HeaderLayout" type="HBoxContainer" parent="ContentLayout/HeaderBar/HeaderMargin" unique_id=1764579956]
+layout_mode = 2
+
+[node name="LanguageIndicator" type="Label" parent="ContentLayout/HeaderBar/HeaderMargin/HeaderLayout" unique_id=1819648522]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(0.666667, 0.666667, 0.666667, 1)
+theme_override_font_sizes/font_size = 13
+text = "code"
+vertical_alignment = 1
+
+[node name="Spacer" type="MarginContainer" parent="ContentLayout/HeaderBar/HeaderMargin/HeaderLayout" unique_id=159994606]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CopyButton" type="Button" parent="ContentLayout/HeaderBar/HeaderMargin/HeaderLayout" unique_id=2040175854]
+custom_minimum_size = Vector2(60, 25)
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 12
+text = "Copy"
+icon = ExtResource("1_ou00u")
+
+[node name="CodeMargin" type="MarginContainer" parent="ContentLayout" unique_id=1868390739]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 5
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 5
+theme_override_constants/margin_bottom = 5
+
+[node name="CodeEditorNode" type="CodeEdit" parent="ContentLayout/CodeMargin" unique_id=956022159]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_fonts/font = ExtResource("2_8xt4q")
+editable = false
+wrap_mode = 1

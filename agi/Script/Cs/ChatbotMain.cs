@@ -18,26 +18,18 @@ namespace Logic.UI
 
         [Export] public OptionButton ToolSelector; 
         [Export] public OptionButton ModelSelector;
-        private global::System.Collections.Generic.Dictionary<int, string> _rutasModelos = new global::System.Collections.Generic.Dictionary<int, string>();
 
         [Export] public PanelContainer CodeBlockTemplate;
         [Export] public Texture2D RandomImage1;
         [Export] public Texture2D RandomImage2;
         [Export] public Texture2D RandomImage3;
         [Export] public Texture2D RandomImage4;
-        [Export] public Texture2D WingLeftBaseTexture;
-        [Export] public Texture2D WingRightBaseTexture;
+        
         [Export] public VideoStream RandomVideo1;
         [Export] public VideoStream RandomVideo2;
         [Export] public VideoStream RandomVideo3;
         [Export] public VideoStream RandomVideo4;
-        [Export] public AudioStreamPlayer MicroRecorderPlayer; 
-        
-        [Export] public Label LanguageLabel;
-        [Export] public CodeEdit CodeEditor;
-        [Export] public Button CopyBtn;
-        [Export] public Control BottomInputPanel;
-        [Export] public Control ChatBackgroundPanel;
+        private global::System.Collections.Generic.Dictionary<int, string> _rutasModelos = new global::System.Collections.Generic.Dictionary<int, string>();
 
         private AudioEffectRecord _recorder;
         private float _silenceTimer = 0.0f;
@@ -338,42 +330,6 @@ namespace Logic.UI
             }
         }
 
-        /// <summary>
-        /// Parses the raw string payload to identify standard markdown codeblocks.
-        /// </summary>
-        private void InjectCodeBlocks(string rawText)
-        {
-            if (string.IsNullOrWhiteSpace(rawText) || !rawText.Contains("```")) return;
-            if (_mensajeBotActual == null || CodeBlockTemplate == null) return;
-
-            Control messageLayout = _mensajeBotActual.FindChild("MessageLayout", true, false) as Control;
-            RichTextLabel originalMarkdownNode = _mensajeBotActual.FindChild("MessageBody", true, false) as RichTextLabel;
-            
-            if (messageLayout == null || originalMarkdownNode == null) return;
-            originalMarkdownNode.Visible = false; 
-
-            string[] separator = { "```" };
-            string[] blocks = rawText.Split(separator, StringSplitOptions.None);
-            
-            for (int i = 0; i < blocks.Length; i++)
-            {
-                if (string.IsNullOrWhiteSpace(blocks[i])) continue;
-
-                if (i % 2 == 0) 
-                {
-                    RichTextLabel textBlock = (RichTextLabel)originalMarkdownNode.Duplicate();
-                    textBlock.Visible = true;
-                    textBlock.Set("markdown_text", blocks[i].Trim());
-                    textBlock.Text = blocks[i].Trim();
-                    messageLayout.AddChild(textBlock);
-                }
-                else 
-                {
-                    
-                }
-            }
-        }
-
         private async void ScrollToBottom()
         {
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -486,12 +442,15 @@ namespace Logic.UI
 
         /// <summary>
         /// Instantiates an interactive intercept UI container within the chat layout to allow human-in-the-loop validation of autonomous actions.
+        /// Overhauled to dynamically parse tool arguments and generate independent input text fields for a clean, non-JSON display.
+        /// Automatically reconstructs the correct structural schema layout sequence upon submission.
         /// </summary>
         private void OnBotToolApprovalRequired(string toolName, string toolArgsJson)
         {
             if (_mensajeBotActual == null) return;
 
-            _mensajeBotActual.CambiarEstadoAccion("Esperando autorización...");
+            if (_mensajeBotActual.HasMethod("CambiarEstadoAccion"))
+                _mensajeBotActual.Call("CambiarEstadoAccion", "Esperando autorización...");
 
             Control messageLayout = _mensajeBotActual.FindChild("MessageLayout", true, false) as Control;
             if (messageLayout == null) return;
@@ -499,19 +458,60 @@ namespace Logic.UI
             VBoxContainer approvalContainer = new VBoxContainer();
             
             Label title = new Label { Text = $"⚠️ La IA quiere usar: {toolName}" };
+            title.AddThemeColorOverride("font_color", new Color(1, 0.8f, 0.2f)); 
             approvalContainer.AddChild(title);
 
-            TextEdit argsEditor = new TextEdit 
-            { 
-                Text = toolArgsJson, 
-                CustomMinimumSize = new Vector2(0, 80),
-                WrapMode = TextEdit.LineWrappingMode.Boundary
-            };
-            approvalContainer.AddChild(argsEditor);
+            var parsedArgs = new global::System.Collections.Generic.Dictionary<string, string>();
+            try
+            {
+                using var doc = global::System.Text.Json.JsonDocument.Parse(toolArgsJson);
+                global::System.Text.Json.JsonElement argsElement;
+                
+                if (!doc.RootElement.TryGetProperty("arguments", out argsElement))
+                    argsElement = doc.RootElement;
+
+                foreach (var prop in argsElement.EnumerateObject())
+                {
+                    if (prop.Name != "tool") parsedArgs[prop.Name] = prop.Value.ToString();
+                }
+            }
+            catch { /* Fallback mapping routine targeting unparsed layout definitions */ }
+
+            var inputs = new global::System.Collections.Generic.Dictionary<string, TextEdit>();
+
+            if (parsedArgs.Count > 0)
+            {
+                foreach (var kvp in parsedArgs)
+                {
+                    Label argLabel = new Label { Text = kvp.Key.ToUpper() + ":" };
+                    argLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.6f));
+                    approvalContainer.AddChild(argLabel);
+
+                    TextEdit argInput = new TextEdit 
+                    { 
+                        Text = kvp.Value, 
+                        CustomMinimumSize = new Vector2(0, kvp.Key == "content" || kvp.Key == "command" ? 150 : 40),
+                        WrapMode = TextEdit.LineWrappingMode.Boundary
+                    };
+                    approvalContainer.AddChild(argInput);
+                    inputs[kvp.Key] = argInput; 
+                }
+            }
+            else
+            {
+                TextEdit fallbackInput = new TextEdit 
+                { 
+                    Text = toolArgsJson, 
+                    CustomMinimumSize = new Vector2(0, 100),
+                    WrapMode = TextEdit.LineWrappingMode.Boundary
+                };
+                approvalContainer.AddChild(fallbackInput);
+                inputs["_raw_"] = fallbackInput;
+            }
 
             HBoxContainer btnContainer = new HBoxContainer();
-            Button acceptBtn = new Button { Text = "Accept" };
-            Button cancelBtn = new Button { Text = "Cancel" };
+            Button acceptBtn = new Button { Text = "Aceptar y Ejecutar" };
+            Button cancelBtn = new Button { Text = "Cancelar" };
             
             btnContainer.AddChild(acceptBtn);
             btnContainer.AddChild(cancelBtn);
@@ -519,23 +519,149 @@ namespace Logic.UI
 
             messageLayout.AddChild(approvalContainer);
 
-            var chatManager = GetNode<Logic.Lite.ChatManager>("/root/ChatManager");
+            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
 
             acceptBtn.Pressed += () => 
             {
                 approvalContainer.QueueFree();
-                _mensajeBotActual.CambiarEstadoAccion($"Ejecutando {toolName}...");
-                chatManager.EmitSignal(Logic.Lite.ChatManager.SignalName.OnUserToolApprovalResponse, true, argsEditor.Text);
+                
+                if (_mensajeBotActual.HasMethod("CambiarEstadoAccion"))
+                    _mensajeBotActual.Call("CambiarEstadoAccion", $"Ejecutando {toolName}...");
+                
+                string finalJson;
+                if (inputs.ContainsKey("_raw_"))
+                {
+                    finalJson = inputs["_raw_"].Text;
+                }
+                else
+                {
+                    var resultArgs = new global::System.Collections.Generic.Dictionary<string, string>();
+                    foreach(var kvp in inputs) resultArgs[kvp.Key] = kvp.Value.Text;
+                    
+                    var payloadObj = new { tool = toolName, arguments = resultArgs };
+                    finalJson = global::System.Text.Json.JsonSerializer.Serialize(payloadObj);
+                }
+
+                chatManager?.EmitSignal(Logic.Lite.ChatManager.SignalName.OnUserToolApprovalResponse, true, finalJson);
             };
 
             cancelBtn.Pressed += () => 
             {
                 approvalContainer.QueueFree();
-                _mensajeBotActual.CambiarEstadoAccion("Herramienta cancelada.");
-                chatManager.EmitSignal(Logic.Lite.ChatManager.SignalName.OnUserToolApprovalResponse, false, argsEditor.Text);
+                if (_mensajeBotActual.HasMethod("CambiarEstadoAccion"))
+                    _mensajeBotActual.Call("CambiarEstadoAccion", "Herramienta cancelada.");
+                
+                chatManager?.EmitSignal(Logic.Lite.ChatManager.SignalName.OnUserToolApprovalResponse, false, toolArgsJson);
             };
 
             ScrollToBottom();
+        }
+
+        /// <summary>
+        /// Parses the raw text block to distinguish standard markdown content from code segments, 
+        /// programmatically instantiating structural code editor templates dynamically.
+        /// Integrates programmatic layout duplication, runtime syntax color rule initialization, 
+        /// and secure window clipboard routing bindings.
+        /// </summary>
+        private void InjectCodeBlocks(string rawText)
+        {
+            if (string.IsNullOrWhiteSpace(rawText) || !rawText.Contains("```")) return;
+            if (_mensajeBotActual == null) return;
+            
+            if (CodeBlockTemplate == null)
+            {
+                GD.PrintErr("[UI ERROR] CodeBlockTemplate es nulo. ¡Asigna tu PanelContainer de plantilla de código en el Inspector de Godot (ChatbotMain) para que puedan dibujarse!");
+                return;
+            }
+
+            Control messageLayout = _mensajeBotActual.FindChild("MessageLayout", true, false) as Control;
+            RichTextLabel originalMarkdownNode = _mensajeBotActual.FindChild("MessageBody", true, false) as RichTextLabel;
+            
+            if (messageLayout == null || originalMarkdownNode == null) return;
+            originalMarkdownNode.Visible = false; 
+
+            string[] separator = { "```" };
+            string[] blocks = rawText.Split(separator, StringSplitOptions.None);
+            
+            for (int i = 0; i < blocks.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(blocks[i])) continue;
+
+                if (i % 2 == 0) 
+                {
+                    RichTextLabel textBlock = (RichTextLabel)originalMarkdownNode.Duplicate();
+                    textBlock.Visible = true;
+                    textBlock.Set("markdown_text", blocks[i].Trim());
+                    textBlock.Text = blocks[i].Trim();
+                    messageLayout.AddChild(textBlock);
+                }
+                else 
+                {
+                    PanelContainer newCodeBlock = (PanelContainer)CodeBlockTemplate.Duplicate();
+                    newCodeBlock.Visible = true;
+                    
+                    string codeContent = blocks[i];
+                    string language = "code";
+                    int firstNewline = codeContent.IndexOf('\n');
+                    
+                    if (firstNewline != -1 && firstNewline < 20) 
+                    {
+                        language = codeContent.Substring(0, firstNewline).Trim();
+                        codeContent = codeContent.Substring(firstNewline + 1);
+                    }
+
+                    CodeEdit editNode = null;
+                    var codeEdits = newCodeBlock.FindChildren("*", "CodeEdit", true, false);
+                    if (codeEdits.Count > 0 && codeEdits[0] is CodeEdit foundEdit)
+                    {
+                        editNode = foundEdit;
+                        editNode.Text = codeContent.Trim();
+                        
+                        var highlighter = new CodeHighlighter();
+                        highlighter.NumberColor = new Color(0.92f, 0.77f, 0.51f);
+                        highlighter.SymbolColor = new Color(0.80f, 0.80f, 0.80f);
+                        highlighter.FunctionColor = new Color(0.38f, 0.69f, 0.93f);
+                        highlighter.MemberVariableColor = new Color(0.48f, 0.82f, 0.64f);
+                        
+                        var coreKeywords = new string[] { 
+                            "public", "private", "protected", "class", "void", "string", "int", "float", "bool",
+                            "var", "return", "if", "else", "for", "while", "foreach", "import", "def", "from", 
+                            "as", "print", "async", "await", "using", "namespace", "new", "true", "false" 
+                        };
+                        
+                        Color keywordColor = new Color(0.85f, 0.43f, 0.58f);
+                        foreach (var keyword in coreKeywords)
+                        {
+                            highlighter.AddKeywordColor(keyword, keywordColor);
+                        }
+                        
+                        editNode.SyntaxHighlighter = highlighter;
+                    }
+
+                    var labels = newCodeBlock.FindChildren("*", "Label", true, false);
+                    if (labels.Count > 0 && labels[0] is Label langLabel)
+                    {
+                        langLabel.Text = string.IsNullOrEmpty(language) ? "CODE" : language.ToUpper();
+                    }
+
+                    var buttons = newCodeBlock.FindChildren("*", "Button", true, false);
+                    if (buttons.Count > 0 && buttons[0] is Button copyBtn && editNode != null)
+                    {
+                        copyBtn.Pressed += () => 
+                        {
+                            DisplayServer.ClipboardSet(editNode.Text);
+                            copyBtn.Text = "¡Copiado!";
+                            
+                            GetTree().CreateTimer(1.5f).Timeout += () => 
+                            {
+                                if (GodotObject.IsInstanceValid(copyBtn)) copyBtn.Text = "Copy";
+                            };
+                        };
+                    }
+
+                    messageLayout.AddChild(newCodeBlock);
+                }
+            }
         }
 
         /// <summary>

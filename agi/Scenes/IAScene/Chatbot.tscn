@@ -12,6 +12,7 @@
 [ext_resource type="VideoStream" uid="uid://0esyq17ynyll" path="res://Resources/Farming-Simulator.ogv" id="7_amhcu"]
 [ext_resource type="VideoStream" uid="uid://bc7xtarwn1qiv" path="res://Resources/Paisaje.ogv" id="8_675c4"]
 [ext_resource type="VideoStream" uid="uid://b7hhl2fcqhlrl" path="res://Resources/Super-Tux.ogv" id="9_u6rn7"]
+[ext_resource type="PackedScene" uid="uid://crfads6pfh14x" path="res://Scenes/IAScene/CodeEdit.tscn" id="13_amhcu"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_amhcu"]
 bg_color = Color(1.1551381e-06, 0.6489031, 0.89848536, 1)
@@ -40,7 +41,7 @@ bg_color = Color(0, 0.14242893, 0.31401196, 1)
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lgxif"]
 bg_color = Color(1, 0.22723916, 0.691225, 1)
 
-[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "ToolSelector", "BottomInputPanel")]
+[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "ToolSelector", "ModelSelector", "CodeBlockTemplate")]
 self_modulate = Color(1, 1, 1, 0)
 anchors_preset = 15
 anchor_right = 1.0
@@ -55,6 +56,8 @@ SendButton = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPane
 EscenaMensajeUsuario = ExtResource("2_jta4j")
 EscenaMensajeBot = ExtResource("3_amhcu")
 ToolSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolSelector")
+ModelSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ModelSelector")
+CodeBlockTemplate = NodePath("CodeBlockTemplate")
 RandomImage1 = ExtResource("2_q7f8p")
 RandomImage2 = ExtResource("3_jta4j")
 RandomImage3 = ExtResource("4_amhcu")
@@ -63,7 +66,6 @@ RandomVideo1 = ExtResource("6_jta4j")
 RandomVideo2 = ExtResource("7_amhcu")
 RandomVideo3 = ExtResource("8_675c4")
 RandomVideo4 = ExtResource("9_u6rn7")
-BottomInputPanel = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel")
 
 [node name="MainContainer" type="HBoxContainer" parent="." unique_id=2091277489]
 layout_mode = 1
@@ -154,3 +156,7 @@ theme_override_styles/focus = SubResource("StyleBoxFlat_lgxif")
 icon = ExtResource("5_ug3aw")
 icon_alignment = 1
 expand_icon = true
+
+[node name="CodeBlockTemplate" parent="." unique_id=1328119999 instance=ExtResource("13_amhcu")]
+visible = false
+layout_mode = 0

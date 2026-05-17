@@ -97,28 +97,10 @@ namespace Logic.UI
                 OnDarkModeToggled(DarkModeToggle.ButtonPressed);
             }
 
-            InitializeLogoAnimation();
             ChangeMode(ChatbotScene, "Modo Chat Bot");
             LoadHistoryFiles();
         }
 
-        private void InitializeLogoAnimation()
-        {
-            if (CompanyLogo == null) return;
-
-            CompanyLogo.PivotOffset = CompanyLogo.Size / 2;
-            Tween logoTween = GetTree().CreateTween().SetLoops();
-            
-            logoTween.Parallel().TweenProperty(CompanyLogo, "scale", new Vector2(1.03f, 1.03f), 2.0f)
-                .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
-            logoTween.Parallel().TweenProperty(CompanyLogo, "modulate", new Color(1.15f, 1.15f, 1.15f, 1.0f), 2.0f)
-                .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
-
-            logoTween.Chain().TweenProperty(CompanyLogo, "scale", new Vector2(1.0f, 1.0f), 2.0f)
-                .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
-            logoTween.Parallel().TweenProperty(CompanyLogo, "modulate", new Color(1.0f, 1.0f, 1.0f, 1.0f), 2.0f)
-                .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
-        }
 
         public void HideWelcomeMessage()
         {
@@ -192,7 +174,7 @@ namespace Logic.UI
                         historyBtn.ClipText = true;
                         historyBtn.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
                         historyBtn.CustomMinimumSize = new Vector2(10, 0);
-                        
+                        historyBtn.Flat = true; 
                         
                         string capturedFileName = fileName;
                         historyBtn.Pressed += () => GD.Print(capturedFileName);
