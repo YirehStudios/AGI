@@ -471,6 +471,9 @@ namespace Logic.Lite
         /// </summary>
         private string BuildPrompt()
         {
+            var config = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+            var template = config?.ActiveProfile?.Template ?? new Logic.System.Config.ConfigManager.ChatTemplate();
+
             StringBuilder builder = new StringBuilder();
             string timeString = global::System.DateTime.Now.ToString("f");
             string currentTimeContext = $"Fecha y hora actual del sistema: {timeString}.";
@@ -478,7 +481,7 @@ namespace Logic.Lite
             // Injects the synchronized MCP tool list into the foundational prompt instructions.
             string dynamicSystemPrompt = $"{SystemPrompt}\n\n[ MCP DYNAMIC TOOLS SCHEMA ]\n{_availableTools}";
             
-            builder.Append($"<|im_start|>system\n{dynamicSystemPrompt}\n{currentTimeContext}\nMemoria actual: {_currentSession.Summary}<|im_end|>\n");
+            builder.Append($"{template.SystemPrefix}{dynamicSystemPrompt}\n{currentTimeContext}\nMemoria actual: {_currentSession.Summary}{template.StopSequence}");
 
             int startIndex = global::System.Math.Max(0, _currentSession.Messages.Count - 10);
             for (int i = startIndex; i < _currentSession.Messages.Count; i++)
@@ -491,10 +494,11 @@ namespace Logic.Lite
                     fullContent = $"<think>\n{msg.Think}\n</think>\n{msg.Content}";
                 }
 
-                builder.Append($"<|im_start|>{msg.Role}\n{fullContent.Trim()}<|im_end|>\n");
+                string prefix = msg.Role == "user" ? template.UserPrefix : (msg.Role == "system" ? template.SystemPrefix : template.AssistantPrefix);
+                builder.Append($"{prefix}{fullContent.Trim()}{template.StopSequence}");
             }
 
-            builder.Append("<|im_start|>assistant\n");
+            builder.Append($"{template.AssistantPrefix}");
             return builder.ToString();
         }
 

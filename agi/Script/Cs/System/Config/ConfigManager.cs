@@ -144,7 +144,27 @@ namespace Logic.System.Config
             public long ExpectedSize { get; set; }
         }
 
+        public class ChatTemplate
+        {
+            public string SystemPrefix { get; set; } = "<|im_start|>system\n";
+            public string UserPrefix { get; set; } = "<|im_start|>user\n";
+            public string AssistantPrefix { get; set; } = "<|im_start|>assistant\n";
+            public string StopSequence { get; set; } = "<|im_end|>\n";
+        }
+
+        public class ModelProfile
+        {
+            public string Nombre { get; set; }
+            public int Tipo { get; set; }
+            public string EndpointUrl { get; set; }
+            public string ModelId { get; set; }
+            public string ApiKey { get; set; }
+            public ChatTemplate Template { get; set; } = new ChatTemplate();
+        }
+
         public string ActiveModelUrl { get; set; } = string.Empty;
+        public ModelProfile ActiveProfile { get; set; } = null;
+        public string ActiveProfilePath { get; set; } = string.Empty;
 
         private Logic.Network.DownloadManager _downloadManager;
 
@@ -172,6 +192,7 @@ namespace Logic.System.Config
             public bool? DarkMode { get; set; }
             public NetworkState? NetworkState { get; set; }
             public PerformanceTier? PerformanceTier { get; set; }
+            public string ActiveProfilePath { get; set; }
         }
 
         /// <summary>
@@ -305,7 +326,8 @@ namespace Logic.System.Config
                     CloudModelName = CloudModelName,
                     DarkMode = DarkMode,
                     NetworkState = CurrentNetworkState,
-                    PerformanceTier = CurrentPerformanceTier
+                    PerformanceTier = CurrentPerformanceTier,
+                    ActiveProfilePath = this.ActiveProfilePath
                 };
 
                 JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
@@ -357,6 +379,7 @@ namespace Logic.System.Config
                     
                     CurrentNetworkState = state.NetworkState ?? NetworkState.StrictLocalhost;
                     CurrentPerformanceTier = state.PerformanceTier ?? PerformanceTier.Medium;
+                    this.ActiveProfilePath = state.ActiveProfilePath ?? string.Empty;
                 }
             }
             catch (Exception ex)

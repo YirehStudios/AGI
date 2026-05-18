@@ -61,6 +61,8 @@ namespace Logic.Utils
 
         [Export] public LineEdit TxtLanIpInput;          
         [Export] public LineEdit TxtApiKeyInput;         
+        [Export] public LineEdit TxtCloudApiUrlInput;
+        [Export] public LineEdit TxtCloudModelNameInput;
         [Export] public CheckBox ChkIsLanBroadcasting;   
         [Export] public LineEdit TxtCustomPort;
         [Export] public Button BtnPerformanceContinuar;
@@ -144,13 +146,40 @@ namespace Logic.Utils
                 BtnConnectCloud.Pressed += () =>
                 {
                     string apiKey = TxtApiKeyInput != null ? TxtApiKeyInput.Text.Trim() : "";
-                    if (!string.IsNullOrWhiteSpace(apiKey))
+                    string apiUrl = TxtCloudApiUrlInput != null ? TxtCloudApiUrlInput.Text.Trim() : "";
+                    string modelName = TxtCloudModelNameInput != null ? TxtCloudModelNameInput.Text.Trim() : "";
+
+                    if (!string.IsNullOrWhiteSpace(apiKey) && !string.IsNullOrWhiteSpace(apiUrl) && !string.IsNullOrWhiteSpace(modelName))
                     {
+                        ConfigManager.ModelProfile newProfile = new ConfigManager.ModelProfile
+                        {
+                            Nombre = $"Cloud API ({modelName})",
+                            Tipo = 3,
+                            EndpointUrl = apiUrl,
+                            ModelId = modelName,
+                            ApiKey = apiKey
+                        };
+                        string safeFileName = modelName.Replace(" ", "_").ToLower() + ".json";
+                        string modelsDir = ProjectSettings.GlobalizePath("user://models");
+                        if (!global::System.IO.Directory.Exists(modelsDir))
+                        {
+                            global::System.IO.Directory.CreateDirectory(modelsDir);
+                        }
+                        string fullPath = global::System.IO.Path.Combine(modelsDir, safeFileName);
+                        string jsonProfile = global::System.Text.Json.JsonSerializer.Serialize(newProfile, new global::System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                        global::System.IO.File.WriteAllText(fullPath, jsonProfile);
+
+                        _configManager.ActiveProfile = newProfile;
+                        _configManager.ActiveProfilePath = fullPath;
+
+                        _configManager.CloudApiUrl = apiUrl;
+                        _configManager.CloudModelName = modelName;
                         _configManager.CloudApiKey = apiKey;
                         _configManager.CurrentMode = ConfigManager.AppMode.CloudAPI;
                         _configManager.CurrentNetworkState = ConfigManager.NetworkState.CloudAPI;
                         
                         _configManager.CurrentPerformanceTier = ConfigManager.PerformanceTier.High;
+                        _configManager.SetupCompleted = true;
                         
                         _configManager.SaveConfiguration();
                         TransitionToMainScene();
@@ -214,6 +243,29 @@ namespace Logic.Utils
         private async void FastBootSequence()
         {
             PanelWelcome.Visible = false;
+
+            if (!string.IsNullOrEmpty(_configManager.ActiveProfilePath) && global::System.IO.File.Exists(_configManager.ActiveProfilePath))
+            {
+                try
+                {
+                    string json = global::System.IO.File.ReadAllText(_configManager.ActiveProfilePath);
+                    _configManager.ActiveProfile = global::System.Text.Json.JsonSerializer.Deserialize<ConfigManager.ModelProfile>(json);
+                }
+                catch (Exception ex)
+                {
+                    GD.PrintErr($"FastBoot: Failed to load ModelProfile from {_configManager.ActiveProfilePath}. {ex.Message}");
+                    _configManager.SetupCompleted = false;
+                    SwitchState(WizardState.ModeSelection);
+                    return;
+                }
+            }
+            else
+            {
+                GD.PrintErr("FastBoot: ActiveProfilePath is missing or invalid.");
+                _configManager.SetupCompleted = false;
+                SwitchState(WizardState.ModeSelection);
+                return;
+            }
 
             var auditResult = await _dependencyInstaller.AuditSystemDependenciesAsync();
 
@@ -498,6 +550,23 @@ namespace Logic.Utils
                 {
                     _configManager.ActiveModelName = preset.Name;
                     _configManager.ActiveModelPath = global::System.IO.Path.Combine(modelsDir, safeFileName);
+
+                    ConfigManager.ModelProfile newProfile = new ConfigManager.ModelProfile
+                    {
+                        Nombre = preset.Name,
+                        Tipo = 2,
+                        EndpointUrl = "http://127.0.0.1:8080",
+                        ModelId = preset.Name,
+                        ApiKey = "local-no-key",
+                        Template = new ConfigManager.ChatTemplate()
+                    };
+                    string profileFileName = preset.Name.Replace(" ", "_").ToLower() + "_profile.json";
+                    string fullPath = global::System.IO.Path.Combine(modelsDir, profileFileName);
+                    string jsonProfile = global::System.Text.Json.JsonSerializer.Serialize(newProfile, new global::System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                    global::System.IO.File.WriteAllText(fullPath, jsonProfile);
+
+                    _configManager.ActiveProfile = newProfile;
+                    _configManager.ActiveProfilePath = fullPath;
                 }
 
                 _configManager.ActiveModelUrl = preset.DownloadLinks[0];

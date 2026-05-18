@@ -42,7 +42,7 @@ namespace Logic.Backend
 
         public void StartBackend()
         {
-            //_retryCount = 0;
+            _retryCount = 0;
             _isPanicking = false;
             
             // Enforces a sterile execution environment prior to instantiation.

@@ -41,7 +41,10 @@ bg_color = Color(0, 0.14242893, 0.31401196, 1)
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lgxif"]
 bg_color = Color(1, 0.22723916, 0.691225, 1)
 
-[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "ToolSelector", "ModelSelector", "CodeBlockTemplate")]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_MinimalOverlay"]
+bg_color = Color(0, 0, 0, 0.7)
+
+[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "ToolSelector", "ModelSelector", "CodeBlockTemplate", "LoadingOverlay", "SwapProgressBar")]
 self_modulate = Color(1, 1, 1, 0)
 anchors_preset = 15
 anchor_right = 1.0
@@ -66,6 +69,8 @@ RandomVideo1 = ExtResource("6_jta4j")
 RandomVideo2 = ExtResource("7_amhcu")
 RandomVideo3 = ExtResource("8_675c4")
 RandomVideo4 = ExtResource("9_u6rn7")
+LoadingOverlay = NodePath("LoadingOverlay")
+SwapProgressBar = NodePath("LoadingOverlay/CenterContainer/SwapProgressBar")
 
 [node name="MainContainer" type="HBoxContainer" parent="." unique_id=2091277489]
 layout_mode = 1
@@ -160,3 +165,21 @@ expand_icon = true
 [node name="CodeBlockTemplate" parent="." unique_id=1328119999 instance=ExtResource("13_amhcu")]
 visible = false
 layout_mode = 0
+
+[node name="LoadingOverlay" type="PanelContainer" parent="." unique_id=138519178]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_MinimalOverlay")
+
+[node name="CenterContainer" type="CenterContainer" parent="LoadingOverlay" unique_id=1199029492]
+layout_mode = 2
+
+[node name="SwapProgressBar" type="ProgressBar" parent="LoadingOverlay/CenterContainer" unique_id=1955606566]
+custom_minimum_size = Vector2(300, 15)
+layout_mode = 2
+show_percentage = false

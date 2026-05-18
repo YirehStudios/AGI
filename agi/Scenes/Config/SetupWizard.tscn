@@ -106,7 +106,7 @@ corner_radius_bottom_left = 10
 
 [sub_resource type="ButtonGroup" id="ButtonGroup_performance"]
 
-[node name="SetupWizard" type="Control" unique_id=120493504 node_paths=PackedStringArray("PanelWelcome", "PanelDependencies", "PanelModeSelection", "PanelPerformanceProfile", "PanelDownloading", "BtnTemaOscuro", "BtnTemaClaro", "SetupBackground", "TerminalLog", "InstallProgress", "BtnComenzar", "BtnLocalHost", "BtnConnectCloud", "BtnConnectLan", "TxtCommandDisplay", "BtnCopyCommand", "LblRestartWarning", "ModelDownloadProgress", "ModelDownloadStatus", "TxtLanIpInput", "TxtApiKeyInput", "ChkIsLanBroadcasting", "TxtCustomPort", "BtnPerformanceContinuar", "BtnLowPerf", "BtnMedPerf", "BtnHighPerf", "BtnNextPerf")]
+[node name="SetupWizard" type="Control" unique_id=120493504 node_paths=PackedStringArray("PanelWelcome", "PanelDependencies", "PanelModeSelection", "PanelPerformanceProfile", "PanelDownloading", "BtnTemaOscuro", "BtnTemaClaro", "SetupBackground", "TerminalLog", "InstallProgress", "BtnComenzar", "BtnLocalHost", "BtnConnectCloud", "BtnConnectLan", "TxtCommandDisplay", "BtnCopyCommand", "LblRestartWarning", "ModelDownloadProgress", "ModelDownloadStatus", "TxtLanIpInput", "TxtApiKeyInput", "TxtCloudApiUrlInput", "TxtCloudModelNameInput", "ChkIsLanBroadcasting", "TxtCustomPort", "BtnPerformanceContinuar", "BtnLowPerf", "BtnMedPerf", "BtnHighPerf", "BtnNextPerf")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -136,6 +136,8 @@ ModelDownloadProgress = NodePath("Background/CenterContainer/PanelDownloading/La
 ModelDownloadStatus = NodePath("Background/CenterContainer/PanelDownloading/Layout/ModelDownloadStatus")
 TxtLanIpInput = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout/TxtLanIpInput")
 TxtApiKeyInput = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout/TxtApiKeyInput")
+TxtCloudApiUrlInput = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout/TxtCloudApiUrlInput")
+TxtCloudModelNameInput = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout/TxtCloudModelNameInput")
 ChkIsLanBroadcasting = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout/ChkIsLanBroadcasting")
 TxtCustomPort = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout/TxtCustomPort")
 BtnPerformanceContinuar = NodePath("Background/CenterContainer/PanelPerformanceProfile/Layout/BtnNextPerf")
@@ -412,12 +414,28 @@ text = "Procesamiento remoto mediante API externa"
 horizontal_alignment = 1
 autowrap_mode = 2
 
+[node name="TxtCloudApiUrlInput" type="LineEdit" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout" unique_id=10112330]
+custom_minimum_size = Vector2(0, 45)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_input")
+theme_override_styles/focus = SubResource("StyleBoxFlat_input")
+placeholder_text = "Base URL (e.g., https://api.openai.com/v1)"
+alignment = 1
+
+[node name="TxtCloudModelNameInput" type="LineEdit" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout" unique_id=10112331]
+custom_minimum_size = Vector2(0, 45)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_input")
+theme_override_styles/focus = SubResource("StyleBoxFlat_input")
+placeholder_text = "Model Name (e.g., gpt-4o, gemini-1.5-flash)"
+alignment = 1
+
 [node name="TxtApiKeyInput" type="LineEdit" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout" unique_id=10112237]
 custom_minimum_size = Vector2(0, 45)
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_input")
 theme_override_styles/focus = SubResource("StyleBoxFlat_input")
-placeholder_text = "API Token"
+placeholder_text = "API Key (Bearer Token)"
 alignment = 1
 
 [node name="BtnConnectCloud" type="Button" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout" unique_id=10112238]

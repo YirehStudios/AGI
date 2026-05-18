@@ -29,6 +29,10 @@ namespace Logic.UI
         [Export] public VideoStream RandomVideo2;
         [Export] public VideoStream RandomVideo3;
         [Export] public VideoStream RandomVideo4;
+
+        [ExportCategory("Hot-Swap UI")]
+        [Export] public PanelContainer LoadingOverlay;
+        [Export] public ProgressBar SwapProgressBar;
         private global::System.Collections.Generic.Dictionary<int, string> _rutasModelos = new global::System.Collections.Generic.Dictionary<int, string>();
 
         private AudioEffectRecord _recorder;
@@ -372,7 +376,6 @@ namespace Logic.UI
             {
                 dir.ListDirBegin();
                 string fileName = dir.GetNext();
-                int index = 0;
 
                 while (fileName != "")
                 {
@@ -389,9 +392,8 @@ namespace Logic.UI
                                 var data = json.Data.AsGodotDictionary();
                                 string nombreModelo = data.ContainsKey("nombre") ? (string)data["nombre"] : fileName.Replace(".json", "");
                                 
-                                ModelSelector.AddItem(nombreModelo, index);
-                                _rutasModelos[index] = $"{rutaModelos}/{fileName}";
-                                index++;
+                                ModelSelector.AddItem(nombreModelo);
+                                _rutasModelos[ModelSelector.GetItemCount() - 1] = $"{rutaModelos}/{fileName}";
                             }
                         }
                     }
@@ -403,21 +405,123 @@ namespace Logic.UI
                     ModelSelector.AddItem("Sin modelos instalados", 0);
                     ModelSelector.Disabled = true;
                 }
+                else
+                {
+                    var configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+                    bool matchFound = false;
+
+                    if (configManager != null && !string.IsNullOrEmpty(configManager.ActiveProfilePath))
+                    {
+                        foreach (var kvp in _rutasModelos)
+                        {
+                            if (ProjectSettings.GlobalizePath(kvp.Value) == configManager.ActiveProfilePath)
+                            {
+                                ModelSelector.Select(ModelSelector.GetItemIndex(kvp.Key));
+                                matchFound = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!matchFound)
+                    {
+                        ModelSelector.Select(0);
+                    }
+                }
             }
             else
             {
                 GD.PrintErr($"[SISTEMA] No se encontró la carpeta de modelos en: {rutaModelos}");
             }
         }
+        
 
-        private void OnModelSelected(long index)
+        private async void OnModelSelected(long index)
         {
-            int intIndex = (int)index;
-            if (_rutasModelos.ContainsKey(intIndex))
+            int itemId = ModelSelector.GetItemId((int)index);
+            if (_rutasModelos.TryGetValue(itemId, out string rutaJsonSeleccionada))
             {
-                string rutaJsonSeleccionada = _rutasModelos[intIndex];
-                GD.Print($"[IA] Preparando modelo desde configuración: {rutaJsonSeleccionada}");
+                string globalPath = ProjectSettings.GlobalizePath(rutaJsonSeleccionada);
+                GD.Print($"[IA] Preparando modelo desde configuración: {globalPath}");
                 
+                try
+                {
+                    if (TextInputField != null) TextInputField.Editable = false;
+                    if (SendButton != null) SendButton.Disabled = true;
+
+                    if (LoadingOverlay != null) LoadingOverlay.Visible = true;
+                    if (SwapProgressBar != null) SwapProgressBar.Value = 0;
+
+                    string json = global::System.IO.File.ReadAllText(globalPath);
+                    var configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+                    
+                    if (configManager != null)
+                    {
+                        var profile = global::System.Text.Json.JsonSerializer.Deserialize<Logic.System.Config.ConfigManager.ModelProfile>(json);
+                        configManager.ActiveProfile = profile;
+                        configManager.ActiveProfilePath = globalPath;
+
+                        var backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
+
+                        if (profile.Tipo == 2) // LocalHost
+                        {
+                            configManager.CurrentMode = Logic.System.Config.ConfigManager.AppMode.LocalHost;
+                            if (backend != null)
+                            {
+                                Logic.Backend.BackendLauncher.BuildLogReceivedEventHandler onLogReceived = (log) => {
+                                    if (SwapProgressBar != null && SwapProgressBar.Value < 90) SwapProgressBar.Value += 5;
+                                };
+
+                                backend.BuildLogReceived += onLogReceived;
+
+                                backend.TerminateOrphanedResources();
+                                backend.StartBackend();
+                                await ToSignal(backend, Logic.Backend.BackendLauncher.SignalName.BackendReady);
+                                
+                                backend.BuildLogReceived -= onLogReceived;
+                                
+                                if (SwapProgressBar != null) SwapProgressBar.Value = 100;
+                            }
+                        }
+                        else if (profile.Tipo == 3) // Cloud API
+                        {
+                            configManager.CurrentMode = Logic.System.Config.ConfigManager.AppMode.CloudAPI;
+                            if (backend != null)
+                            {
+                                backend.TerminateOrphanedResources();
+                            }
+                            
+                            if (SwapProgressBar != null)
+                            {
+                                SwapProgressBar.Value = 50;
+                                await ToSignal(GetTree().CreateTimer(0.3f), "timeout");
+                                SwapProgressBar.Value = 100;
+                            }
+                        }
+
+                        if (LoadingOverlay != null) LoadingOverlay.Visible = false;
+
+
+                        GD.Print($"[IA] Perfil de modelo '{profile.Nombre}' cargado exitosamente.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    GD.PrintErr($"[ERROR] Falla al cargar el perfil de modelo: {ex.Message}");
+                    if (LoadingOverlay != null) LoadingOverlay.Visible = false;
+                    
+                    var errorMsg = new RichTextLabel();
+                    errorMsg.BbcodeEnabled = true;
+                    errorMsg.Text = $"[center][color=red][ERROR] Falla al cambiar modelo: {ex.Message}[/color][/center]";
+                    errorMsg.FitContent = true;
+                    MessagesContainer.AddChild(errorMsg);
+                    ScrollToBottom();
+                }
+                finally
+                {
+                    if (TextInputField != null) TextInputField.Editable = true;
+                    if (SendButton != null) SendButton.Disabled = false;
+                }
             }
         }
 

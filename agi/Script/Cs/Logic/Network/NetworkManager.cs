@@ -133,13 +133,13 @@ namespace Logic.Network
         public async Task StreamCloudCompletion(string prompt)
         {
             var config = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
-            if (config == null || string.IsNullOrEmpty(config.CloudApiKey)) return;
+            if (config?.ActiveProfile == null || string.IsNullOrEmpty(config.ActiveProfile.ApiKey)) return;
 
-            bool isGemini = config.CloudApiUrl.Contains("googleapis.com");
+            bool isGemini = config.ActiveProfile.EndpointUrl.Contains("googleapis.com");
             
             string requestUrl = isGemini 
-                ? $"https://generativelanguage.googleapis.com/v1beta/models/{config.CloudModelName}:streamGenerateContent?alt=sse"
-                : $"{config.CloudApiUrl.TrimEnd('/')}/chat/completions";
+                ? $"{config.ActiveProfile.EndpointUrl.TrimEnd('/')}/models/{config.ActiveProfile.ModelId}:streamGenerateContent?alt=sse"
+                : $"{config.ActiveProfile.EndpointUrl.TrimEnd('/')}/chat/completions";
 
             GD.Print($"[NET] Dispatching Cloud Request: {requestUrl}");
 
@@ -147,20 +147,24 @@ namespace Logic.Network
                 try {
                     object requestBody = isGemini 
                         ? (object)new { contents = new[] { new { parts = new[] { new { text = prompt } } } } }
-                        : (object)new { model = config.CloudModelName, messages = new[] { new { role = "user", content = prompt } }, stream = true };
+                        : (object)new { model = config.ActiveProfile.ModelId, messages = new[] { new { role = "user", content = prompt } }, stream = true };
 
                     var request = new HttpRequestMessage(HttpMethod.Post, requestUrl) {
                         Content = new StringContent(global::System.Text.Json.JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
                     };
 
-                    if (isGemini) request.Headers.Add("x-goog-api-key", config.CloudApiKey);
-                    else request.Headers.Add("Authorization", $"Bearer {config.CloudApiKey}");
+                    if (isGemini) request.Headers.Add("x-goog-api-key", config.ActiveProfile.ApiKey);
+                    else request.Headers.Add("Authorization", $"Bearer {config.ActiveProfile.ApiKey}");
 
                     using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
                     
                     if (!response.IsSuccessStatusCode) {
                         string errorContext = await response.Content.ReadAsStringAsync();
                         GD.PrintErr($"[NET ERROR] Cloud AI API Failure: {response.StatusCode}. Details: {errorContext}");
+                        if (response.StatusCode == (global::System.Net.HttpStatusCode)429)
+                        {
+                            CallDeferred(MethodName.EmitSignal, SignalName.TokenReceived, "\n[SYSTEM ERROR: Gemini API Quota Exceeded. Please wait a minute.]\n");
+                        }
                         return;
                     }
 
@@ -393,15 +397,18 @@ namespace Logic.Network
         {
             var config = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
 
+            if (config?.ActiveProfile != null)
+            {
+                return config.ActiveProfile.EndpointUrl.TrimEnd('/');
+            }
+
             if (config != null && config.CurrentMode == Logic.System.Config.ConfigManager.AppMode.RemoteUI)
             {
                 if (!string.IsNullOrWhiteSpace(config.RemoteHostUrl))
                 {
-                    // Limpiamos la barra final si el usuario la puso por error (ej: "http://192.168.1.10:8080/")
                     return config.RemoteHostUrl.TrimEnd('/');
                 }
             }
-            // Si es LocalHost o la URL está vacía, regresamos al de por defecto
             return "http://127.0.0.1:8080";
         }
     } 
