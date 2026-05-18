@@ -376,7 +376,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_glass_panel")
 
 [node name="Layout" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection" unique_id=569732960]
 layout_mode = 2
-theme_override_constants/separation = 30
+theme_override_constants/separation = 40
 alignment = 1
 
 [node name="Title" type="Label" parent="Background/CenterContainer/PanelModeSelection/Layout" unique_id=255411991]

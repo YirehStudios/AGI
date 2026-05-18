@@ -14,12 +14,12 @@
 [ext_resource type="VideoStream" uid="uid://b7hhl2fcqhlrl" path="res://Resources/Super-Tux.ogv" id="9_u6rn7"]
 [ext_resource type="PackedScene" uid="uid://crfads6pfh14x" path="res://Scenes/IAScene/CodeEdit.tscn" id="13_amhcu"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_amhcu"]
-bg_color = Color(1.1551381e-06, 0.6489031, 0.89848536, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jta4j"]
+bg_color = Color(0.2739657, 0.6233799, 0.9242838, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_675c4"]
 bg_color = Color(0, 0.25700295, 0.67390674, 1)
@@ -153,11 +153,7 @@ caret_blink = true
 custom_minimum_size = Vector2(50, 50)
 layout_mode = 2
 size_flags_vertical = 4
-theme_override_styles/normal = SubResource("StyleBoxFlat_amhcu")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_675c4")
-theme_override_styles/hover = SubResource("StyleBoxFlat_pdmg7")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_u6rn7")
-theme_override_styles/focus = SubResource("StyleBoxFlat_lgxif")
+theme_override_styles/normal = SubResource("StyleBoxFlat_jta4j")
 icon = ExtResource("5_ug3aw")
 icon_alignment = 1
 expand_icon = true

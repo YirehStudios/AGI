@@ -111,6 +111,10 @@ namespace Logic.UI
         }
 
         private void ChangeMode(PackedScene sceneToLoad, string titleText)
+{
+    if (ContentContainer != null)
+    {
+        foreach (Node child in ContentContainer.GetChildren())
         {
             if (ContentContainer != null)
             {
@@ -137,6 +141,26 @@ namespace Logic.UI
                 _currentView.Call("UpdateTheme", _isCurrentlyDark);
             }
         }
+    }
+
+    if (sceneToLoad == null) return;
+
+    // Instanciamos la nueva
+    _currentView = sceneToLoad.Instantiate();
+    ContentContainer.AddChild(_currentView);
+
+    if (_currentView is Control controlView)
+    {
+        controlView.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        controlView.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        controlView.SizeFlagsVertical = SizeFlags.ExpandFill;
+    }
+
+    if (_currentView.HasMethod("UpdateTheme"))
+    {
+        _currentView.Call("UpdateTheme", _isCurrentlyDark);
+    }
+}
 
         public void ToggleSidebar()
         {
@@ -147,12 +171,25 @@ namespace Logic.UI
         }
 
         private void LoadHistoryFiles()
-        {
-            if (HistoryListContainer == null) return;
-            foreach (Node child in HistoryListContainer.GetChildren()) child.QueueFree();
+{
+    if (HistoryListContainer == null) return;
+    foreach (Node child in HistoryListContainer.GetChildren()) child.QueueFree();
 
-            string historyPath = "user://history/";
-            if (!DirAccess.DirExistsAbsolute(historyPath))
+    string historyPath = "user://history/";
+    if (!DirAccess.DirExistsAbsolute(historyPath))
+    {
+        DirAccess.MakeDirAbsolute(historyPath);
+        return;
+    }
+
+    using var dir = DirAccess.Open(historyPath);
+    if (dir != null)
+    {
+        dir.ListDirBegin();
+        string fileName = dir.GetNext();
+        while (fileName != "")
+        {
+            if (!dir.CurrentIsDir() && fileName.EndsWith(".json"))
             {
                 DirAccess.MakeDirAbsolute(historyPath);
                 return;
@@ -183,7 +220,10 @@ namespace Logic.UI
                     fileName = dir.GetNext();
                 }
             }
+            fileName = dir.GetNext();
         }
+    }
+}
 
         private void OnSettingsTabHovered()
         {

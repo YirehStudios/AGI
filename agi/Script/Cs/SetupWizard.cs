@@ -5,7 +5,6 @@ using Logic.System.Config;
 using Logic.System.Drivers;
 using Logic.Network;
 using System.Threading.Tasks;
-
 namespace Logic.Utils
 {
     /// <summary>
@@ -88,12 +87,18 @@ namespace Logic.Utils
         
         private bool _esModoOscuro = true; 
 
+        // --- AGREGA ESTA LÍNEA AQUÍ ---
+        private bool _esModoOscuro = true; 
+        // ------------------------------
+
+
         /// <summary>
         /// Initializes core subsystems, binds UI signals, and evaluates initial state conditions.
         /// Dynamic sub-scene confirmation wiring is deferred to the runtime instantiation sequence.
         /// </summary>
         public override void _Ready()
         {
+            
             _configManager = GetNode<ConfigManager>("/root/ConfigManager");
             _packageManager = GetNode<PackageManager>("/root/PackageManager");
             _environmentManager = GetNode<EnvironmentManager>("/root/EnvironmentManager");

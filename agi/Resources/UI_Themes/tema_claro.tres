@@ -162,10 +162,10 @@ content_margin_right = 0.0
 content_margin_bottom = 0.0
 bg_color = Color(0.95, 0.95, 0.95, 1)
 draw_center = false
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_agqsr"]
 content_margin_left = 8.0
@@ -587,16 +587,11 @@ content_margin_right = 0.0
 content_margin_bottom = 6.0
 bg_color = Color(0.95, 0.95, 0.95, 1)
 draw_center = false
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
 
 [sub_resource type="StyleBoxLine" id="StyleBoxLine_p1err"]
 color = Color(0, 0, 0, 0.1)
 grow_begin = -4.0
 grow_end = -4.0
-thickness = 2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6ytyj"]
 content_margin_left = 0.0
@@ -641,10 +636,6 @@ content_margin_right = 8.0
 content_margin_bottom = 4.0
 bg_color = Color(0.95, 0.95, 0.95, 1)
 draw_center = false
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wkdg2"]
 content_margin_left = 8.0
@@ -701,10 +692,10 @@ content_margin_right = 6.0
 content_margin_bottom = 3.6
 bg_color = Color(0.94, 0.94, 0.94, 1)
 draw_center = false
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel_base"]
 content_margin_left = 8.0
@@ -719,7 +710,6 @@ border_color = Color(0.86, 0.86, 0.86, 1)
 color = Color(0, 0, 0, 0.1)
 grow_begin = -8.0
 grow_end = -8.0
-thickness = 2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kaw3e"]
 content_margin_left = 9.0
@@ -815,8 +805,8 @@ corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_j260w"]
-content_margin_left = 0.0
-content_margin_top = 1.0
+content_margin_left = 4.0
+content_margin_top = 4.0
 content_margin_right = 4.0
 content_margin_bottom = 0.0
 bg_color = Color(0.9, 0.9, 0.9, 1)
@@ -865,7 +855,7 @@ corner_radius_bottom_left = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6do6s"]
 content_margin_left = 4.0
-content_margin_top = 0.0
+content_margin_top = 2.0
 content_margin_right = 4.0
 content_margin_bottom = 0.0
 bg_color = Color(0.8, 0.8, 0.8, 1)
@@ -932,16 +922,11 @@ content_margin_right = 6.0
 content_margin_bottom = 0.0
 bg_color = Color(0.95, 0.95, 0.95, 1)
 draw_center = false
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
 
 [sub_resource type="StyleBoxLine" id="StyleBoxLine_0m0b2"]
 color = Color(0, 0, 0, 0.1)
 grow_begin = -4.0
 grow_end = -4.0
-thickness = 2
 vertical = true
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_y0flh"]
@@ -1324,11 +1309,11 @@ Tree/colors/parent_hl_line_color = Color(0, 0, 0, 0.1)
 Tree/constants/children_hl_line_width = 0
 Tree/constants/draw_guides = 0
 Tree/constants/draw_relationship_lines = 1
-Tree/constants/inner_item_margin_left = 4
-Tree/constants/inner_item_margin_right = 4
+Tree/constants/inner_item_margin_left = 8
+Tree/constants/inner_item_margin_right = 8
 Tree/constants/parent_hl_line_width = 1
 Tree/constants/relationship_line_width = 0
-Tree/constants/v_separation = 0
+Tree/constants/v_separation = 2
 Tree/styles/button_hover = SubResource("StyleBoxFlat_e5ek4")
 Tree/styles/button_pressed = SubResource("StyleBoxFlat_6do6s")
 Tree/styles/cursor = SubResource("StyleBoxFlat_ua3ma")

@@ -26,18 +26,28 @@ content_margin_left = 0.0
 [sub_resource type="Resource" id="Resource_js05h"]
 resource_local_to_scene = true
 script = ExtResource("7_uc6w0")
+font_size = 2.25
+is_bold = true
+is_underlined = true
 
 [sub_resource type="Resource" id="Resource_rp26x"]
 resource_local_to_scene = true
 script = ExtResource("8_5hh2h")
+font_size = 1.75
+is_bold = true
+is_underlined = true
 
 [sub_resource type="Resource" id="Resource_2c06c"]
 resource_local_to_scene = true
 script = ExtResource("9_v8ecj")
+font_size = 1.5
+is_bold = true
 
 [sub_resource type="Resource" id="Resource_wyifx"]
 resource_local_to_scene = true
 script = ExtResource("10_4554d")
+font_size = 1.25
+is_bold = true
 
 [sub_resource type="Resource" id="Resource_cdhtr"]
 resource_local_to_scene = true
@@ -76,15 +86,17 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_spacer")
 layout_mode = 2
 alignment = 1
 
-[node name="CopyUserBtn" type="Button" parent="UserActions" unique_id=414764968]
+[node name="CopyUserBtn" type="Button" parent="." unique_id=414764968]
 layout_mode = 2
+size_flags_vertical = 0
 theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
 theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
 text = "Copiar"
 
-[node name="MinimizeUserBtn" type="Button" parent="UserActions" unique_id=796861987]
+[node name="MinimizeUserBtn" type="Button" parent="." unique_id=796861987]
 layout_mode = 2
+size_flags_vertical = 0
 theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
 theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
@@ -96,7 +108,10 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"BubbleUser2"
 
-[node name="MessageBody" type="RichTextLabel" parent="MessageBubble" unique_id=1147132934]
+[node name="MarginContainer" type="MarginContainer" parent="MessageBubble" unique_id=1874783843]
+layout_mode = 2
+
+[node name="MessageBody" type="RichTextLabel" parent="MessageBubble/MarginContainer" unique_id=1147132934]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3

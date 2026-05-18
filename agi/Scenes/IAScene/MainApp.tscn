@@ -124,7 +124,7 @@ ChatbotScene = ExtResource("2_dpcee")
 LivemodeScene = ExtResource("3_l7jlp")
 SidebarWrapper = NodePath("MainLayout/SidebarWrapper")
 ContentContainer = NodePath("MainLayout/RightColumn/ViewWrapper/ContentContainer")
-WelcomeOverlay = NodePath("MainLayout/RightColumn/ViewWrapper/WelcomeOverlay")
+WelcomeOverlay = NodePath("")
 CompanyLogo = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/LogoMargin/LogoContainer/CompanyLogo")
 MenuToggleButton = NodePath("MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout/MenuToggleButton")
 ChatBotModeButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/ChatBotModeButton")
@@ -138,8 +138,6 @@ UiAnimator = NodePath("UiAnimator")
 SettingsTabBtn = NodePath("SettingsOverlay/SettingsPanel/SettingsTabBtn")
 SettingsPanel = NodePath("SettingsOverlay/SettingsPanel")
 DarkModeToggle = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3/CheckButton")
-SettingsTitle = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/Title")
-DarkSettingsLabel = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3/Label")
 SidebarContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer")
 SidebarSettingsButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/SettingsButton")
 
@@ -181,6 +179,7 @@ grow_vertical = 2
 
 [node name="SidebarMargin" type="MarginContainer" parent="MainLayout/SidebarWrapper/SidebarContainer" unique_id=111222333]
 layout_mode = 2
+theme_type_variation = &"Siderbard"
 theme_override_constants/margin_left = 15
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 15

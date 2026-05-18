@@ -53,6 +53,7 @@ namespace Logic.UI
         /// </summary>
         public override void _Ready()
         {
+            
             if (SendButton != null)
             {
                 SendButton.Pressed += OnSendPressed;
@@ -190,15 +191,12 @@ namespace Logic.UI
             _isWaitingForResponse = true;
 
             Node current = this;
-            while (current != null)
-            {
-                if (current.HasMethod("HideWelcomeMessage"))
-                {
-                    current.Call("HideWelcomeMessage");
-                    break;
-                }
-                current = current.GetParent();
-            }
+            if (WelcomeOverlay != null)
+    {
+        WelcomeOverlay.Visible = false;
+    }
+
+    TextInputField.Text = string.Empty;
 
             TextInputField.Text = string.Empty;
             TextInputField.CustomMinimumSize = new Vector2(TextInputField.CustomMinimumSize.X, MinInputHeight);
