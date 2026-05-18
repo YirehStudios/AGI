@@ -33,7 +33,7 @@ namespace Logic.System.Drivers
             // Se calcula la ruta de destino basándose en el sistema operativo y el motor para una búsqueda precisa.
             string osFolder = _environmentManager.IsWindows ? "windows" : "linux";
             string engineTargetDir = Path.Combine(_environmentManager.BinPath, osFolder, enginePrefix);
-            
+
             string path = FileResolver.FindExecutable(engineTargetDir, _environmentManager.IsWindows, enginePrefix);
             return !string.IsNullOrEmpty(path);
         }
@@ -51,10 +51,10 @@ namespace Logic.System.Drivers
 
             // Define la segmentación de directorios según el sistema operativo identificado.
             string osFolder = _environmentManager.IsWindows ? "windows" : "linux";
-            
+
             // Calcula la ruta absoluta de destino para el despliegue del motor.
             string engineTargetDir = Path.Combine(_environmentManager.BinPath, osFolder, folderName);
-            
+
             // Establece la ruta interna de Godot para la persistencia del archivo comprimido.
             string godotDestination = $"user://bin/{osFolder}/{folderName}";
 
@@ -112,11 +112,11 @@ namespace Logic.System.Drivers
         /// The absolute path to the 'uv' binary if found in common installation directories; 
         /// otherwise, returns "uv" to attempt resolution from the global system PATH[cite: 3].
         /// </returns>
-        private string GetUvPath()
+        private static string GetUvPath()
         {
             // Retrieve the current user's home directory path from environment variables.
             string home = global::System.Environment.GetEnvironmentVariable("HOME");
-            
+
             // Define the most frequent installation targets for the uv package manager.
             string localUv = $"{home}/.local/bin/uv";
             string cargoUv = $"{home}/.cargo/bin/uv";
@@ -126,7 +126,7 @@ namespace Logic.System.Drivers
             if (global::System.IO.File.Exists(cargoUv)) return cargoUv;
 
             // Fallback to the standard command name if specific absolute paths do not exist.
-            return "uv"; 
+            return "uv";
         }
 
         /// <summary>
@@ -156,7 +156,7 @@ namespace Logic.System.Drivers
             bool mcpDownload = true;
             if (!string.IsNullOrEmpty(mcpServerUrl))
                 mcpDownload = await _downloadManager.DownloadFileAsync(mcpServerUrl, _environmentManager.BinPath, "mcp_server.py");
-            
+
             // Strictly verifies physical file presence to prevent silent uv/pip execution failures.
             string mcpLocalPath = Path.Combine(_environmentManager.BinPath, "mcp_server.py");
             if (!File.Exists(mcpLocalPath))
@@ -188,11 +188,11 @@ namespace Logic.System.Drivers
 
                 output.Clear();
                 GD.Print($"[PackageManager] Search Env: Installing pip dependencies via uv...");
-                
+
                 // Includes mcp and httpx as core dependencies for the tool gateway.
                 string[] dependencies = { "pip", "install", "--python", envPath, "fastapi", "uvicorn", "ddgs", "trafilatura", "mcp", "httpx" };
                 int exitCode = OS.Execute(uvCommand, dependencies, output, true);
-                
+
                 if (exitCode != 0)
                 {
                     GD.PrintErr($"[PackageManager] Linux uv Search error: {string.Join("\n", output)}.");
@@ -227,11 +227,11 @@ namespace Logic.System.Drivers
 
                 var output = new global::Godot.Collections.Array();
                 GD.Print($"[PackageManager] Search Env: Installing pip dependencies on Windows...");
-                
+
                 // Added mcp and httpx to the Windows pip installation command.
                 string[] winDeps = { "-m", "pip", "install", "fastapi", "uvicorn", "ddgs", "trafilatura", "mcp", "httpx" };
                 int pipExit = OS.Execute(pythonExe, winDeps, output, true);
-                
+
                 if (pipExit != 0)
                 {
                     GD.PrintErr($"[PackageManager] Windows pip Search error: {string.Join("\n", output)}.");

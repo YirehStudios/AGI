@@ -59,7 +59,7 @@ namespace Logic.UI
             _selectedModelData = null;
             _activeButtons.Clear();
 
-            if (TitleLabel != null) 
+            if (TitleLabel != null)
             {
                 TitleLabel.Text = data.Title;
             }
@@ -78,7 +78,7 @@ namespace Logic.UI
 
                 PanelContainer cardPanel = new PanelContainer();
                 MarginContainer margin = new MarginContainer();
-                
+
                 margin.AddThemeConstantOverride("margin_left", 15);
                 margin.AddThemeConstantOverride("margin_top", 15);
                 margin.AddThemeConstantOverride("margin_right", 15);
@@ -87,28 +87,28 @@ namespace Logic.UI
                 HBoxContainer cardLayout = new HBoxContainer();
                 cardLayout.AddThemeConstantOverride("separation", 20);
 
-                VBoxContainer textContainer = new VBoxContainer 
-                { 
-                    SizeFlagsHorizontal = Control.SizeFlags.ExpandFill 
+                VBoxContainer textContainer = new VBoxContainer
+                {
+                    SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
                 };
 
                 Label nameLabel = new Label { Text = item.Name };
                 nameLabel.AddThemeFontSizeOverride("font_size", 20);
 
-                Label descLabel = new Label 
-                { 
-                    Text = item.Description, 
-                    AutowrapMode = TextServer.AutowrapMode.WordSmart 
+                Label descLabel = new Label
+                {
+                    Text = item.Description,
+                    AutowrapMode = TextServer.AutowrapMode.WordSmart
                 };
-                descLabel.CustomMinimumSize = new Vector2(350, 0); 
+                descLabel.CustomMinimumSize = new Vector2(350, 0);
                 descLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.6f));
 
                 textContainer.AddChild(nameLabel);
                 textContainer.AddChild(descLabel);
 
-                Button selectButton = new Button 
-                { 
-                    Text = "Seleccionar", 
+                Button selectButton = new Button
+                {
+                    Text = "Seleccionar",
                     ToggleMode = true,
                     SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
                     CustomMinimumSize = new Vector2(150, 50)
@@ -116,7 +116,7 @@ namespace Logic.UI
 
                 _activeButtons.Add(selectButton);
 
-                selectButton.Toggled += (isPressed) => 
+                selectButton.Toggled += (isPressed) =>
                 {
                     if (isPressed)
                     {
@@ -131,10 +131,10 @@ namespace Logic.UI
 
                 cardLayout.AddChild(textContainer);
                 cardLayout.AddChild(selectButton);
-                
+
                 margin.AddChild(cardLayout);
                 cardPanel.AddChild(margin);
-                
+
                 if (ItemContainer != null)
                 {
                     ItemContainer.AddChild(cardPanel);
@@ -161,7 +161,7 @@ namespace Logic.UI
             }
 
             clickedButton.Text = "¡Seleccionado!";
-            
+
             OnConfirmPressed();
         }
 
@@ -176,4 +176,4 @@ namespace Logic.UI
             }
         }
     }
-}	
+}

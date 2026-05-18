@@ -1,7 +1,10 @@
 using Godot;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text;
-using System.Text.Json.Serialization; 
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 namespace Logic.Lite
 {
@@ -16,7 +19,7 @@ namespace Logic.Lite
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public int? IdAssistant { get; set; }
-        
+
         public int Id { get; set; }
         public string Role { get; set; }
         public string Timestamp { get; set; }
@@ -70,7 +73,7 @@ namespace Logic.Lite
         [Signal] public delegate void OnBotStartedThinkingEventHandler();
         [Signal] public delegate void OnBotThoughtTokenReceivedEventHandler(string token);
         [Signal] public delegate void OnBotThoughtFinishedEventHandler();
-        [Signal] public delegate void OnBotMessageTokenReceivedEventHandler(string token); 
+        [Signal] public delegate void OnBotMessageTokenReceivedEventHandler(string token);
         [Signal] public delegate void OnBotFinishedSpeakingEventHandler(string fullResponse);
         [Signal] public delegate void OnBotToolExecutionStartedEventHandler(string toolName);
         [Signal] public delegate void OnBotToolApprovalRequiredEventHandler(string toolName, string toolArgsJson);
@@ -83,7 +86,7 @@ namespace Logic.Lite
         private ChatSession _currentSession;
         private string _historyDirectory;
         private string _currentFilePath;
-        
+
         private string _currentAssistantBuffer = string.Empty;
         private string _uiBuffer = string.Empty;
         private string _ttsBuffer = string.Empty;
@@ -103,7 +106,7 @@ namespace Logic.Lite
             $"SANDBOX RULE: Your secure root workspace is located at '{workspacePath}'. All file and directory paths you provide to your tools MUST be absolute paths starting exactly with {workspacePath}. Do NOT output the literal string '{{workspacePath}}'.\n" +
             "REASONING RULE: If you are NOT using tools, you must also use <think> tags at the very beginning. If the conversation changes topic, include [SESSION_NAME: Descriptive Name] and [SUMMARY: Brief Summary] inside your <think> block.\n" +
             "LANGUAGE RULE: You must always respond to the user in the exact same language they used in their prompt, regardless of these English system instructions.";
-            
+
             _historyDirectory = ProjectSettings.GlobalizePath("user://history");
             if (!global::System.IO.Directory.Exists(_historyDirectory))
             {
@@ -148,7 +151,7 @@ namespace Logic.Lite
                 GD.PrintErr($"[BRAIN] Failed to write JSON history to disk: {ex.Message}");
             }
         }
-        
+
         /// <summary>
         /// Orchestrates the core AI interaction pipeline using an asynchronous multi-turn Agentic Loop configuration.
         /// Manages state persistence, routes requests to native or cloud provider backends, and handles continuous tool call execution sequences.
@@ -160,14 +163,14 @@ namespace Logic.Lite
 
             // Step 1: Record the user turn in the persistent session history.
             int newId = _currentSession.Messages.Count + 1;
-            
-            _currentSession.Messages.Add(new ChatMessage 
-            { 
+
+            _currentSession.Messages.Add(new ChatMessage
+            {
                 IdUser = _currentSession.Messages.FindAll(m => m.Role == "user").Count + 1,
-                Id = newId, 
-                Role = "user", 
-                Content = userInput, 
-                Timestamp = global::System.DateTime.Now.ToString("O") 
+                Id = newId,
+                Role = "user",
+                Content = userInput,
+                Timestamp = global::System.DateTime.Now.ToString("O")
             });
             SaveSession();
 
@@ -177,7 +180,7 @@ namespace Logic.Lite
 
             // Notify UI layer that inference has commenced.
             EmitSignal(SignalName.OnBotStartedThinking);
-            
+
             // Reset stateful buffers for the new transaction.
             _currentAssistantBuffer = string.Empty;
             _uiBuffer = string.Empty;
@@ -223,11 +226,11 @@ namespace Logic.Lite
                         // Isolate the exact JSON block payload substring from any preceding reasoning tokens or text content wrappers.
                         string jsonBlock = rawResponseAgent.Substring(jsonStart, jsonEnd - jsonStart + 1);
                         using var doc = global::System.Text.Json.JsonDocument.Parse(jsonBlock);
-                        
+
                         if (doc.RootElement.TryGetProperty("tool", out var toolElement))
                         {
                             string toolName = toolElement.GetString();
-                            
+
                             // Instrumentation notification to native logs and user interface layout systems.
                             GD.Print($"\n[AGENT] Unified MCP Tool Call Intercepted: {toolName}");
                             CallDeferred(MethodName.EmitSignal, SignalName.OnBotThoughtTokenReceived, $"\n[AGENTE: Ejecutando herramienta MCP '{toolName}']...\n");
@@ -235,8 +238,8 @@ namespace Logic.Lite
 
                             // --- INTERCEPTOR DE SEGURIDAD (ASK FIRST) ---
                             bool requiresApproval = toolName == "os_command" || toolName == "create_new_file" || toolName == "read_file" || toolName == "fetch_url_content" || toolName == "edit_existing_file" || toolName == "single_find_and_replace" || toolName == "delete_file" || toolName == "rename_file";
-                            
-                            string finalJsonPayload = jsonBlock; 
+
+                            string finalJsonPayload = jsonBlock;
                             bool toolApproved = true;
 
                             if (requiresApproval)
@@ -271,7 +274,7 @@ namespace Logic.Lite
 
                             // Step 3.3: Re-generate the prompt with the newly acquired context.
                             string newPrompt = BuildPrompt();
-                            
+
                             // Step 3.4: Re-stream inference based on the active mode.
                             var configCheck = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
                             if (configCheck != null && configCheck.CurrentMode == Logic.System.Config.ConfigManager.AppMode.CloudAPI)
@@ -282,12 +285,12 @@ namespace Logic.Lite
                             {
                                 await _networkManager.StreamChatCompletion(newPrompt);
                             }
-                            
+
                             GD.Print($"\n[LLAMA RAW BUFFER (LOOP {currentLoop + 1})]\n{_currentAssistantBuffer}\n===================================================\n");
 
                             // Step 3.5: Clean up the temporary system injection to maintain history purity.
                             _currentSession.Messages.RemoveAt(_currentSession.Messages.Count - 1);
-                            
+
                             toolExecuted = true;
                             currentLoop++;
                         }
@@ -343,7 +346,7 @@ namespace Logic.Lite
                 thoughtProcess = rawResponse.Substring(thinkStart + 7, thinkEnd - (thinkStart + 7)).Trim();
                 finalContent = rawResponse.Substring(thinkEnd + 8).Trim();
             }
-            else if (thinkStart != -1 && thinkEnd == -1) 
+            else if (thinkStart != -1 && thinkEnd == -1)
             {
                 thoughtProcess = rawResponse.Substring(thinkStart + 7).Trim();
                 finalContent = "";
@@ -352,8 +355,8 @@ namespace Logic.Lite
             // Step 6: Extract dynamic metadata (Name/Summary) from the reasoning block.
             if (thoughtProcess.Contains("[SESSION_NAME:"))
             {
-                var matchName = global::System.Text.RegularExpressions.Regex.Match(thoughtProcess, @"\[SESSION_NAME:\s*(.+?)\]");
-                if (matchName.Success) 
+                var matchName = MyRegex().Match(thoughtProcess);
+                if (matchName.Success)
                 {
                     string oldPath = _currentFilePath;
                     _currentSession.SessionName = matchName.Groups[1].Value.Trim();
@@ -369,24 +372,24 @@ namespace Logic.Lite
             }
 
             // Step 7: Finalize the transaction by saving the assistant turn.
-            _currentSession.Messages.Add(new ChatMessage 
-            { 
+            _currentSession.Messages.Add(new ChatMessage
+            {
                 IdAssistant = _currentSession.Messages.FindAll(m => m.Role == "assistant").Count + 1,
-                Id = newId + 1, 
-                Role = "assistant", 
+                Id = newId + 1,
+                Role = "assistant",
                 Think = thoughtProcess,
-                Content = finalContent, 
-                Timestamp = global::System.DateTime.Now.ToString("O") 
+                Content = finalContent,
+                Timestamp = global::System.DateTime.Now.ToString("O")
             });
             SaveSession();
 
             // Final notification to the UI and TTS systems.
             string safeTtsText = CleanResponseForTTS(finalContent);
             if (string.IsNullOrWhiteSpace(safeTtsText)) safeTtsText = "Pensé demasiado y perdí el hilo. ¿Puedes repetirlo?";
-            
+
             // Outputs the completed text response to the native Godot logs for diagnostics.
             GD.Print($"\n[AGI RESPONSE]\n{finalContent}\n");
-            
+
             EmitSignal(SignalName.OnBotFinishedSpeaking, safeTtsText);
         }
 
@@ -402,13 +405,13 @@ namespace Logic.Lite
             if (!_isInsideThinkBlock && _currentAssistantBuffer.Contains("<think>") && !_currentAssistantBuffer.Contains("</think>"))
             {
                 _isInsideThinkBlock = true;
-                return; 
+                return;
             }
             else if (_isInsideThinkBlock && _currentAssistantBuffer.Contains("</think>"))
             {
                 _isInsideThinkBlock = false;
-                _uiBuffer = ""; 
-                
+                _uiBuffer = "";
+
                 CallDeferred(MethodName.EmitSignal, SignalName.OnBotThoughtFinished);
                 return;
             }
@@ -424,7 +427,7 @@ namespace Logic.Lite
             else
             {
                 string visibleText = "";
-                
+
                 if (_currentAssistantBuffer.Contains("</think>"))
                 {
                     int index = _currentAssistantBuffer.IndexOf("</think>") + 8;
@@ -451,9 +454,9 @@ namespace Logic.Lite
                     CallDeferred(MethodName.EmitSignal, SignalName.OnBotMessageTokenReceived, newChars);
                 }
 
-                if (_ttsBuffer.Contains(". ") || _ttsBuffer.Contains(", ") || 
-                    _ttsBuffer.Contains("? ") || _ttsBuffer.Contains("! ") || 
-                    _ttsBuffer.Contains("\n"))
+                if (_ttsBuffer.Contains(". ") || _ttsBuffer.Contains(", ") ||
+                    _ttsBuffer.Contains("? ") || _ttsBuffer.Contains("! ") ||
+                    _ttsBuffer.Contains('\n'))
                 {
                     string cleanChunk = CleanResponseForTTS(_ttsBuffer);
                     if (!string.IsNullOrWhiteSpace(cleanChunk))
@@ -477,10 +480,10 @@ namespace Logic.Lite
             StringBuilder builder = new StringBuilder();
             string timeString = global::System.DateTime.Now.ToString("f");
             string currentTimeContext = $"Fecha y hora actual del sistema: {timeString}.";
-            
+
             // Injects the synchronized MCP tool list into the foundational prompt instructions.
             string dynamicSystemPrompt = $"{SystemPrompt}\n\n[ MCP DYNAMIC TOOLS SCHEMA ]\n{_availableTools}";
-            
+
             builder.Append($"{template.SystemPrefix}{dynamicSystemPrompt}\n{currentTimeContext}\nMemoria actual: {_currentSession.Summary}{template.StopSequence}");
 
             int startIndex = global::System.Math.Max(0, _currentSession.Messages.Count - 10);
@@ -514,10 +517,54 @@ namespace Logic.Lite
                 using var client = new global::System.Net.Http.HttpClient();
                 // Targets the standardized MCP gateway port.
                 var response = await client.GetAsync("http://127.0.0.1:8002/list_tools");
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     _availableTools = await response.Content.ReadAsStringAsync();
+                    
+                    var config = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+                    if (config != null && config.ToolPermissions != null && config.ToolPermissions.Count > 0)
+                    {
+                        try
+                        {
+                            var jsonNode = JsonNode.Parse(_availableTools);
+                            JsonArray toolsArray = null;
+                            if (jsonNode is JsonArray arr) toolsArray = arr;
+                            else if (jsonNode is JsonObject obj && obj.ContainsKey("tools") && obj["tools"] is JsonArray objArr) toolsArray = objArr;
+
+                            if (toolsArray != null)
+                            {
+                                var filteredArray = new JsonArray();
+                                foreach (var tool in toolsArray)
+                                {
+                                    string toolName = tool?["name"]?.ToString() ?? tool?["function"]?["name"]?.ToString();
+                                    if (!string.IsNullOrEmpty(toolName))
+                                    {
+                                        if (config.ToolPermissions.TryGetValue(toolName, out int perm) && perm == 2)
+                                        {
+                                            continue; 
+                                        }
+                                    }
+                                    filteredArray.Add(tool.DeepClone());
+                                }
+                                
+                                if (jsonNode is JsonArray)
+                                {
+                                    _availableTools = filteredArray.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+                                }
+                                else if (jsonNode is JsonObject obj)
+                                {
+                                    obj["tools"] = filteredArray;
+                                    _availableTools = obj.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+                                }
+                            }
+                        }
+                        catch (global::System.Exception ex)
+                        {
+                            GD.PrintErr($"[MCP] Error filtering tools: {ex.Message}");
+                        }
+                    }
+
                     GD.Print("[BRAIN] MCP Tools synchronized successfully.");
                 }
             }
@@ -531,26 +578,29 @@ namespace Logic.Lite
         /// <summary>
         /// Processes string normalization utilizing Regular Expressions to obliterate tags and bash-breaking symbols.
         /// </summary>
-        private string CleanResponseForTTS(string input)
+        private static string CleanResponseForTTS(string input)
         {
             if (string.IsNullOrWhiteSpace(input)) return "";
-            
+
             string cleaned = global::System.Text.RegularExpressions.Regex.Replace(
-                input, 
-                @"<think>.*?(</think>|$)", 
-                "", 
+                input,
+                @"<think>.*?(</think>|$)",
+                "",
                 global::System.Text.RegularExpressions.RegexOptions.Singleline
             );
-            
+
             cleaned = global::System.Text.RegularExpressions.Regex.Replace(cleaned, @"[*_~`#\[\]]", "");
 
             cleaned = global::System.Text.RegularExpressions.Regex.Replace(cleaned, @"\(.*?\)", "");
-            
+
             cleaned = cleaned.Replace("\"", "").Replace("'", "").Replace("\n", " ").Replace("\r", " ").Trim();
-            
+
             cleaned = global::System.Text.RegularExpressions.Regex.Replace(cleaned, @"\s+", " ");
-            
+
             return cleaned;
         }
+
+        [global::System.Text.RegularExpressions.GeneratedRegex(@"\[SESSION_NAME:\s*(.+?)\]")]
+        private static partial global::System.Text.RegularExpressions.Regex MyRegex();
     }
 }

@@ -1,0 +1,30 @@
+[33mebbd005[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/Temas[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mTemas[m[33m)[m HEAD@{0}: reset: moving to Temas
+[33m028ed59[m HEAD@{1}: checkout: moving from Temas to main
+[33mebbd005[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/Temas[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mTemas[m[33m)[m HEAD@{2}: reset: moving to HEAD
+[33mebbd005[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/Temas[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mTemas[m[33m)[m HEAD@{3}: reset: moving to HEAD
+[33mebbd005[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/Temas[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mTemas[m[33m)[m HEAD@{4}: checkout: moving from main to Temas
+[33m028ed59[m HEAD@{5}: commit: vG 0.1.1.0s
+[33m60f1d86[m HEAD@{6}: commit: vG 0.1.1.0r
+[33m5b0f76f[m HEAD@{7}: commit: vG 0.1.1.0q
+[33mce396d9[m HEAD@{8}: commit: vG 0.1.1.0p
+[33meb53840[m HEAD@{9}: commit: vG 0.1.1.0o
+[33mfe3c68a[m HEAD@{10}: commit: vG 0.1.1.0n
+[33m9c67677[m HEAD@{11}: commit: vG 0.1.1.0m
+[33md091e1b[m HEAD@{12}: commit: vG 0.1.1.0l
+[33m5701556[m HEAD@{13}: pull origin main: Merge made by the 'ort' strategy.
+[33m6dde1af[m HEAD@{14}: commit: vG 0.1.1.0k
+[33m6083028[m HEAD@{15}: commit: vG 0.1.1.0j
+[33m93be67c[m HEAD@{16}: commit: vG 0.1.1.0i
+[33mdb33445[m HEAD@{17}: commit: vG 0.1.1.0h
+[33m97dd75d[m HEAD@{18}: pull: Fast-forward
+[33m6576a67[m HEAD@{19}: commit: vG 0.1.1.0f
+[33mc0843df[m HEAD@{20}: pull: Fast-forward
+[33m5c88bf5[m HEAD@{21}: commit: vG 0.1.1.0d
+[33mdee7eef[m HEAD@{22}: commit: vG 0.1.1.0c
+[33m2908231[m HEAD@{23}: commit: vG 0.1.1.0b
+[33mbd59a77[m HEAD@{24}: commit: vG 0.1.1.0a
+[33m6663a28[m HEAD@{25}: commit: vG 0.1.1.0
+[33m39852de[m HEAD@{26}: pull: Fast-forward
+[33ma452c10[m HEAD@{27}: commit: vG 0.1.0.2g
+[33md77ffdc[m HEAD@{28}: commit: vG 0.1.0.2f
+[33m94bb890[m HEAD@{29}: commit: vG 0.1.0.2e

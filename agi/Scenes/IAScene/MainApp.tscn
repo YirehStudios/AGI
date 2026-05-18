@@ -8,6 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://c4uj1r172utru" path="res://Resources/Images/Icons/Util/ChatMode.svg" id="5_ide7w"]
 [ext_resource type="Texture2D" uid="uid://dxcnkms337jlm" path="res://Resources/Images/Icons/Util/LiveMode.svg" id="6_8bqqk"]
 [ext_resource type="Texture2D" uid="uid://b1vmdijvvtehk" path="res://Resources/Images/Icons/Util/Modo3D.svg" id="7_ide7w"]
+[ext_resource type="PackedScene" uid="uid://bvo0frg37bl" path="res://Scenes/Config/Settings.tscn" id="14_settings"]
 [ext_resource type="Texture2D" uid="uid://br187aqkvne0f" path="res://Resources/Images/Icons/Util/History.svg" id="icon_history"]
 [ext_resource type="Texture2D" uid="uid://cr40nman7fa0v" path="res://Resources/Images/Icons/Util/Menu.svg" id="icon_menu"]
 [ext_resource type="Texture2D" uid="uid://b4lil6k3srfwq" path="res://Resources/Images/Icons/Util/Settings.svg" id="icon_settings"]
@@ -113,7 +114,7 @@ font_names = PackedStringArray("Sans-Serif")
 font_weight = 700
 subpixel_positioning = 0
 
-[node name="MainApp" type="Panel" unique_id=488006737 node_paths=PackedStringArray("SidebarWrapper", "ContentContainer", "WelcomeOverlay", "CompanyLogo", "MenuToggleButton", "ChatBotModeButton", "LiveModeButton", "AgiModeButton", "HeaderTitle", "HistoryButton", "HistoryScroll", "HistoryListContainer", "UiAnimator", "SettingsTabBtn", "SettingsPanel", "DarkModeToggle", "SettingsTitle", "DarkSettingsLabel", "SidebarContainer", "SidebarSettingsButton")]
+[node name="MainApp" type="Panel" unique_id=488006737 node_paths=PackedStringArray("SidebarWrapper", "ContentContainer", "WelcomeOverlay", "CompanyLogo", "MenuToggleButton", "ChatBotModeButton", "LiveModeButton", "AgiModeButton", "HeaderTitle", "HistoryButton", "HistoryScroll", "HistoryListContainer", "UiAnimator", "SettingsTabBtn", "SettingsPanel", "SidebarContainer", "SidebarSettingsButton")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -124,7 +125,7 @@ ChatbotScene = ExtResource("2_dpcee")
 LivemodeScene = ExtResource("3_l7jlp")
 SidebarWrapper = NodePath("MainLayout/SidebarWrapper")
 ContentContainer = NodePath("MainLayout/RightColumn/ViewWrapper/ContentContainer")
-WelcomeOverlay = NodePath("")
+WelcomeOverlay = NodePath("MainLayout/RightColumn/ViewWrapper/WelcomeOverlay")
 CompanyLogo = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/LogoMargin/LogoContainer/CompanyLogo")
 MenuToggleButton = NodePath("MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout/MenuToggleButton")
 ChatBotModeButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/ChatBotModeButton")
@@ -137,7 +138,6 @@ HistoryListContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer/Side
 UiAnimator = NodePath("UiAnimator")
 SettingsTabBtn = NodePath("SettingsOverlay/SettingsPanel/SettingsTabBtn")
 SettingsPanel = NodePath("SettingsOverlay/SettingsPanel")
-DarkModeToggle = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3/CheckButton")
 SidebarContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer")
 SidebarSettingsButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/SettingsButton")
 
@@ -339,6 +339,7 @@ layout_mode = 2
 theme_type_variation = &"FondoApp"
 
 [node name="WelcomeOverlay" type="CenterContainer" parent="MainLayout/RightColumn/ViewWrapper" unique_id=777666555]
+visible = false
 layout_mode = 2
 mouse_filter = 2
 
@@ -397,27 +398,5 @@ theme_override_constants/margin_top = 60
 theme_override_constants/margin_right = 50
 theme_override_constants/margin_bottom = 60
 
-[node name="SettingsContent" type="VBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsMargin" unique_id=443322110]
-layout_mode = 2
-theme_override_constants/separation = 30
-
-[node name="Title" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent" unique_id=332211009]
-layout_mode = 2
-theme_override_fonts/font = SubResource("SystemFont_bold")
-theme_override_font_sizes/font_size = 32
-text = "Configuración"
-
-[node name="HSeparator" type="HSeparator" parent="SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent" unique_id=221100998]
-layout_mode = 2
-
-[node name="SettingItem3" type="HBoxContainer" parent="SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent" unique_id=77665555]
-layout_mode = 2
-
-[node name="Label" type="Label" parent="SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3" unique_id=66554466]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 18
-text = "Modo Oscuro"
-
-[node name="CheckButton" type="CheckButton" parent="SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3" unique_id=55443377]
+[node name="Settings" parent="SettingsOverlay/SettingsPanel/SettingsMargin" unique_id=1979954093 instance=ExtResource("14_settings")]
 layout_mode = 2

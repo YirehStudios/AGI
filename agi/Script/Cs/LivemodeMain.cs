@@ -10,24 +10,24 @@ public partial class LivemodeMain : Panel
     [Export] public AudioStreamPlayer MicroRecorderPlayer;
     [Export] public string RecordBusName = "Record";
     [Export] public string VoiceBusName = "Voice";
-  
+
     private ShaderMaterial _wavesMaterial;
-  
+
     public float TargetVoiceLevel = 0.0f;
     private float _currentVoiceLevel = 0.0f;
 
     // Strict internal state machine architecture.
     public enum LiveState { Idle, Listening, ProcessingSTT, ThinkingLLM, SpeakingTTS }
     private LiveState _currentState = LiveState.Idle;
-    
+
     // Concurrency flag locking microphone state during LLM reasoning latency.
     private bool _isLlamaThinking = false;
-    
+
     // Audio hardware control and threshold parameters.
     private AudioEffectRecord _recorder;
     private float _silenceTimer = 0.0f;
     private const float SilenceThreshold = 0.04f;
-    private const float MaxSilenceDuration = 3f; 
+    private const float MaxSilenceDuration = 3f;
     private float _recordingStartTime = 0.0f;
     private float _debugTimer = 0.0f;
     private AudioStreamGeneratorPlayback _ttsPlayback;
@@ -37,18 +37,18 @@ public partial class LivemodeMain : Panel
     public override void _Ready()
     {
         GD.Print("[FLAG] LiveMode: Initializing hardware infrastructure...");
-        
+
         int recordBusIndex = AudioServer.GetBusIndex(RecordBusName);
         if (recordBusIndex != -1)
         {
             _recorder = (AudioEffectRecord)AudioServer.GetBusEffect(recordBusIndex, 0);
         }
-        
+
         if (MicroRecorderPlayer != null)
         {
-            if (!MicroRecorderPlayer.Playing) 
+            if (!MicroRecorderPlayer.Playing)
             {
-                MicroRecorderPlayer.Play(); 
+                MicroRecorderPlayer.Play();
             }
             GD.Print("[FLAG] MIC: Hardware listener successfully mapped to Godot node.");
         }
@@ -56,11 +56,11 @@ public partial class LivemodeMain : Panel
         // Activates the audio generator loop to keep the bus open to receive pushed vectors securely.
         if (AIVoicePlayer != null && AIVoicePlayer.Stream is AudioStreamGenerator)
         {
-            AIVoicePlayer.Play(); 
+            AIVoicePlayer.Play();
             _ttsPlayback = (AudioStreamGeneratorPlayback)AIVoicePlayer.GetStreamPlayback();
             GD.Print("[FLAG] TTS: AudioStreamGenerator continuously listening to PCM chunks.");
         }
-        
+
         if (WaveVisualizer != null)
         {
             _wavesMaterial = WaveVisualizer.Material as ShaderMaterial;
@@ -71,7 +71,7 @@ public partial class LivemodeMain : Panel
         {
             // Binds real-time binary byte processing event instead of resolving physical path operations.
             networkManager.TTSAudioChunkReceived += OnTTSAudioChunkReceived;
-            networkManager.STTCompleted += OnSTTCompleted; 
+            networkManager.STTCompleted += OnSTTCompleted;
         }
 
         var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
@@ -115,7 +115,7 @@ public partial class LivemodeMain : Panel
         float testDb = AudioServer.GetBusPeakVolumeLeftDb(testBusIndex, 0);
         float testLinear = Mathf.DbToLinear(testDb);
 
-        if (_debugTimer > 0.5f) 
+        if (_debugTimer > 0.5f)
         {
             GD.Print($"[MIC DEBUG] dB: {testDb:F1} | Linear: {testLinear:F4} | State: {_currentState} | Recording: {(_recorder != null && _recorder.IsRecordingActive())}");
             _debugTimer = 0.0f;
@@ -141,12 +141,12 @@ public partial class LivemodeMain : Panel
             if (linearVolume > SilenceThreshold)
             {
                 if (_currentState == LiveState.Idle) StartRecording();
-                _silenceTimer = 0.0f; 
+                _silenceTimer = 0.0f;
             }
             else if (_currentState == LiveState.Listening)
             {
                 _silenceTimer += (float)delta;
-                if (_silenceTimer >= MaxSilenceDuration) 
+                if (_silenceTimer >= MaxSilenceDuration)
                 {
                     StopAndSendRecording();
                 }
@@ -198,12 +198,12 @@ public partial class LivemodeMain : Panel
     /// </summary>
     private void OnSTTCompleted(string text)
     {
-        if (string.IsNullOrWhiteSpace(text)) 
+        if (string.IsNullOrWhiteSpace(text))
         {
             UpdateStatus(LiveState.Idle);
             return;
         }
-        
+
         GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager")?.SendToAI(text);
     }
 
@@ -214,20 +214,20 @@ public partial class LivemodeMain : Panel
     private void OnTTSAudioChunkReceived(byte[] pcmData)
     {
         if (_ttsPlayback == null) return;
-        
+
         UpdateStatus(LiveState.SpeakingTTS);
 
         int startIndex = 0;
         if (pcmData.Length > 44 && pcmData[0] == 'R' && pcmData[1] == 'I' && pcmData[2] == 'F' && pcmData[3] == 'F')
         {
-            startIndex = 44; 
+            startIndex = 44;
         }
 
         for (int i = startIndex; i < pcmData.Length - 1; i += 2)
         {
             short sample = global::System.BitConverter.ToInt16(pcmData, i);
-            float floatSample = sample / 32768f; 
-            
+            float floatSample = sample / 32768f;
+
             // REFACTOR: Enqueue frames instead of pushing directly, avoiding buffer overruns
             _pcmBuffer.Enqueue(new Vector2(floatSample, floatSample));
         }
@@ -239,7 +239,7 @@ public partial class LivemodeMain : Panel
     private void StartRecording()
     {
         _recordingStartTime = (float)Time.GetTicksMsec() / 1000.0f;
-        _silenceTimer = 0.0f; 
+        _silenceTimer = 0.0f;
         _recorder.SetRecordingActive(true);
         UpdateStatus(LiveState.Listening);
         GD.Print("[FLAG] VAD: Voice frequency detected. Initializing buffer capture.");
@@ -251,13 +251,13 @@ public partial class LivemodeMain : Panel
     private void StopAndSendRecording()
     {
         _recorder.SetRecordingActive(false);
-        
+
         float duration = ((float)Time.GetTicksMsec() / 1000.0f) - _recordingStartTime;
-        string fileName = "user_input.wav"; 
+        string fileName = "user_input.wav";
         string path = ProjectSettings.GlobalizePath($"user://audio/{fileName}");
 
         // Aborts dispatch mechanism for false-positive short audio spikes.
-        if (duration < 1.0f) 
+        if (duration < 1.0f)
         {
             GD.Print($"[FLAG] VAD: Audio discarded (Duration threshold unmet).");
             if (global::System.IO.File.Exists(path)) global::System.IO.File.Delete(path);
@@ -285,7 +285,7 @@ public partial class LivemodeMain : Panel
     {
         if (_currentState == nextStatus) return;
         _currentState = nextStatus;
-        GD.Print($"[ANNIE_STATUS] {nextStatus.ToString()}"); 
+        GD.Print($"[ANNIE_STATUS] {nextStatus.ToString()}");
     }
 
     /// <summary>
@@ -293,12 +293,12 @@ public partial class LivemodeMain : Panel
     /// </summary>
     private void OnBotStartedThinking()
     {
-        _isLlamaThinking = true; 
+        _isLlamaThinking = true;
         UpdateStatus(LiveState.ThinkingLLM);
-        
+
         string[] frasesEspera = { "Mmm, dame un segundo...", "Estoy pensando...", "A ver, déjame revisarlo." };
         string fraseElegida = frasesEspera[new Random().Next(frasesEspera.Length)];
-        
+
         GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager")?.RequestTTSWebSocket(fraseElegida);
     }
     public void UpdateTheme(bool isDark)
@@ -314,7 +314,7 @@ public partial class LivemodeMain : Panel
             AddChild(floorBg);
             MoveChild(floorBg, 0);
         }
-        
+
         floorBg.Color = mainBg;
         floorBg.SetAnchorsPreset(LayoutPreset.FullRect);
         floorBg.OffsetBottom = 0;
@@ -325,7 +325,7 @@ public partial class LivemodeMain : Panel
         ApplyTextThemeToNode(this, primaryText);
     }
 
-    private void ApplyTextThemeToNode(Node node, Color textColor)
+    private static void ApplyTextThemeToNode(Node node, Color textColor)
     {
         if (node is RichTextLabel richText)
         {
@@ -335,7 +335,7 @@ public partial class LivemodeMain : Panel
         {
             label.AddThemeColorOverride("font_color", textColor);
         }
-        
+
         foreach (Node child in node.GetChildren())
         {
             ApplyTextThemeToNode(child, textColor);
@@ -347,7 +347,7 @@ public partial class LivemodeMain : Panel
     /// </summary>
     private void OnBotFinishedSpeaking(string fullResponse)
     {
-        _isLlamaThinking = false; 
+        _isLlamaThinking = false;
     }
 
     public override void _ExitTree()
@@ -367,7 +367,7 @@ public partial class LivemodeMain : Panel
         if (networkManager != null)
         {
             networkManager.TTSAudioChunkReceived -= OnTTSAudioChunkReceived;
-            networkManager.STTCompleted -= OnSTTCompleted; 
+            networkManager.STTCompleted -= OnSTTCompleted;
         }
     }
 }

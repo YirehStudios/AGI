@@ -18,7 +18,7 @@ namespace Logic.Backend
 
         [Export] public int LlamaPort = 8080;
         [Export] public int WhisperPort = 8081;
-        [Export] public int SherpaPort = 8888; 
+        [Export] public int SherpaPort = 8888;
         [Export] public int SearchPort = 8000;
         private Process _searchProcess;
         private Process _llamaProcess;
@@ -44,10 +44,10 @@ namespace Logic.Backend
         {
             _retryCount = 0;
             _isPanicking = false;
-            
+
             // Enforces a sterile execution environment prior to instantiation.
             TerminateOrphanedResources();
-            
+
             Logic.System.Config.ConfigManager configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
             string safeFileName = "default.gguf";
 
@@ -56,12 +56,12 @@ namespace Logic.Backend
                 if (!string.IsNullOrEmpty(configManager.ActiveModelName))
                     safeFileName = configManager.ActiveModelName.Replace(" ", "_") + ".gguf";
             }
-            
-            string modelsDir = ProjectSettings.GlobalizePath("user://models"); 
-            string audioDir = ProjectSettings.GlobalizePath("user://audio"); 
+
+            string modelsDir = ProjectSettings.GlobalizePath("user://models");
+            string audioDir = ProjectSettings.GlobalizePath("user://audio");
 
             // Allocates the execution to a background task context to prevent UI thread blockages.
-            Task.Run(async () => 
+            Task.Run(async () =>
             {
                 global::System.IO.Directory.CreateDirectory(audioDir);
                 await ManageBackendLifecycle(modelsDir, safeFileName);
@@ -72,7 +72,7 @@ namespace Logic.Backend
         /// Intercepts and parses continuous output streams from background microservices.
         /// Performs conditional pattern analysis to detect execution errors and routes telemetry to the appropriate diagnostic interface.
         /// </summary>
-        private void LogMicroserviceStream(string serviceName, string data, bool isErrorStream = false)
+        private static void LogMicroserviceStream(string serviceName, string data, bool isErrorStream = false)
         {
             if (string.IsNullOrEmpty(data)) return;
 
@@ -106,7 +106,7 @@ namespace Logic.Backend
         public void TerminateOrphanedResources()
         {
             string[] targetResources = { "llama-server", "whisper-server", "sherpa-onnx-tts-server" };
-            
+
             GD.Print("ResourceMonitor: Initiating resource reconciliation routine for native engines...");
 
             try
@@ -115,16 +115,16 @@ namespace Logic.Backend
                 {
                     Process[] orphanedProcesses = Process.GetProcessesByName(resourceName);
                     GD.Print($"ResourceMonitor: Found {orphanedProcesses.Length} instances matching tracking template '{resourceName}'.");
-                    
+
                     foreach (Process process in orphanedProcesses)
                     {
-                        try 
+                        try
                         {
                             if (!process.HasExited)
                             {
                                 GD.Print($"ResourceMonitor: Active orphan detected (PID: {process.Id}). Executing conditional teardown...");
-                                process.Kill(true); 
-                                process.WaitForExit(1000); 
+                                process.Kill(true);
+                                process.WaitForExit(1000);
                                 GD.Print($"ResourceMonitor: Orphaned C++ native resource '{resourceName}' (PID: {process.Id}) terminated successfully.");
                             }
                             else
@@ -178,8 +178,8 @@ namespace Logic.Backend
         /// <param name="safeFileName">Sanitized filename of the LLM model to be loaded by Llama.</param>
         private async Task ManageBackendLifecycle(string modelsDir, string safeFileName)
         {
-            bool isCloudMode = _configManager != null && 
-                (_configManager.CurrentMode == Logic.System.Config.ConfigManager.AppMode.CloudAPI || 
+            bool isCloudMode = _configManager != null &&
+                (_configManager.CurrentMode == Logic.System.Config.ConfigManager.AppMode.CloudAPI ||
                 _configManager.CurrentNetworkState == Logic.System.Config.ConfigManager.NetworkState.CloudAPI);
 
             try
@@ -213,7 +213,7 @@ namespace Logic.Backend
 
                 string bindAddress = _configManager?.TargetBindAddress ?? "127.0.0.1";
                 string modelLlamaPath = global::System.IO.Path.Combine(modelsDir, safeFileName);
-                string sttModel = _configManager?.ActiveSTTModel ?? "Whisper_Base.bin"; 
+                string sttModel = _configManager?.ActiveSTTModel ?? "Whisper_Base.bin";
                 string modelWhisperPath = global::System.IO.Path.Combine(modelsDir, sttModel);
 
                 string osFolder = _environmentManager.IsWindows ? "windows" : "linux";
@@ -230,12 +230,12 @@ namespace Logic.Backend
                     return;
                 }
 
-                string pythonExe = _environmentManager.IsWindows ? 
-                    global::System.IO.Path.Combine(_environmentManager.EnvPath, "python", "python.exe") : 
+                string pythonExe = _environmentManager.IsWindows ?
+                    global::System.IO.Path.Combine(_environmentManager.EnvPath, "python", "python.exe") :
                     global::System.IO.Path.Combine(_environmentManager.EnvPath, "python", "bin", "python3");
-                
-                string searchPythonExe = _environmentManager.IsWindows ? 
-                    global::System.IO.Path.Combine(_environmentManager.EnvPath, "python_search", "python.exe") : 
+
+                string searchPythonExe = _environmentManager.IsWindows ?
+                    global::System.IO.Path.Combine(_environmentManager.EnvPath, "python_search", "python.exe") :
                     global::System.IO.Path.Combine(_environmentManager.EnvPath, "python_search", "bin", "python3");
 
                 string ttsScriptPath = global::System.IO.Path.Combine(_environmentManager.BinPath, "tts_server.py");
@@ -320,9 +320,9 @@ namespace Logic.Backend
                     _whisperProcess.Exited += OnProcessExited;
 
                     _llamaProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Llama] {e.Data}"); };
-                    _llamaProcess.ErrorDataReceived += (s, e) => 
-                    { 
-                        if (!string.IsNullOrEmpty(e.Data)) 
+                    _llamaProcess.ErrorDataReceived += (s, e) =>
+                    {
+                        if (!string.IsNullOrEmpty(e.Data))
                         {
                             CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Llama ERR] {e.Data}");
                             if (e.Data.Contains("server is listening")) CallDeferred(MethodName.EmitSignal, SignalName.BackendReady);
@@ -404,8 +404,8 @@ namespace Logic.Backend
         /// </summary>
         public void StartSpeechServices()
         {
-            if (_configManager != null && 
-                (_configManager.CurrentMode == Logic.System.Config.ConfigManager.AppMode.CloudAPI || 
+            if (_configManager != null &&
+                (_configManager.CurrentMode == Logic.System.Config.ConfigManager.AppMode.CloudAPI ||
                 _configManager.CurrentNetworkState == Logic.System.Config.ConfigManager.NetworkState.CloudAPI))
             {
                 GD.Print("[BackendLauncher] Speech engine runtime deployment rejected. Cloud execution mode is active.");
@@ -609,7 +609,7 @@ namespace Logic.Backend
             }
 
             _retryCount = MaxRetries;
-            
+
             CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
 
             GD.Print("BackendLauncher: Freezing boot operations for 5 seconds to allow OS level purge...");
@@ -624,18 +624,18 @@ namespace Logic.Backend
         private void OnProcessExited(object sender, EventArgs e)
         {
             if (_isPanicking) return;
-            
+
             string processName = "Unknown";
 
-            if (sender is Process p) 
-            { 
-                try 
-                { 
-                    processName = Path.GetFileName(p.StartInfo.FileName); 
-                } 
-                catch { } 
+            if (sender is Process p)
+            {
+                try
+                {
+                    processName = Path.GetFileName(p.StartInfo.FileName);
+                }
+                catch { }
             }
-            
+
             if (_isRunning)
             {
                 if (sender == _whisperProcess || sender == _sherpaProcess)
@@ -661,7 +661,7 @@ namespace Logic.Backend
             {
                 _retryCount++;
                 GD.Print($"BackendLauncher: Intentando revivir motores ({_retryCount}/{MaxRetries})...");
-                CallDeferred(MethodName.StartBackend); 
+                CallDeferred(MethodName.StartBackend);
             }
             else
             {
@@ -673,43 +673,29 @@ namespace Logic.Backend
         /// Ensures structural memory hygiene by forcefully dispatching termination signals to active
         /// child processes synchronously during the Godot node tree deallocation sequence.
         /// </summary>
-        public override void _ExitTree()
+        public void StopBackend()
         {
-            GD.Print("BackendLauncher: Purging native C++ and Python processes (Preventing Zombies).");
+            GD.Print("BackendLauncher: Stopping active backend instances manually.");
             _isRunning = false;
-            
+
             try
             {
-                if (_llamaProcess != null)
-                {
-                    GD.Print($"BackendLauncher: Teardown validation for Llama process. Exited: {_llamaProcess.HasExited}");
-                    if (!_llamaProcess.HasExited) { _llamaProcess.Kill(); _llamaProcess.Dispose(); }
-                }
-                if (_whisperProcess != null)
-                {
-                    GD.Print($"BackendLauncher: Teardown validation for Whisper process. Exited: {_whisperProcess.HasExited}");
-                    if (!_whisperProcess.HasExited) { _whisperProcess.Kill(); _whisperProcess.Dispose(); }
-                }
-                if (_sherpaProcess != null)
-                {
-                    GD.Print($"BackendLauncher: Teardown validation for Sherpa process. Exited: {_sherpaProcess.HasExited}");
-                    if (!_sherpaProcess.HasExited) { _sherpaProcess.Kill(); _sherpaProcess.Dispose(); }
-                }
-                if (_searchProcess != null)
-                {
-                    GD.Print($"BackendLauncher: Teardown validation for Search process. Exited: {_searchProcess.HasExited}");
-                    if (!_searchProcess.HasExited) { _searchProcess.Kill(); _searchProcess.Dispose(); }
-                }
-                if (_mcpProcess != null)
-                {
-                    GD.Print($"BackendLauncher: Teardown validation for MCP process. Exited: {_mcpProcess.HasExited}");
-                    if (!_mcpProcess.HasExited) { _mcpProcess.Kill(); _mcpProcess.Dispose(); }
-                }
+                if (_llamaProcess != null && !_llamaProcess.HasExited) { _llamaProcess.Kill(); _llamaProcess.Dispose(); }
+                if (_whisperProcess != null && !_whisperProcess.HasExited) { _whisperProcess.Kill(); _whisperProcess.Dispose(); }
+                if (_sherpaProcess != null && !_sherpaProcess.HasExited) { _sherpaProcess.Kill(); _sherpaProcess.Dispose(); }
+                if (_searchProcess != null && !_searchProcess.HasExited) { _searchProcess.Kill(); _searchProcess.Dispose(); }
+                if (_mcpProcess != null && !_mcpProcess.HasExited) { _mcpProcess.Kill(); _mcpProcess.Dispose(); }
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"BackendLauncher: Error during process cleanup: {ex.Message}");
+                GD.PrintErr($"BackendLauncher: Error during StopBackend: {ex.Message}");
             }
+        }
+
+        public override void _ExitTree()
+        {
+            GD.Print("BackendLauncher: Purging native C++ and Python processes (Preventing Zombies).");
+            StopBackend();
         }
     }
 }

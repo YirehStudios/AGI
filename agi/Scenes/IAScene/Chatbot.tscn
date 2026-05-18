@@ -21,30 +21,10 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_675c4"]
-bg_color = Color(0, 0.25700295, 0.67390674, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pdmg7"]
-bg_color = Color(0, 0.3529412, 0.8980392, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_u6rn7"]
-bg_color = Color(0, 0.14242893, 0.31401196, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lgxif"]
-bg_color = Color(1, 0.22723916, 0.691225, 1)
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_MinimalOverlay"]
 bg_color = Color(0, 0, 0, 0.7)
 
-[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "ToolSelector", "ModelSelector", "CodeBlockTemplate", "LoadingOverlay", "SwapProgressBar")]
+[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "ToolSelector", "CodeBlockTemplate", "LoadingOverlay", "SwapProgressBar")]
 self_modulate = Color(1, 1, 1, 0)
 anchors_preset = 15
 anchor_right = 1.0
@@ -59,7 +39,6 @@ SendButton = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPane
 EscenaMensajeUsuario = ExtResource("2_jta4j")
 EscenaMensajeBot = ExtResource("3_amhcu")
 ToolSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolSelector")
-ModelSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ModelSelector")
 CodeBlockTemplate = NodePath("CodeBlockTemplate")
 RandomImage1 = ExtResource("2_q7f8p")
 RandomImage2 = ExtResource("3_jta4j")
@@ -133,13 +112,6 @@ popup/item_1/text = "Generar Imagen"
 popup/item_1/id = 1
 popup/item_2/text = "Generar Video"
 popup/item_2/id = 2
-
-[node name="ModelSelector" type="OptionButton" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=212855774]
-custom_minimum_size = Vector2(160, 40)
-layout_mode = 2
-size_flags_vertical = 4
-theme_override_constants/align_to_largest_stylebox = 50
-theme_override_font_sizes/font_size = 16
 
 [node name="TextInputField" type="TextEdit" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=733254512]
 custom_minimum_size = Vector2(0, 45)

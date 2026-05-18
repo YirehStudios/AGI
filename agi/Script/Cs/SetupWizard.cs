@@ -36,7 +36,7 @@ namespace Logic.Utils
         [Export] public Control PanelWelcome;
         [Export] public Control PanelDependencies;
         [Export] public Control PanelModeSelection;
-        [Export] public Control PanelPerformanceProfile; 
+        [Export] public Control PanelPerformanceProfile;
         [Export] public PackedScene MainSelectionPanelScene;
         [Export] public Control PanelDownloading;
 
@@ -48,8 +48,8 @@ namespace Logic.Utils
         [Export] public ProgressBar InstallProgress;
         [Export] public Button BtnComenzar;
         [Export] public Button BtnLocalHost;
-        [Export] public Button BtnConnectCloud;          
-        [Export] public Button BtnConnectLan;            
+        [Export] public Button BtnConnectCloud;
+        [Export] public Button BtnConnectLan;
         [Export] public TextEdit TxtCommandDisplay;
         [Export] public Button BtnCopyCommand;
         [Export] public RichTextLabel LblRestartWarning;
@@ -58,11 +58,11 @@ namespace Logic.Utils
         [Export] public ProgressBar ModelDownloadProgress;
         [Export] public RichTextLabel ModelDownloadStatus;
 
-        [Export] public LineEdit TxtLanIpInput;          
-        [Export] public LineEdit TxtApiKeyInput;         
+        [Export] public LineEdit TxtLanIpInput;
+        [Export] public LineEdit TxtApiKeyInput;
         [Export] public LineEdit TxtCloudApiUrlInput;
         [Export] public LineEdit TxtCloudModelNameInput;
-        [Export] public CheckBox ChkIsLanBroadcasting;   
+        [Export] public CheckBox ChkIsLanBroadcasting;
         [Export] public LineEdit TxtCustomPort;
         [Export] public Button BtnPerformanceContinuar;
         [Export] public Button BtnLowPerf;
@@ -84,13 +84,8 @@ namespace Logic.Utils
         private ConfigManager.ModelPreset _selectedLLM;
         private ConfigManager.ModelPreset _selectedSTT;
         private ConfigManager.ModelPreset _selectedTTS;
-        
-        private bool _esModoOscuro = true; 
 
-        // --- AGREGA ESTA LÍNEA AQUÍ ---
-        private bool _esModoOscuro = true; 
-        // ------------------------------
-
+        private bool _esModoOscuro = true;
 
         /// <summary>
         /// Initializes core subsystems, binds UI signals, and evaluates initial state conditions.
@@ -98,7 +93,7 @@ namespace Logic.Utils
         /// </summary>
         public override void _Ready()
         {
-            
+
             _configManager = GetNode<ConfigManager>("/root/ConfigManager");
             _packageManager = GetNode<PackageManager>("/root/PackageManager");
             _environmentManager = GetNode<EnvironmentManager>("/root/EnvironmentManager");
@@ -112,7 +107,7 @@ namespace Logic.Utils
 
             if (BtnTemaOscuro != null)
                 BtnTemaOscuro.Pressed += () => SeleccionarTema(true);
-            
+
             if (BtnTemaClaro != null)
                 BtnTemaClaro.Pressed += () => SeleccionarTema(false);
 
@@ -182,10 +177,10 @@ namespace Logic.Utils
                         _configManager.CloudApiKey = apiKey;
                         _configManager.CurrentMode = ConfigManager.AppMode.CloudAPI;
                         _configManager.CurrentNetworkState = ConfigManager.NetworkState.CloudAPI;
-                        
+
                         _configManager.CurrentPerformanceTier = ConfigManager.PerformanceTier.High;
                         _configManager.SetupCompleted = true;
-                        
+
                         _configManager.SaveConfiguration();
                         TransitionToMainScene();
                     }
@@ -274,15 +269,15 @@ namespace Logic.Utils
 
             var auditResult = await _dependencyInstaller.AuditSystemDependenciesAsync();
 
-            if (!auditResult.IsReady) 
-            {    
-                GD.PrintErr("FastBoot: Missing critical dependencies. Reverting to installation menu.");    
-                _configManager.SetupCompleted = false;    
-                _configManager.SaveConfiguration();    
-                SwitchState(WizardState.Dependencies);    
-                
-                if (TerminalLog != null) TerminalLog.Text = auditResult.AuditLog;    
-                if (TxtCommandDisplay != null) TxtCommandDisplay.Text = auditResult.RequiredCommand;    
+            if (!auditResult.IsReady)
+            {
+                GD.PrintErr("FastBoot: Missing critical dependencies. Reverting to installation menu.");
+                _configManager.SetupCompleted = false;
+                _configManager.SaveConfiguration();
+                SwitchState(WizardState.Dependencies);
+
+                if (TerminalLog != null) TerminalLog.Text = auditResult.AuditLog;
+                if (TxtCommandDisplay != null) TxtCommandDisplay.Text = auditResult.RequiredCommand;
                 return;
             }
 
@@ -379,7 +374,7 @@ namespace Logic.Utils
                         {
                             container.AddChild(_activeSelectionPanel);
                         }
-                        
+
                         // Enforces a structural dimension size block to override default layout constraints inside CenterContainers.
                         _activeSelectionPanel.CustomMinimumSize = new Vector2(800, 600);
                         _activeSelectionPanel.ModelConfirmed += OnDynamicModelConfirmed;
@@ -466,11 +461,11 @@ namespace Logic.Utils
             }
 
             ConfigManager.EngineConfig engineConfigs = await _configManager.GetOrDownloadEnginesAsync();
-            
+
             if (engineConfigs == null)
             {
                 GD.PrintErr("SetupWizard: Critical error. Engine configuration could not be retrieved.");
-                if (ModelDownloadStatus != null) 
+                if (ModelDownloadStatus != null)
                     ModelDownloadStatus.Text = "[center][color=red]Error: Failed to recover engine manifest.[/color][/center]";
                 return;
             }
@@ -500,9 +495,9 @@ namespace Logic.Utils
                 await _downloadManager.DownloadFileAsync(engineConfigs.TtsServer.Url, shareBinPath, "tts_server.py");
             }
 
-            string searchServerUrl = engineConfigs.search_server?.Url ?? ""; 
-            string mcpServerUrl = engineConfigs.McpServer?.Url ?? ""; 
-            
+            string searchServerUrl = engineConfigs.search_server?.Url ?? "";
+            string mcpServerUrl = engineConfigs.McpServer?.Url ?? "";
+
             bool searchOk = await _packageManager.EnsureMicroservicesEnvironmentAsync(currentPythonUrl, searchServerUrl, mcpServerUrl);
             bool ttsOk = await _packageManager.EnsurePythonEnvironmentAsync(currentPythonUrl);
             bool pythonOk = searchOk && ttsOk;
@@ -601,7 +596,7 @@ namespace Logic.Utils
                 if (!success)
                 {
                     GD.PrintErr($"SetupWizard: Network failure during {preset.Name} download");
-                    if (ModelDownloadStatus != null) 
+                    if (ModelDownloadStatus != null)
                         ModelDownloadStatus.Text = $"[center][color=red]Error downloading {preset.Name}.[/color][/center]";
                     return;
                 }
@@ -648,7 +643,7 @@ namespace Logic.Utils
 
             if (ModelDownloadStatus != null)
                 ModelDownloadStatus.Text = "Iniciando Preparativos de IA...";
-            
+
             if (ModelDownloadProgress != null)
                 ModelDownloadProgress.Value = 0;
 
@@ -674,7 +669,7 @@ namespace Logic.Utils
         {
             if (ModelDownloadStatus != null)
             {
-                string cleanMsg = logMessage.Length > 85 ? logMessage.Substring(0, 85) + "..." : logMessage;
+                string cleanMsg = logMessage.Length > 85 ? string.Concat(logMessage.AsSpan(0, 85), "...") : logMessage;
                 ModelDownloadStatus.Text = "> " + cleanMsg;
             }
 
@@ -1017,7 +1012,7 @@ namespace Logic.Utils
             {
                 _configManager.CurrentNetworkState = Logic.System.Config.ConfigManager.NetworkState.LanPublic;
                 _configManager.IsLanConnection = true;
-                
+
                 string resolvedLocalIP = "127.0.0.1";
                 try
                 {
@@ -1064,7 +1059,7 @@ namespace Logic.Utils
             {
                 _configManager.SetupCompleted = true;
                 _configManager.SaveConfiguration();
-                
+
                 GD.Print("SetupWizard: All initialization conditions confirmed. Routing startup sequences to BackendLauncher.");
                 _backendLauncher.StartBackend();
             }
@@ -1080,20 +1075,20 @@ namespace Logic.Utils
         /// </summary>
         private void UpdateWizardUIOverview()
         {
-            if (PanelWelcome != null) 
+            if (PanelWelcome != null)
                 PanelWelcome.Visible = (_currentWizardState == WizardState.Welcome);
-                
-            if (PanelDependencies != null) 
+
+            if (PanelDependencies != null)
                 PanelDependencies.Visible = (_currentWizardState == WizardState.Dependencies);
-                
-            if (PanelModeSelection != null) 
+
+            if (PanelModeSelection != null)
                 PanelModeSelection.Visible = (_currentWizardState == WizardState.ModeSelection || _currentWizardState == WizardState.SelectNetworkTopology);
 
             if (PanelPerformanceProfile != null)
                 PanelPerformanceProfile.Visible = (_currentWizardState == WizardState.SelectPerformance);
-                
+
             bool isSelectionState = (_currentWizardState == WizardState.ModelSelection || _currentWizardState == WizardState.SelectLLM || _currentWizardState == WizardState.SelectSTT || _currentWizardState == WizardState.SelectTTS);
-            
+
             if (isSelectionState)
             {
                 if (_activeSelectionPanel != null)
@@ -1110,8 +1105,8 @@ namespace Logic.Utils
                     _activeSelectionPanel = null;
                 }
             }
-                    
-            if (PanelDownloading != null) 
+
+            if (PanelDownloading != null)
                 PanelDownloading.Visible = (_currentWizardState == WizardState.Downloading || _currentWizardState == WizardState.StartingServer);
 
             HandleStateInitialization(_currentWizardState);
@@ -1151,12 +1146,12 @@ namespace Logic.Utils
                         _selectedLLM = verifiedPreset;
                         GD.Print($"SetupWizard: Language model reference assigned successfully: {modelName}");
                         break;
-                        
+
                     case Logic.UI.ModelCategory.STT:
                         _selectedSTT = verifiedPreset;
                         GD.Print($"SetupWizard: Speech-to-text validation parameters bound: {modelName}");
                         break;
-                        
+
                     case Logic.UI.ModelCategory.TTS:
                         _selectedTTS = verifiedPreset;
                         GD.Print($"SetupWizard: Audio generation tensor parameters bound: {modelName}");
@@ -1240,7 +1235,7 @@ namespace Logic.Utils
 
             string path = esOscuro ? "res://Resources/UI_Themes/minimal_theme.tres" : "res://Resources/UI_Themes/tema_claro.tres";
             Theme temaCorrecto = ResourceLoader.Load<Theme>(path);
-            this.Theme = temaCorrecto; 
+            this.Theme = temaCorrecto;
 
             if (SetupBackground is ColorRect bgRect)
             {

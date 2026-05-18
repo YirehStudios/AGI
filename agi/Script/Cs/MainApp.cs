@@ -22,9 +22,6 @@ namespace Logic.UI
         [Export] public AnimationPlayer UiAnimator;
         [Export] public Button SettingsTabBtn;
         [Export] public Panel SettingsPanel;
-        [Export] public CheckButton DarkModeToggle;
-        [Export] public Label SettingsTitle;
-        [Export] public Label DarkSettingsLabel;
         [Export] public PanelContainer SidebarContainer;
         [Export] public Button SidebarSettingsButton;
 
@@ -54,10 +51,10 @@ namespace Logic.UI
 
             if (ChatBotModeButton != null)
                 ChatBotModeButton.Pressed += () => ChangeMode(ChatbotScene, "Modo Chat Bot");
-                    
+
             if (LiveModeButton != null)
                 LiveModeButton.Pressed += () => ChangeMode(LivemodeScene, "Modo Live");
-                    
+
             if (AgiModeButton != null)
                 AgiModeButton.Pressed += () => ChangeMode(null, "Modo AGI");
 
@@ -82,21 +79,6 @@ namespace Logic.UI
                 SidebarSettingsButton.Pressed += ToggleSettingsPanel;
             }
 
-            if (DarkModeToggle != null)
-            {
-                DarkModeToggle.Toggled += OnDarkModeToggled;
-            }
-
-            if (Logic.System.Config.ConfigManager.Instance != null && DarkModeToggle != null)
-            {
-                DarkModeToggle.ButtonPressed = Logic.System.Config.ConfigManager.Instance.DarkMode;
-                OnDarkModeToggled(Logic.System.Config.ConfigManager.Instance.DarkMode);
-            }
-            else if (DarkModeToggle != null)
-            {
-                OnDarkModeToggled(DarkModeToggle.ButtonPressed);
-            }
-
             ChangeMode(ChatbotScene, "Modo Chat Bot");
             LoadHistoryFiles();
         }
@@ -111,10 +93,6 @@ namespace Logic.UI
         }
 
         private void ChangeMode(PackedScene sceneToLoad, string titleText)
-{
-    if (ContentContainer != null)
-    {
-        foreach (Node child in ContentContainer.GetChildren())
         {
             if (ContentContainer != null)
             {
@@ -141,55 +119,22 @@ namespace Logic.UI
                 _currentView.Call("UpdateTheme", _isCurrentlyDark);
             }
         }
-    }
-
-    if (sceneToLoad == null) return;
-
-    // Instanciamos la nueva
-    _currentView = sceneToLoad.Instantiate();
-    ContentContainer.AddChild(_currentView);
-
-    if (_currentView is Control controlView)
-    {
-        controlView.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        controlView.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        controlView.SizeFlagsVertical = SizeFlags.ExpandFill;
-    }
-
-    if (_currentView.HasMethod("UpdateTheme"))
-    {
-        _currentView.Call("UpdateTheme", _isCurrentlyDark);
-    }
-}
 
         public void ToggleSidebar()
         {
-            if (UiAnimator == null) return;                    
+            if (UiAnimator == null) return;
             _isSidebarOpen = !_isSidebarOpen;
             if (_isSidebarOpen) UiAnimator.Play("sidebar_open");
             else UiAnimator.Play("sidebar_close");
         }
 
         private void LoadHistoryFiles()
-{
-    if (HistoryListContainer == null) return;
-    foreach (Node child in HistoryListContainer.GetChildren()) child.QueueFree();
-
-    string historyPath = "user://history/";
-    if (!DirAccess.DirExistsAbsolute(historyPath))
-    {
-        DirAccess.MakeDirAbsolute(historyPath);
-        return;
-    }
-
-    using var dir = DirAccess.Open(historyPath);
-    if (dir != null)
-    {
-        dir.ListDirBegin();
-        string fileName = dir.GetNext();
-        while (fileName != "")
         {
-            if (!dir.CurrentIsDir() && fileName.EndsWith(".json"))
+            if (HistoryListContainer == null) return;
+            foreach (Node child in HistoryListContainer.GetChildren()) child.QueueFree();
+
+            string historyPath = "user://history/";
+            if (!DirAccess.DirExistsAbsolute(historyPath))
             {
                 DirAccess.MakeDirAbsolute(historyPath);
                 return;
@@ -211,8 +156,8 @@ namespace Logic.UI
                         historyBtn.ClipText = true;
                         historyBtn.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
                         historyBtn.CustomMinimumSize = new Vector2(10, 0);
-                        historyBtn.Flat = true; 
-                        
+                        historyBtn.Flat = true;
+
                         string capturedFileName = fileName;
                         historyBtn.Pressed += () => GD.Print(capturedFileName);
                         HistoryListContainer.AddChild(historyBtn);
@@ -220,10 +165,7 @@ namespace Logic.UI
                     fileName = dir.GetNext();
                 }
             }
-            fileName = dir.GetNext();
         }
-    }
-}
 
         private void OnSettingsTabHovered()
         {
@@ -248,11 +190,11 @@ namespace Logic.UI
             _isSettingsOpen = !_isSettingsOpen;
             _settingsPanelTween?.Kill();
             _settingsPanelTween = GetTree().CreateTween();
-            
+
             if (_isSettingsOpen)
             {
                 _settingsTabTween?.Kill();
-                if (SettingsTabBtn != null) 
+                if (SettingsTabBtn != null)
                 {
                     SettingsTabBtn.OffsetLeft = -60.0f;
                     SettingsTabBtn.OffsetRight = 0.0f;
@@ -266,7 +208,7 @@ namespace Logic.UI
                 _settingsPanelTween.Parallel().TweenProperty(SettingsPanel, "offset_right", SettingsWidth, 0.5f).SetTrans(Tween.TransitionType.Expo).SetEase(Tween.EaseType.Out);
                 _settingsTabTween?.Kill();
                 _settingsTabTween = GetTree().CreateTween();
-                if (SettingsTabBtn != null) 
+                if (SettingsTabBtn != null)
                 {
                     _settingsTabTween.Parallel().TweenProperty(SettingsTabBtn, "offset_left", -20.0f, 0.5f).SetTrans(Tween.TransitionType.Expo).SetEase(Tween.EaseType.Out);
                     _settingsTabTween.Parallel().TweenProperty(SettingsTabBtn, "offset_right", 40.0f, 0.5f).SetTrans(Tween.TransitionType.Expo).SetEase(Tween.EaseType.Out);
@@ -274,30 +216,5 @@ namespace Logic.UI
             }
         }
 
-        /// <summary>
-        /// Handles user-triggered theme alternation events, alters internal system execution variables, 
-        /// updates state attributes on the centralized configuration manager, and dispatches an immediate save pipeline command.
-        /// </summary>
-        /// <param name="isPressed">A boolean assessment indicating toggle switch placement coordinates.</param>
-        private void OnDarkModeToggled(bool isPressed)
-        {
-            _isCurrentlyDark = isPressed;
-                    
-            if (ThemeManager.Instance != null)
-            {
-                this.Theme = ThemeManager.Instance.ObtenerTemaGlobal(isPressed);
-                        
-                if (Logic.System.Config.ConfigManager.Instance != null)
-                {
-                    Logic.System.Config.ConfigManager.Instance.DarkMode = isPressed;
-                    Logic.System.Config.ConfigManager.Instance.SaveConfiguration();
-                }
-
-                if (_currentView != null && _currentView.HasMethod("UpdateTheme"))
-                {
-                    _currentView.Call("UpdateTheme", isPressed);
-                }
-            }
-        }
     }
 }

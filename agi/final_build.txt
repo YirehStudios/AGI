@@ -1,0 +1,9 @@
+  Determinando los proyectos que se van a restaurar...
+  Todos los proyectos están actualizados para la restauración.
+  AGI -> /home/Yahir_js/Yadah/YirehStudios/Software/IA/Asistente General de Interfaz/agi/.godot/mono/temp/bin/Debug/AGI.dll
+
+Compilación correcta.
+    0 Advertencia(s)
+    0 Errores
+
+Tiempo transcurrido 00:00:03.02

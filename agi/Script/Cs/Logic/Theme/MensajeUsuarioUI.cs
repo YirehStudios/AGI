@@ -40,7 +40,7 @@ namespace Logic.UI.Components
         public void ConfigurarMensaje(string texto)
         {
             _textoOriginal = texto;
-            if (_messageBody != null) 
+            if (_messageBody != null)
             {
                 _messageBody.Set("markdown_text", texto);
                 _messageBody.Text = texto;

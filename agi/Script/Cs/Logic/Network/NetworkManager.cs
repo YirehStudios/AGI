@@ -13,10 +13,10 @@ namespace Logic.Network
     {
         [Signal]
         public delegate void HandshakeCompletedEventHandler(bool success);
-        
+
         [Signal]
         public delegate void TokenReceivedEventHandler(string token);
-        
+
         [Signal]
         public delegate void STTCompletedEventHandler(string text);
         [Signal]
@@ -35,7 +35,7 @@ namespace Logic.Network
             {
                 // Antes: HttpResponseMessage response = await _httpClient.GetAsync($"{BaseUrl}/v1/models");
                 HttpResponseMessage response = await _httpClient.GetAsync($"{GetActiveUrl()}/v1/models");
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     GD.Print("NetworkManager: Handshake Successful. Native server verified.");
@@ -43,8 +43,8 @@ namespace Logic.Network
                 }
                 else
                 {
-                     GD.PrintErr("NetworkManager: ERR_NET_API - API Unreachable or Invalid State.");
-                     EmitSignal(SignalName.HandshakeCompleted, false);
+                    GD.PrintErr("NetworkManager: ERR_NET_API - API Unreachable or Invalid State.");
+                    EmitSignal(SignalName.HandshakeCompleted, false);
                 }
             }
             catch (Exception ex)
@@ -61,10 +61,10 @@ namespace Logic.Network
         /// <param name="prompt">The absolute instruction and context template context payload.</param>
         public async Task StreamChatCompletion(string prompt)
         {
-            string urlSegura = GetActiveUrl(); 
+            string urlSegura = GetActiveUrl();
             GD.Print($"[NET] Enviando petición a Llama en: {urlSegura}");
 
-            await Task.Run(async () => 
+            await Task.Run(async () =>
             {
                 try
                 {
@@ -72,7 +72,7 @@ namespace Logic.Network
                     {
                         prompt = prompt,
                         stream = true,
-                        n_predict = 2048 
+                        n_predict = 2048
                     };
 
                     string jsonPayload = JsonSerializer.Serialize(requestBody);
@@ -107,7 +107,7 @@ namespace Logic.Network
                                     string token = contentElement.GetString();
                                     if (!string.IsNullOrEmpty(token))
                                     {
-                                        GD.PrintRaw(token); 
+                                        GD.PrintRaw(token);
                                         CallDeferred(MethodName.EmitSignal, SignalName.TokenReceived, token);
                                     }
                                 }
@@ -136,20 +136,23 @@ namespace Logic.Network
             if (config?.ActiveProfile == null || string.IsNullOrEmpty(config.ActiveProfile.ApiKey)) return;
 
             bool isGemini = config.ActiveProfile.EndpointUrl.Contains("googleapis.com");
-            
-            string requestUrl = isGemini 
+
+            string requestUrl = isGemini
                 ? $"{config.ActiveProfile.EndpointUrl.TrimEnd('/')}/models/{config.ActiveProfile.ModelId}:streamGenerateContent?alt=sse"
                 : $"{config.ActiveProfile.EndpointUrl.TrimEnd('/')}/chat/completions";
 
             GD.Print($"[NET] Dispatching Cloud Request: {requestUrl}");
 
-            await Task.Run(async () => {
-                try {
-                    object requestBody = isGemini 
+            await Task.Run(async () =>
+            {
+                try
+                {
+                    object requestBody = isGemini
                         ? (object)new { contents = new[] { new { parts = new[] { new { text = prompt } } } } }
                         : (object)new { model = config.ActiveProfile.ModelId, messages = new[] { new { role = "user", content = prompt } }, stream = true };
 
-                    var request = new HttpRequestMessage(HttpMethod.Post, requestUrl) {
+                    var request = new HttpRequestMessage(HttpMethod.Post, requestUrl)
+                    {
                         Content = new StringContent(global::System.Text.Json.JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
                     };
 
@@ -157,8 +160,9 @@ namespace Logic.Network
                     else request.Headers.Add("Authorization", $"Bearer {config.ActiveProfile.ApiKey}");
 
                     using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-                    
-                    if (!response.IsSuccessStatusCode) {
+
+                    if (!response.IsSuccessStatusCode)
+                    {
                         string errorContext = await response.Content.ReadAsStringAsync();
                         GD.PrintErr($"[NET ERROR] Cloud AI API Failure: {response.StatusCode}. Details: {errorContext}");
                         if (response.StatusCode == (global::System.Net.HttpStatusCode)429)
@@ -169,37 +173,46 @@ namespace Logic.Network
                     }
 
                     using var reader = new StreamReader(await response.Content.ReadAsStreamAsync());
-                    while (!reader.EndOfStream) {
+                    while (!reader.EndOfStream)
+                    {
                         string line = await reader.ReadLineAsync();
                         if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data: ")) continue;
-                        
+
                         string data = line.Substring(6).Trim();
                         using JsonDocument doc = JsonDocument.Parse(data);
                         string token = "";
 
-                        if (isGemini) {
-                            if (doc.RootElement.TryGetProperty("candidates", out JsonElement candidates) && candidates.GetArrayLength() > 0) {
+                        if (isGemini)
+                        {
+                            if (doc.RootElement.TryGetProperty("candidates", out JsonElement candidates) && candidates.GetArrayLength() > 0)
+                            {
                                 var parts = candidates[0].GetProperty("content").GetProperty("parts");
-                                if (parts.GetArrayLength() > 0 && parts[0].TryGetProperty("text", out JsonElement textEl)) {
+                                if (parts.GetArrayLength() > 0 && parts[0].TryGetProperty("text", out JsonElement textEl))
+                                {
                                     token = textEl.GetString();
                                 }
                             }
-                        } else {
-                            if (doc.RootElement.TryGetProperty("choices", out JsonElement choices) && choices.GetArrayLength() > 0) {
+                        }
+                        else
+                        {
+                            if (doc.RootElement.TryGetProperty("choices", out JsonElement choices) && choices.GetArrayLength() > 0)
+                            {
                                 var delta = choices[0].GetProperty("delta");
-                                if (delta.TryGetProperty("content", out JsonElement contentElement)) {
+                                if (delta.TryGetProperty("content", out JsonElement contentElement))
+                                {
                                     token = contentElement.GetString();
                                 }
                             }
                         }
-                        
-                        if (!string.IsNullOrEmpty(token)) 
+
+                        if (!string.IsNullOrEmpty(token))
                         {
                             GD.PrintRaw(token);
                             CallDeferred(MethodName.EmitSignal, SignalName.TokenReceived, token);
                         }
                     }
-                } catch (Exception ex) { GD.PrintErr($"[NET CLOUD ERROR] {ex.Message}"); }
+                }
+                catch (Exception ex) { GD.PrintErr($"[NET CLOUD ERROR] {ex.Message}"); }
             });
         }
 
@@ -223,10 +236,10 @@ namespace Logic.Network
                 response.EnsureSuccessStatusCode();
 
                 string jsonResponse = await response.Content.ReadAsStringAsync();
-                
+
                 // Inbound logging capturing execution results returned from the Python microservice pipeline.
                 GD.Print($"\n[NET <- MCP] Respuesta recibida:\n{jsonResponse}");
-                
+
                 using JsonDocument resultDoc = JsonDocument.Parse(jsonResponse);
                 if (resultDoc.RootElement.TryGetProperty("result", out JsonElement resElement))
                 {
@@ -272,7 +285,7 @@ namespace Logic.Network
                 response.EnsureSuccessStatusCode();
 
                 string jsonResponse = await response.Content.ReadAsStringAsync();
-                
+
                 // Diagnostic log tracking inbound data frame buffer characteristics received from the search endpoint.
                 GD.Print($"\n[NET <- SEARCH] Fragmentos recibidos (Longitud: {jsonResponse.Length} chars)");
 
@@ -300,17 +313,18 @@ namespace Logic.Network
             try
             {
                 using var ws = new ClientWebSocket();
-                Uri serverUri = new Uri("ws://127.0.0.1:8888"); 
-                
+                Uri serverUri = new Uri("ws://127.0.0.1:8888");
+
                 await ws.ConnectAsync(serverUri, global::System.Threading.CancellationToken.None);
 
                 // Instancia y empaqueta el diccionario estricto esperado por el binario C++ de Sherpa.
                 // Inyecta el índice del hablante (sid) para resolver la asignación de voz en modelos que consolidan múltiples firmas acústicas.
-                var payload = new { 
-                    text = textToSynthesize, 
-                    sid = 0 
+                var payload = new
+                {
+                    text = textToSynthesize,
+                    sid = 0
                 };
-                
+
                 string jsonPayload = global::System.Text.Json.JsonSerializer.Serialize(payload);
                 byte[] bytes = global::System.Text.Encoding.UTF8.GetBytes(jsonPayload);
 
@@ -329,12 +343,12 @@ namespace Logic.Network
                         global::System.Array.Copy(buffer, audioChunk, result.Count);
 
                         CallDeferred(MethodName.EmitSignal, SignalName.TTSAudioChunkReceived, audioChunk);
-                        
+
                         // Cierra controladamente el ciclo si la señal EOF se define por la clausura anticipada del socket tras el streaming binario.
                         if (result.EndOfMessage && result.Count < buffer.Length)
                         {
                             // Heurística de salida limpia dependiente de los chunks del binario nativo.
-                            break; 
+                            break;
                         }
                     }
                     else if (result.MessageType == WebSocketMessageType.Close)
@@ -357,27 +371,27 @@ namespace Logic.Network
         public async Task RequestSTT(string audioFilePath)
         {
             GD.Print($"[FLAG] STT: Dispatching {Path.GetFileName(audioFilePath)} via HTTP...");
-            
-            await Task.Run(async () => 
+
+            await Task.Run(async () =>
             {
                 try
                 {
                     using var client = new global::System.Net.Http.HttpClient();
                     using var form = new global::System.Net.Http.MultipartFormDataContent();
-                    
+
                     byte[] audioBytes = global::System.IO.File.ReadAllBytes(audioFilePath);
                     var audioContent = new global::System.Net.Http.ByteArrayContent(audioBytes);
                     audioContent.Headers.ContentType = global::System.Net.Http.Headers.MediaTypeHeaderValue.Parse("audio/wav");
-                    
+
                     form.Add(audioContent, "file", global::System.IO.Path.GetFileName(audioFilePath));
-                    form.Add(new global::System.Net.Http.StringContent("es"), "language"); 
+                    form.Add(new global::System.Net.Http.StringContent("es"), "language");
                     form.Add(new global::System.Net.Http.StringContent("json"), "response_format");
-                    
+
                     var response = await client.PostAsync("http://127.0.0.1:8081/inference", form);
                     response.EnsureSuccessStatusCode();
-                    
+
                     string jsonResponse = await response.Content.ReadAsStringAsync();
-                    
+
                     using var doc = global::System.Text.Json.JsonDocument.Parse(jsonResponse);
                     if (doc.RootElement.TryGetProperty("text", out global::System.Text.Json.JsonElement textElement))
                     {
@@ -411,5 +425,5 @@ namespace Logic.Network
             }
             return "http://127.0.0.1:8080";
         }
-    } 
+    }
 }

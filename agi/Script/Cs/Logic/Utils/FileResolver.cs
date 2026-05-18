@@ -36,7 +36,7 @@ namespace Logic.Utils
                     // Ejecuta una búsqueda de alta prioridad basada en la igualdad exacta del nombre con la extensión .exe.
                     string targetName = fallbackPrefix + ".exe";
                     foundFile = files.FirstOrDefault(f => f.Name.Equals(targetName, StringComparison.OrdinalIgnoreCase));
-                    
+
                     // Si no hay coincidencia exacta, aplica una búsqueda por contención de prefijo como método de respaldo.
                     if (foundFile == null)
                     {
@@ -50,7 +50,7 @@ namespace Logic.Utils
                 {
                     // Busca coincidencias exactas en sistemas Linux donde los binarios no suelen poseer extensión.
                     foundFile = files.FirstOrDefault(f => f.Name.Equals(fallbackPrefix, StringComparison.OrdinalIgnoreCase));
-                    
+
                     // Realiza una búsqueda secundaria filtrando archivos sin extensión que contengan el identificador.
                     if (foundFile == null)
                     {
@@ -85,7 +85,7 @@ namespace Logic.Utils
                 if (!Directory.Exists(directoryPath)) return string.Empty;
 
                 var directoryInfo = new DirectoryInfo(directoryPath);
-                
+
                 return directoryInfo.GetFiles()
                     .Where(f => allowedExtensions.Any(ext => f.Extension.Equals(ext, StringComparison.OrdinalIgnoreCase)))
                     .OrderByDescending(f => f.Length)
@@ -108,7 +108,7 @@ namespace Logic.Utils
                 if (!Directory.Exists(parentDirectory)) return string.Empty;
 
                 var directoryInfo = new DirectoryInfo(parentDirectory);
-                
+
                 return directoryInfo.GetDirectories()
                     .FirstOrDefault(d => d.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))?.FullName ?? string.Empty;
             }

@@ -25,10 +25,10 @@ namespace Logic.Backend
             GD.Print("NativeTTSManager: Inicializado en Modo Orquestador CLI con Streaming Simulado.");
         }
 
-        public bool InitializeNativeEngine()
+        public static bool InitializeNativeEngine()
         {
             GD.Print("NativeTTSManager: Validación de entorno CLI exitosa.");
-            return true; 
+            return true;
         }
 
         /// <summary>
@@ -40,7 +40,7 @@ namespace Logic.Backend
             if (string.IsNullOrWhiteSpace(fullText)) return;
 
             string[] sentences = fullText.Split(new[] { ". ", ", ", "? ", "! ", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-            
+
             foreach (string sentence in sentences)
             {
                 if (!string.IsNullOrWhiteSpace(sentence))
@@ -66,7 +66,7 @@ namespace Logic.Backend
             string binDir = ProjectSettings.GlobalizePath("user://bin/sherpa-onnx");
             string exePath = Path.Combine(binDir, "bin", "sherpa-onnx-offline-tts");
             string libPath = Path.Combine(binDir, "lib");
-            
+
             string modelsDir = ProjectSettings.GlobalizePath("user://models/kokoro-multi-lang-v1_1");
             string modelPath = Path.Combine(modelsDir, "model.onnx");
             string voicesPath = Path.Combine(modelsDir, "voices.bin");
@@ -114,7 +114,7 @@ namespace Logic.Backend
                         }
 
                         PlayWav(outputPath);
-                        
+
                         File.Delete(outputPath);
                     }
                 }

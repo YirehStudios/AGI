@@ -24,7 +24,7 @@ namespace Logic.Network
         /// <summary>
         /// Verifica la presencia del binario aria2c en las variables de entorno del sistema.
         /// </summary>
-        private bool CheckAria2Availability()
+        private static bool CheckAria2Availability()
         {
             Godot.Collections.Array output = new Godot.Collections.Array();
             int exitCode = OS.Execute("which", new string[] { "aria2c" }, output, true);
@@ -78,7 +78,7 @@ namespace Logic.Network
                         {
                             if (!string.IsNullOrEmpty(e.Data))
                             {
-                                Match match = Regex.Match(e.Data, @"\((\d+)%\)");
+                                Match match = MyRegex().Match(e.Data);
                                 if (match.Success && float.TryParse(match.Groups[1].Value, out float percentage))
                                 {
                                     if (Godot.GodotObject.IsInstanceValid(this) && !this.IsQueuedForDeletion())
@@ -108,7 +108,7 @@ namespace Logic.Network
                         long totalBytesRead = 0;
                         int bytesRead;
 
-                        while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                        while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0)
                         {
                             await fileStream.WriteAsync(buffer, 0, bytesRead);
                             totalBytesRead += bytesRead;
@@ -146,8 +146,8 @@ namespace Logic.Network
                                 extractProcess.StartInfo.UseShellExecute = false;
                                 extractProcess.StartInfo.CreateNoWindow = true;
                                 extractProcess.StartInfo.FileName = "tar";
-                                extractProcess.StartInfo.Arguments = fileName.EndsWith(".tar.gz") 
-                                    ? $"-xzf \"{filePath}\" -C \"{globalDestination}\"" 
+                                extractProcess.StartInfo.Arguments = fileName.EndsWith(".tar.gz")
+                                    ? $"-xzf \"{filePath}\" -C \"{globalDestination}\""
                                     : $"-xjf \"{filePath}\" -C \"{globalDestination}\"";
 
                                 extractProcess.Start();
@@ -179,7 +179,7 @@ namespace Logic.Network
         /// Examina la raíz destino y extrae el contenido al nivel superior si se detecta redundancia,
         /// ignorando el archivo comprimido original durante el conteo y procediendo a su eliminación final.
         /// </summary>
-        private void FlattenDirectoryIfNecessary(string targetDirectory, string archivePath)
+        private static void FlattenDirectoryIfNecessary(string targetDirectory, string archivePath)
         {
             try
             {
@@ -234,5 +234,8 @@ namespace Logic.Network
                 GD.PrintErr($"DownloadManager: Error durante el proceso de aplanamiento o limpieza: {ex.Message}");
             }
         }
+
+        [GeneratedRegex(@"\((\d+)%\)")]
+        private static partial Regex MyRegex();
     }
 }

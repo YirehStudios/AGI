@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://duf7dvpij16me"]
 
 [ext_resource type="Script" uid="uid://dt6nsxyppscs7" path="res://Script/Cs/SetupWizard.cs" id="1_r16en"]
-[ext_resource type="PackedScene" uid="uid://cqll67xn4338a" path="res://Scenes/IAScene/DynamicSelectionPanel.tscn" id="2_dynamic_panel"]
+[ext_resource type="PackedScene" path="res://Scenes/IAScene/DynamicSelectionPanel.tscn" id="2_dynamic_panel"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_glass_panel"]
 content_margin_left = 50.0
@@ -106,7 +106,7 @@ corner_radius_bottom_left = 10
 
 [sub_resource type="ButtonGroup" id="ButtonGroup_performance"]
 
-[node name="SetupWizard" type="Control" unique_id=120493504 node_paths=PackedStringArray("PanelWelcome", "PanelDependencies", "PanelModeSelection", "PanelPerformanceProfile", "PanelDownloading", "BtnTemaOscuro", "BtnTemaClaro", "SetupBackground", "TerminalLog", "InstallProgress", "BtnComenzar", "BtnLocalHost", "BtnConnectCloud", "BtnConnectLan", "TxtCommandDisplay", "BtnCopyCommand", "LblRestartWarning", "ModelDownloadProgress", "ModelDownloadStatus", "TxtLanIpInput", "TxtApiKeyInput", "TxtCloudApiUrlInput", "TxtCloudModelNameInput", "ChkIsLanBroadcasting", "TxtCustomPort", "BtnPerformanceContinuar", "BtnLowPerf", "BtnMedPerf", "BtnHighPerf", "BtnNextPerf")]
+[node name="SetupWizard" type="Control" unique_id=120493504 node_paths=PackedStringArray("PanelWelcome", "PanelDependencies", "PanelModeSelection", "PanelPerformanceProfile", "PanelDownloading", "BtnTemaOscuro", "BtnTemaClaro", "SetupBackground", "TerminalLog", "InstallProgress", "BtnComenzar", "BtnLocalHost", "BtnConnectCloud", "BtnConnectLan", "TxtCommandDisplay", "BtnCopyCommand", "LblRestartWarning", "ModelDownloadProgress", "ModelDownloadStatus", "TxtLanIpInput", "TxtApiKeyInput", "TxtCloudApiUrlInput", "TxtCloudModelNameInput", "ChkIsLanBroadcasting", "TxtCustomPort", "BtnLowPerf", "BtnMedPerf", "BtnHighPerf", "BtnNextPerf")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -118,7 +118,6 @@ PanelWelcome = NodePath("Background/CenterContainer/PanelWelcome")
 PanelDependencies = NodePath("Background/CenterContainer/PanelDependencies")
 PanelModeSelection = NodePath("Background/CenterContainer/PanelModeSelection")
 PanelPerformanceProfile = NodePath("Background/CenterContainer/PanelPerformanceProfile")
-MainSelectionPanelScene = ExtResource("2_dynamic_panel")
 PanelDownloading = NodePath("Background/CenterContainer/PanelDownloading")
 BtnTemaOscuro = NodePath("Background/CenterContainer/PanelWelcome/Layout/ThemeSelection/BtnTemaOscuro")
 BtnTemaClaro = NodePath("Background/CenterContainer/PanelWelcome/Layout/ThemeSelection/BtnTemaClaro")
@@ -140,7 +139,6 @@ TxtCloudApiUrlInput = NodePath("Background/CenterContainer/PanelModeSelection/La
 TxtCloudModelNameInput = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout/TxtCloudModelNameInput")
 ChkIsLanBroadcasting = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout/ChkIsLanBroadcasting")
 TxtCustomPort = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout/TxtCustomPort")
-BtnPerformanceContinuar = NodePath("Background/CenterContainer/PanelPerformanceProfile/Layout/BtnNextPerf")
 BtnLowPerf = NodePath("Background/CenterContainer/PanelPerformanceProfile/Layout/ProfileSelection/BtnLowPerf")
 BtnMedPerf = NodePath("Background/CenterContainer/PanelPerformanceProfile/Layout/ProfileSelection/BtnMedPerf")
 BtnHighPerf = NodePath("Background/CenterContainer/PanelPerformanceProfile/Layout/ProfileSelection/BtnHighPerf")
@@ -569,6 +567,7 @@ theme_override_styles/background = SubResource("StyleBoxFlat_progress_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_progress_fill")
 
 [node name="DynamicSelectionPanel" parent="." unique_id=1387545586 instance=ExtResource("2_dynamic_panel")]
+visible = false
 layout_mode = 0
 anchors_preset = 0
 anchor_right = 0.0

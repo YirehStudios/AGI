@@ -18,10 +18,10 @@ namespace Logic.System.Config
         /// Defines the operational modes of the application, including local execution, 
         /// remote UI control, and universal cloud-based inference.
         /// </summary>
-        public enum AppMode 
-        { 
-            None, 
-            RemoteUI, 
+        public enum AppMode
+        {
+            None,
+            RemoteUI,
             LocalHost,
             CloudAPI
         }
@@ -59,10 +59,10 @@ namespace Logic.System.Config
 
         /// <summary> Gets or sets the target endpoint for OpenAI-compatible cloud providers (Gemini, DeepSeek, etc.). </summary>
         public string CloudApiUrl { get; set; } = "https://api.openai.com/v1";
-        
+
         /// <summary> Gets or sets the secret authentication key for external AI services. </summary>
         public string CloudApiKey { get; set; } = string.Empty;
-        
+
         /// <summary> Gets or sets the specific model identifier used for cloud inference requests. </summary>
         public string CloudModelName { get; set; } = "gemini-1.5-pro";
 
@@ -150,6 +150,7 @@ namespace Logic.System.Config
             public string UserPrefix { get; set; } = "<|im_start|>user\n";
             public string AssistantPrefix { get; set; } = "<|im_start|>assistant\n";
             public string StopSequence { get; set; } = "<|im_end|>\n";
+            public int ContextCeiling { get; set; } = 4096;
         }
 
         public class ModelProfile
@@ -160,11 +161,27 @@ namespace Logic.System.Config
             public string ModelId { get; set; }
             public string ApiKey { get; set; }
             public ChatTemplate Template { get; set; } = new ChatTemplate();
+
+            /// <summary>Maximum tokens the model accepts per inference request (input context ceiling).</summary>
+            public int MaxInputTokens { get; set; } = 4096;
+
+            /// <summary>Maximum tokens the model may generate per response cycle (output generation ceiling).</summary>
+            public int MaxOutputTokens { get; set; } = 2048;
         }
 
         public string ActiveModelUrl { get; set; } = string.Empty;
         public ModelProfile ActiveProfile { get; set; } = null;
         public string ActiveProfilePath { get; set; } = string.Empty;
+
+        public class ComputePerformanceProfile
+        {
+            public int CpuThreads { get; set; } = 4;
+            public int GpuLayers { get; set; } = 0;
+            public int RamSaturationCeilingMB { get; set; } = 8192;
+        }
+
+        public ComputePerformanceProfile PerformanceProfile { get; set; } = new ComputePerformanceProfile();
+        public Dictionary<string, int> ToolPermissions { get; set; } = new Dictionary<string, int>();
 
         private Logic.Network.DownloadManager _downloadManager;
 
@@ -193,6 +210,8 @@ namespace Logic.System.Config
             public NetworkState? NetworkState { get; set; }
             public PerformanceTier? PerformanceTier { get; set; }
             public string ActiveProfilePath { get; set; }
+            public ComputePerformanceProfile PerformanceProfile { get; set; }
+            public Dictionary<string, int> ToolPermissions { get; set; }
         }
 
         /// <summary>
@@ -204,7 +223,7 @@ namespace Logic.System.Config
         {
             Instance = this;
             _settingsDirectory = ProjectSettings.GlobalizePath("user://settings");
-            _configFilePath = Path.Combine(_settingsDirectory, "preferences.json"); 
+            _configFilePath = Path.Combine(_settingsDirectory, "preferences.json");
             _presetsFilePath = ProjectSettings.GlobalizePath("user://presets.json");
 
             _downloadManager = GetNodeOrNull<Logic.Network.DownloadManager>("/root/DownloadManager");
@@ -221,7 +240,7 @@ namespace Logic.System.Config
         public async Task<EngineConfig> GetOrDownloadEnginesAsync()
         {
             string enginesPath = ProjectSettings.GlobalizePath("user://engines.json");
-            
+
             // Intento de sincronización con el repositorio remoto.
             bool downloadSuccess = await DownloadEnginesFromGitHub(enginesPath);
 
@@ -254,7 +273,7 @@ namespace Logic.System.Config
         /// </summary>
         /// <param name="destinationPath">Ruta local de persistencia del archivo JSON.</param>
         /// <returns>True si la descarga y escritura fueron exitosas.</returns>
-        private async Task<bool> DownloadEnginesFromGitHub(string destinationPath)
+        private static async Task<bool> DownloadEnginesFromGitHub(string destinationPath)
         {
             string cacheBuster = DateTime.Now.Ticks.ToString();
             string targetUrl = $"https://github.com/YirehStudios/AGI/raw/refs/heads/main/agi/Script/Cs/System/Config/engines.json?t={cacheBuster}";
@@ -265,7 +284,7 @@ namespace Logic.System.Config
                 // y prevenir que el compilador busque 'Net' dentro del espacio de nombres 'Logic.System'.
                 using global::System.Net.Http.HttpClient client = new global::System.Net.Http.HttpClient();
                 client.DefaultRequestHeaders.CacheControl = new global::System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
-                
+
                 string jsonContent = await client.GetStringAsync(targetUrl);
                 File.WriteAllText(destinationPath, jsonContent);
                 return true;
@@ -323,16 +342,18 @@ namespace Logic.System.Config
                     ActiveTTSModel = ActiveTTSModel,
                     CloudApiUrl = CloudApiUrl,
                     CloudApiKey = CloudApiKey,
-                    CloudModelName = CloudModelName,
-                    DarkMode = DarkMode,
-                    NetworkState = CurrentNetworkState,
-                    PerformanceTier = CurrentPerformanceTier,
-                    ActiveProfilePath = this.ActiveProfilePath
+                    CloudModelName = this.CloudModelName,
+                    DarkMode = this.DarkMode,
+                    NetworkState = this.CurrentNetworkState,
+                    PerformanceTier = this.CurrentPerformanceTier,
+                    ActiveProfilePath = this.ActiveProfilePath,
+                    PerformanceProfile = this.PerformanceProfile,
+                    ToolPermissions = this.ToolPermissions
                 };
 
                 JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
                 string jsonString = JsonSerializer.Serialize(state, options);
-                
+
                 File.WriteAllText(_configFilePath, jsonString);
             }
             catch (Exception ex)
@@ -365,7 +386,7 @@ namespace Logic.System.Config
                     SetupCompleted = state.SetupCompleted;
                     IsLanConnection = state.IsLanConnection;
                     CustomPort = state.CustomPort;
-                    
+
                     if (!string.IsNullOrEmpty(state.ActiveSTTEngine)) ActiveSTTEngine = state.ActiveSTTEngine;
                     if (!string.IsNullOrEmpty(state.ActiveSTTModel)) ActiveSTTModel = state.ActiveSTTModel;
                     if (!string.IsNullOrEmpty(state.ActiveTTSEngine)) ActiveTTSEngine = state.ActiveTTSEngine;
@@ -373,13 +394,13 @@ namespace Logic.System.Config
 
                     CloudApiUrl = state.CloudApiUrl ?? "https://api.openai.com/v1";
                     CloudApiKey = state.CloudApiKey ?? string.Empty;
-                    CloudModelName = state.CloudModelName ?? "gemini-1.5-pro";
-
-                    DarkMode = state.DarkMode ?? true;
-                    
-                    CurrentNetworkState = state.NetworkState ?? NetworkState.StrictLocalhost;
-                    CurrentPerformanceTier = state.PerformanceTier ?? PerformanceTier.Medium;
-                    this.ActiveProfilePath = state.ActiveProfilePath ?? string.Empty;
+                    CloudModelName = state.CloudModelName ?? string.Empty;
+                    if (state.DarkMode.HasValue) DarkMode = state.DarkMode.Value;
+                    if (state.NetworkState.HasValue) CurrentNetworkState = state.NetworkState.Value;
+                    if (state.PerformanceTier.HasValue) CurrentPerformanceTier = state.PerformanceTier.Value;
+                    if (state.ActiveProfilePath != null) ActiveProfilePath = state.ActiveProfilePath;
+                    if (state.PerformanceProfile != null) PerformanceProfile = state.PerformanceProfile;
+                    if (state.ToolPermissions != null) ToolPermissions = state.ToolPermissions;
                 }
             }
             catch (Exception ex)
@@ -417,7 +438,7 @@ namespace Logic.System.Config
         /// </summary>
         /// <param name="destinationPath">Ruta de destino para la persistencia del archivo de presets.</param>
         /// <returns>Booleano indicando el éxito de la transferencia de datos.</returns>
-        private async Task<bool> DownloadPresetsFromGitHub(string destinationPath)
+        private static async Task<bool> DownloadPresetsFromGitHub(string destinationPath)
         {
             string cacheBuster = DateTime.Now.Ticks.ToString();
             string targetUrl = $"https://raw.githubusercontent.com/YirehStudios/AGI/main/agi/Script/Cs/System/Config/presets.json?t={cacheBuster}";
@@ -427,7 +448,7 @@ namespace Logic.System.Config
                 // La instanciación mediante el espacio de nombres global garantiza que se utilice el cliente HTTP de .NET Core.
                 using global::System.Net.Http.HttpClient client = new global::System.Net.Http.HttpClient();
                 client.DefaultRequestHeaders.CacheControl = new global::System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
-                
+
                 string jsonContent = await client.GetStringAsync(targetUrl);
                 File.WriteAllText(destinationPath, jsonContent);
                 return true;

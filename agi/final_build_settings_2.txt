@@ -1,0 +1,11 @@
+  Determinando los proyectos que se van a restaurar...
+  Todos los proyectos están actualizados para la restauración.
+/home/Yahir_js/Yadah/YirehStudios/Software/IA/Asistente General de Interfaz/agi/Script/Cs/Logic/UI/Settings.cs(296,34): error CS1061: "BackendLauncher" no contiene una definición para "DetenerMotor" ni un método de extensión accesible "DetenerMotor" que acepte un primer argumento del tipo "BackendLauncher" (¿falta alguna directiva using o una referencia de ensamblado?) [/home/Yahir_js/Yadah/YirehStudios/Software/IA/Asistente General de Interfaz/agi/AGI.csproj]
+
+ERROR al compilar.
+
+/home/Yahir_js/Yadah/YirehStudios/Software/IA/Asistente General de Interfaz/agi/Script/Cs/Logic/UI/Settings.cs(296,34): error CS1061: "BackendLauncher" no contiene una definición para "DetenerMotor" ni un método de extensión accesible "DetenerMotor" que acepte un primer argumento del tipo "BackendLauncher" (¿falta alguna directiva using o una referencia de ensamblado?) [/home/Yahir_js/Yadah/YirehStudios/Software/IA/Asistente General de Interfaz/agi/AGI.csproj]
+    0 Advertencia(s)
+    1 Errores
+
+Tiempo transcurrido 00:00:02.06

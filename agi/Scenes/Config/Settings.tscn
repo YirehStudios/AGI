@@ -1,78 +1,251 @@
 [gd_scene format=3 uid="uid://bvo0frg37bl"]
 
-[ext_resource type="Texture2D" uid="uid://b4lil6k3srfwq" path="res://Resources/Images/Icons/Util/Settings.svg" id="1_7fbcq"]
+[ext_resource type="Script" uid="uid://bx530v11h0p7s" path="res://Script/Cs/Logic/UI/Settings.cs" id="1_script"]
 
-[sub_resource type="SystemFont" id="SystemFont_hgn5h"]
-font_names = PackedStringArray("Sans-Serif")
-font_weight = 700
-subpixel_positioning = 0
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ContentPanel"]
+bg_color = Color(0, 0, 0, 0)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 
-[node name="SettingsOverlay" type="Panel" unique_id=114843156]
+[node name="SettingsRoot" type="PanelContainer" unique_id=792970596 node_paths=PackedStringArray("ModelsBtn", "PerformanceBtn", "ToolsBtn", "PreferencesBtn", "PrivacyBtn", "InfoBtn", "UpdateBtn", "ModelsViewContainer", "PerformanceViewContainer", "ToolsViewContainer", "PreferencesViewContainer", "PrivacyViewContainer", "ActiveModelSelector", "TxtIaDisplayNameInput", "NumInputTokensLimit", "NumOutputTokensLimit", "WeightImportLineEdit", "WeightImportBtn", "CpuThreadsSpinBox", "GpuLayersSpinBox", "RamSaturationSpinBox", "ToolsGrid", "DarkModeToggle", "StoragePathLineEdit", "PurgeDataBtn", "TelemetryToggle")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_script")
+ModelsBtn = NodePath("HBoxLayout/NavigationSidebar/ModelsBtn")
+PerformanceBtn = NodePath("HBoxLayout/NavigationSidebar/PerformanceBtn")
+ToolsBtn = NodePath("HBoxLayout/NavigationSidebar/ToolsBtn")
+PreferencesBtn = NodePath("HBoxLayout/NavigationSidebar/PreferencesBtn")
+PrivacyBtn = NodePath("HBoxLayout/NavigationSidebar/PrivacyBtn")
+InfoBtn = NodePath("HBoxLayout/NavigationSidebar/InfoBtn")
+UpdateBtn = NodePath("HBoxLayout/NavigationSidebar/UpdateBtn")
+ModelsViewContainer = NodePath("HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer")
+PerformanceViewContainer = NodePath("HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer")
+ToolsViewContainer = NodePath("HBoxLayout/ContentArea/ContentMargin/ToolsViewContainer")
+PreferencesViewContainer = NodePath("HBoxLayout/ContentArea/ContentMargin/PreferencesViewContainer")
+PrivacyViewContainer = NodePath("HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer")
+ActiveModelSelector = NodePath("HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/ActiveModelSelector")
+TxtIaDisplayNameInput = NodePath("HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/TxtIaDisplayNameInput")
+NumInputTokensLimit = NodePath("HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/NumInputTokensLimit")
+NumOutputTokensLimit = NodePath("HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/NumOutputTokensLimit")
+WeightImportLineEdit = NodePath("HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/ImportHBox/WeightImportLineEdit")
+WeightImportBtn = NodePath("HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/ImportHBox/WeightImportBtn")
+CpuThreadsSpinBox = NodePath("HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer/CpuThreadsSpinBox")
+GpuLayersSpinBox = NodePath("HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer/GpuLayersSpinBox")
+RamSaturationSpinBox = NodePath("HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer/RamSaturationSpinBox")
+ToolsGrid = NodePath("HBoxLayout/ContentArea/ContentMargin/ToolsViewContainer/ToolsGrid")
+DarkModeToggle = NodePath("HBoxLayout/ContentArea/ContentMargin/PreferencesViewContainer/DarkModeToggle")
+StoragePathLineEdit = NodePath("HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer/StoragePathLineEdit")
+PurgeDataBtn = NodePath("HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer/PurgeDataBtn")
+TelemetryToggle = NodePath("HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer/TelemetryToggle")
 
-[node name="SettingsPanel" type="Panel" parent="." unique_id=1027137377]
-self_modulate = Color(0, 0, 0, 0.14509805)
-layout_mode = 1
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -1920.0
-offset_right = -1280.0
-grow_horizontal = 0
-grow_vertical = 2
-
-[node name="SettingsTabBtn" type="Button" parent="SettingsPanel" unique_id=1131121692]
-layout_mode = 1
-anchors_preset = 4
-anchor_top = 0.5
-anchor_bottom = 0.5
-offset_left = -20.0
-offset_top = 120.0
-offset_bottom = 220.0
-grow_vertical = 2
-theme_type_variation = &"Confi"
-icon = ExtResource("1_7fbcq")
-icon_alignment = 1
-expand_icon = true
-
-[node name="SettingsMargin" type="MarginContainer" parent="SettingsPanel" unique_id=313632587]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/margin_left = 50
-theme_override_constants/margin_top = 60
-theme_override_constants/margin_right = 50
-theme_override_constants/margin_bottom = 60
-
-[node name="SettingsContent" type="VBoxContainer" parent="SettingsPanel/SettingsMargin" unique_id=1923887634]
+[node name="HBoxLayout" type="HBoxContainer" parent="." unique_id=467281509]
 layout_mode = 2
-theme_override_constants/separation = 30
+theme_override_constants/separation = 0
 
-[node name="Title" type="Label" parent="SettingsPanel/SettingsMargin/SettingsContent" unique_id=2130871763]
+[node name="NavigationSidebar" type="VBoxContainer" parent="HBoxLayout" unique_id=1251991173]
+custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
-theme_override_fonts/font = SubResource("SystemFont_hgn5h")
-theme_override_font_sizes/font_size = 32
-text = "Configuración"
+theme_override_constants/separation = 4
 
-[node name="HSeparator" type="HSeparator" parent="SettingsPanel/SettingsMargin/SettingsContent" unique_id=1251958130]
+[node name="ModelsBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1512796953]
 layout_mode = 2
+text = "Modelos"
+alignment = 0
 
-[node name="SettingItem3" type="HBoxContainer" parent="SettingsPanel/SettingsMargin/SettingsContent" unique_id=1321809633]
+[node name="PerformanceBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1158784688]
 layout_mode = 2
+text = "Rendimiento"
+alignment = 0
 
-[node name="Label" type="Label" parent="SettingsPanel/SettingsMargin/SettingsContent/SettingItem3" unique_id=1460594672]
+[node name="ToolsBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1730244995]
+layout_mode = 2
+text = "Herramientas MCP"
+alignment = 0
+
+[node name="PreferencesBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1484514962]
+layout_mode = 2
+text = "Preferencias"
+alignment = 0
+
+[node name="PrivacyBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1618746353]
+layout_mode = 2
+text = "Privacidad y Datos"
+alignment = 0
+
+[node name="NavSpacer" type="Control" parent="HBoxLayout/NavigationSidebar" unique_id=1228492336]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="InfoBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1369581043]
+layout_mode = 2
+text = "Información"
+alignment = 0
+
+[node name="UpdateBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1846977018]
+visible = false
+layout_mode = 2
+text = "Actualizar Sistema"
+alignment = 0
+
+[node name="ContentArea" type="PanelContainer" parent="HBoxLayout" unique_id=844569107]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 18
+theme_override_styles/panel = SubResource("StyleBoxFlat_ContentPanel")
+
+[node name="ContentMargin" type="MarginContainer" parent="HBoxLayout/ContentArea" unique_id=911115910]
+layout_mode = 2
+theme_override_constants/margin_left = 25
+theme_override_constants/margin_top = 25
+theme_override_constants/margin_right = 25
+theme_override_constants/margin_bottom = 25
+
+[node name="ModelsViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentMargin" unique_id=1107732885]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="LblSection1" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=213839214]
+layout_mode = 2
+text = "Perfil de Modelo Activo"
+
+[node name="ActiveModelSelector" type="OptionButton" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=1557784977]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LblDisplayName" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=2144268257]
+layout_mode = 2
+text = "Nombre Visual del Modelo"
+
+[node name="TxtIaDisplayNameInput" type="LineEdit" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=1280482981]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Nombre visible para este perfil..."
+
+[node name="LblInputTokens" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=1224625732]
+layout_mode = 2
+text = "Límite de Tokens de Entrada"
+
+[node name="NumInputTokensLimit" type="SpinBox" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=879627581]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 512.0
+max_value = 131072.0
+step = 512.0
+value = 4096.0
+
+[node name="LblOutputTokens" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=959379313]
+layout_mode = 2
+text = "Límite de Tokens de Salida"
+
+[node name="NumOutputTokensLimit" type="SpinBox" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=135301098]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 128.0
+max_value = 32768.0
+step = 128.0
+value = 2048.0
+
+[node name="LblImport" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=1347450937]
+layout_mode = 2
+text = "Importar Pesos del Modelo"
+
+[node name="ImportHBox" type="HBoxContainer" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=696718724]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="WeightImportLineEdit" type="LineEdit" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/ImportHBox" unique_id=1003781723]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "/ruta/absoluta/al/modelo.gguf"
+
+[node name="WeightImportBtn" type="Button" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/ImportHBox" unique_id=1186672054]
+layout_mode = 2
+text = "Importar"
+
+[node name="PerformanceViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentMargin" unique_id=382192828]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="LblCpu" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer" unique_id=710917342]
+layout_mode = 2
+text = "Hilos de CPU"
+
+[node name="CpuThreadsSpinBox" type="SpinBox" parent="HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer" unique_id=1303291777]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 64.0
+value = 4.0
+
+[node name="LblGpu" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer" unique_id=1149166443]
+layout_mode = 2
+text = "Capas GPU Offload"
+
+[node name="GpuLayersSpinBox" type="SpinBox" parent="HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer" unique_id=2046368069]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 120.0
+
+[node name="LblRam" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer" unique_id=27870532]
+layout_mode = 2
+text = "Techo de Saturación RAM (MB)"
+
+[node name="RamSaturationSpinBox" type="SpinBox" parent="HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer" unique_id=1492005690]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 65536.0
+step = 512.0
+value = 8192.0
+
+[node name="ToolsViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentMargin" unique_id=84152442]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="LblTools" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/ToolsViewContainer" unique_id=632044417]
+layout_mode = 2
+text = "Permisos del Toolkit MCP"
+
+[node name="ToolsGrid" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentMargin/ToolsViewContainer" unique_id=1099235957]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PreferencesViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentMargin" unique_id=595993959]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="LblTheme" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/PreferencesViewContainer" unique_id=2115440963]
+layout_mode = 2
+text = "Apariencia"
+
+[node name="DarkModeToggle" type="CheckButton" parent="HBoxLayout/ContentArea/ContentMargin/PreferencesViewContainer" unique_id=1840762533]
+layout_mode = 2
 text = "Modo Oscuro"
 
-[node name="CheckButton" type="CheckButton" parent="SettingsPanel/SettingsMargin/SettingsContent/SettingItem3" unique_id=427871258]
+[node name="PrivacyViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentMargin" unique_id=831192049]
+visible = false
 layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="LblStorage" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer" unique_id=1584133946]
+layout_mode = 2
+text = "Directorio de Almacenamiento"
+
+[node name="StoragePathLineEdit" type="LineEdit" parent="HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer" unique_id=567021694]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "user://history/"
+
+[node name="PurgeDataBtn" type="Button" parent="HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer" unique_id=1953876231]
+layout_mode = 2
+text = "Purgar Todos los Datos Locales"
+
+[node name="TelemetryToggle" type="CheckButton" parent="HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer" unique_id=1566090292]
+layout_mode = 2
+text = "Deshabilitar Telemetría (Aislamiento de Red)"
