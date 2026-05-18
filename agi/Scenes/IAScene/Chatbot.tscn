@@ -13,34 +13,14 @@
 [ext_resource type="VideoStream" uid="uid://bc7xtarwn1qiv" path="res://Resources/Paisaje.ogv" id="8_675c4"]
 [ext_resource type="VideoStream" uid="uid://b7hhl2fcqhlrl" path="res://Resources/Super-Tux.ogv" id="9_u6rn7"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_amhcu"]
-bg_color = Color(1.1551381e-06, 0.6489031, 0.89848536, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jta4j"]
+bg_color = Color(0.2739657, 0.6233799, 0.9242838, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_675c4"]
-bg_color = Color(0, 0.25700295, 0.67390674, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pdmg7"]
-bg_color = Color(0, 0.3529412, 0.8980392, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_u6rn7"]
-bg_color = Color(0, 0.14242893, 0.31401196, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lgxif"]
-bg_color = Color(1, 0.22723916, 0.691225, 1)
-
-[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "ToolSelector", "BottomInputPanel", "ModelSelector")]
+[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "ToolSelector", "ModelSelector", "BottomInputPanel", "WelcomeOverlay")]
 self_modulate = Color(1, 1, 1, 0)
 anchors_preset = 15
 anchor_right = 1.0
@@ -52,6 +32,7 @@ ChatScrollContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContai
 MessagesContainer = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer")
 TextInputField = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/TextInputField")
 SendButton = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/SendButton")
+WelcomeOverlay = NodePath("WelcomeOverlay")
 EscenaMensajeUsuario = ExtResource("2_jta4j")
 EscenaMensajeBot = ExtResource("3_amhcu")
 ToolSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolSelector")
@@ -128,13 +109,12 @@ popup/item_1/id = 1
 popup/item_2/text = "Generar Video"
 popup/item_2/id = 2
 
-[node name="ModelSelector" type="OptionButton" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout"]
+[node name="ModelSelector" type="OptionButton" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=1864477360]
 custom_minimum_size = Vector2(160, 40)
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_constants/align_to_largest_stylebox = 50
 theme_override_font_sizes/font_size = 16
-selected = -1
 
 [node name="TextInputField" type="TextEdit" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=733254512]
 custom_minimum_size = Vector2(0, 45)
@@ -148,11 +128,24 @@ caret_blink = true
 custom_minimum_size = Vector2(50, 50)
 layout_mode = 2
 size_flags_vertical = 4
-theme_override_styles/normal = SubResource("StyleBoxFlat_amhcu")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_675c4")
-theme_override_styles/hover = SubResource("StyleBoxFlat_pdmg7")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_u6rn7")
-theme_override_styles/focus = SubResource("StyleBoxFlat_lgxif")
+theme_override_styles/normal = SubResource("StyleBoxFlat_jta4j")
 icon = ExtResource("5_ug3aw")
 icon_alignment = 1
 expand_icon = true
+
+[node name="WelcomeOverlay" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="WelcomeLabel" type="Label" parent="WelcomeOverlay"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.55, 0.55, 1)
+theme_override_font_sizes/font_size = 24
+text = "Bienvenido a AGI de que hablamos hoy"
+horizontal_alignment = 1
+

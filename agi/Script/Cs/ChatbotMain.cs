@@ -38,6 +38,7 @@ namespace Logic.UI
         [Export] public Button CopyBtn;
         [Export] public Control BottomInputPanel;
         [Export] public Control ChatBackgroundPanel;
+        [Export] public CenterContainer WelcomeOverlay;
 
         private AudioEffectRecord _recorder;
         private float _silenceTimer = 0.0f;
@@ -194,15 +195,12 @@ namespace Logic.UI
             _isWaitingForResponse = true;
 
             Node current = this;
-            while (current != null)
-            {
-                if (current.HasMethod("HideWelcomeMessage"))
-                {
-                    current.Call("HideWelcomeMessage");
-                    break;
-                }
-                current = current.GetParent();
-            }
+            if (WelcomeOverlay != null)
+    {
+        WelcomeOverlay.Visible = false;
+    }
+
+    TextInputField.Text = string.Empty;
 
             TextInputField.Text = string.Empty;
             TextInputField.CustomMinimumSize = new Vector2(TextInputField.CustomMinimumSize.X, MinInputHeight);
