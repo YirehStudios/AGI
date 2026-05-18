@@ -1,6 +1,30 @@
 [gd_scene format=3 uid="uid://bvo0frg37bl"]
 
 [ext_resource type="Script" uid="uid://bx530v11h0p7s" path="res://Script/Cs/Logic/UI/Settings.cs" id="1_script"]
+[ext_resource type="Shader" uid="uid://c5f447olcpncs" path="res://Resources/Shaders/frosted_glass.gdshader" id="2_glass"]
+[ext_resource type="Texture2D" uid="uid://cdnwjgj0v1kyo" path="res://Resources/Images/Icons/Util/Models.svg" id="3_ttceo"]
+[ext_resource type="Texture2D" uid="uid://vftidia8yqei" path="res://Resources/Images/Icons/Util/Performance.svg" id="4_typf2"]
+[ext_resource type="Texture2D" uid="uid://d0tsudji8krk8" path="res://Resources/Images/Icons/Util/Tools.svg" id="5_0jj0d"]
+[ext_resource type="Texture2D" uid="uid://c0ap5iwlclrqk" path="res://Resources/Images/Icons/Util/Preferences.svg" id="6_jepcl"]
+[ext_resource type="Texture2D" uid="uid://ci5ddyqb55uuf" path="res://Resources/Images/Icons/Util/Privacy.svg" id="7_fm1s0"]
+[ext_resource type="Texture2D" uid="uid://c6h4dchoc2bf6" path="res://Resources/Images/Icons/Util/Info.svg" id="8_0jj0d"]
+[ext_resource type="Texture2D" uid="uid://bq4h3or8fle5f" path="res://Resources/Images/Icons/Util/Update.svg" id="9_jepcl"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_GlassRoot"]
+shader = ExtResource("2_glass")
+shader_parameter/blur_amount = 1.8
+shader_parameter/mix_color = Color(0.06, 0.06, 0.09, 0.35)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_RootPanel"]
+content_margin_left = 24.0
+content_margin_top = 24.0
+content_margin_right = 24.0
+content_margin_bottom = 24.0
+bg_color = Color(0.6, 0.6, 0.6, 0)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ContentPanel"]
 bg_color = Color(0, 0, 0, 0)
@@ -9,12 +33,15 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[node name="SettingsRoot" type="PanelContainer" unique_id=792970596 node_paths=PackedStringArray("ModelsBtn", "PerformanceBtn", "ToolsBtn", "PreferencesBtn", "PrivacyBtn", "InfoBtn", "UpdateBtn", "ModelsViewContainer", "PerformanceViewContainer", "ToolsViewContainer", "PreferencesViewContainer", "PrivacyViewContainer", "ActiveModelSelector", "TxtIaDisplayNameInput", "NumInputTokensLimit", "NumOutputTokensLimit", "WeightImportLineEdit", "WeightImportBtn", "CpuThreadsSpinBox", "GpuLayersSpinBox", "RamSaturationSpinBox", "ToolsGrid", "DarkModeToggle", "StoragePathLineEdit", "PurgeDataBtn", "TelemetryToggle")]
+[node name="SettingsRoot" type="PanelContainer" unique_id=1300762470 node_paths=PackedStringArray("ModelsBtn", "PerformanceBtn", "ToolsBtn", "PreferencesBtn", "PrivacyBtn", "InfoBtn", "UpdateBtn", "ModelsViewContainer", "PerformanceViewContainer", "ToolsViewContainer", "PreferencesViewContainer", "PrivacyViewContainer", "ActiveModelSelector", "TxtIaDisplayNameInput", "NumInputTokensLimit", "NumOutputTokensLimit", "NumContextWindowSize", "WeightImportLineEdit", "WeightImportBtn", "CpuThreadsSpinBox", "GpuLayersSpinBox", "RamSaturationSpinBox", "ToolsGrid", "DarkModeToggle", "StoragePathLineEdit", "PurgeDataBtn", "TelemetryToggle")]
+material = SubResource("ShaderMaterial_GlassRoot")
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_RootPanel")
 script = ExtResource("1_script")
 ModelsBtn = NodePath("HBoxLayout/NavigationSidebar/ModelsBtn")
 PerformanceBtn = NodePath("HBoxLayout/NavigationSidebar/PerformanceBtn")
@@ -23,113 +50,166 @@ PreferencesBtn = NodePath("HBoxLayout/NavigationSidebar/PreferencesBtn")
 PrivacyBtn = NodePath("HBoxLayout/NavigationSidebar/PrivacyBtn")
 InfoBtn = NodePath("HBoxLayout/NavigationSidebar/InfoBtn")
 UpdateBtn = NodePath("HBoxLayout/NavigationSidebar/UpdateBtn")
-ModelsViewContainer = NodePath("HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer")
-PerformanceViewContainer = NodePath("HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer")
-ToolsViewContainer = NodePath("HBoxLayout/ContentArea/ContentMargin/ToolsViewContainer")
-PreferencesViewContainer = NodePath("HBoxLayout/ContentArea/ContentMargin/PreferencesViewContainer")
-PrivacyViewContainer = NodePath("HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer")
-ActiveModelSelector = NodePath("HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/ActiveModelSelector")
-TxtIaDisplayNameInput = NodePath("HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/TxtIaDisplayNameInput")
-NumInputTokensLimit = NodePath("HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/NumInputTokensLimit")
-NumOutputTokensLimit = NodePath("HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/NumOutputTokensLimit")
-WeightImportLineEdit = NodePath("HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/ImportHBox/WeightImportLineEdit")
-WeightImportBtn = NodePath("HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/ImportHBox/WeightImportBtn")
-CpuThreadsSpinBox = NodePath("HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer/CpuThreadsSpinBox")
-GpuLayersSpinBox = NodePath("HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer/GpuLayersSpinBox")
-RamSaturationSpinBox = NodePath("HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer/RamSaturationSpinBox")
-ToolsGrid = NodePath("HBoxLayout/ContentArea/ContentMargin/ToolsViewContainer/ToolsGrid")
-DarkModeToggle = NodePath("HBoxLayout/ContentArea/ContentMargin/PreferencesViewContainer/DarkModeToggle")
-StoragePathLineEdit = NodePath("HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer/StoragePathLineEdit")
-PurgeDataBtn = NodePath("HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer/PurgeDataBtn")
-TelemetryToggle = NodePath("HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer/TelemetryToggle")
+ModelsIcon = ExtResource("3_ttceo")
+PerformanceIcon = ExtResource("4_typf2")
+ToolsIcon = ExtResource("5_0jj0d")
+PreferencesIcon = ExtResource("6_jepcl")
+PrivacyIcon = ExtResource("7_fm1s0")
+InfoIcon = ExtResource("8_0jj0d")
+UpdateIcon = ExtResource("9_jepcl")
+ModelsViewContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer")
+PerformanceViewContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer")
+ToolsViewContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ToolsViewContainer")
+PreferencesViewContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer")
+PrivacyViewContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PrivacyViewContainer")
+ActiveModelSelector = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/ActiveModelSelector")
+TxtIaDisplayNameInput = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/TxtIaDisplayNameInput")
+NumInputTokensLimit = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/NumInputTokensLimit")
+NumOutputTokensLimit = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/NumOutputTokensLimit")
+NumContextWindowSize = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/NumContextWindowSize")
+WeightImportLineEdit = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/ImportHBox/WeightImportLineEdit")
+WeightImportBtn = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/ImportHBox/WeightImportBtn")
+CpuThreadsSpinBox = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer/CpuThreadsSpinBox")
+GpuLayersSpinBox = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer/GpuLayersSpinBox")
+RamSaturationSpinBox = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer/RamSaturationSpinBox")
+ToolsGrid = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ToolsViewContainer/ToolsGrid")
+DarkModeToggle = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/DarkModeToggle")
+StoragePathLineEdit = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PrivacyViewContainer/StoragePathLineEdit")
+PurgeDataBtn = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PrivacyViewContainer/PurgeDataBtn")
+TelemetryToggle = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PrivacyViewContainer/TelemetryToggle")
 
-[node name="HBoxLayout" type="HBoxContainer" parent="." unique_id=467281509]
+[node name="HBoxLayout" type="HBoxContainer" parent="." unique_id=1979259479]
 layout_mode = 2
-theme_override_constants/separation = 0
+mouse_filter = 2
+theme_override_constants/separation = 24
 
-[node name="NavigationSidebar" type="VBoxContainer" parent="HBoxLayout" unique_id=1251991173]
-custom_minimum_size = Vector2(220, 0)
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="ModelsBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1512796953]
-layout_mode = 2
-text = "Modelos"
-alignment = 0
-
-[node name="PerformanceBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1158784688]
-layout_mode = 2
-text = "Rendimiento"
-alignment = 0
-
-[node name="ToolsBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1730244995]
-layout_mode = 2
-text = "Herramientas MCP"
-alignment = 0
-
-[node name="PreferencesBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1484514962]
-layout_mode = 2
-text = "Preferencias"
-alignment = 0
-
-[node name="PrivacyBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1618746353]
-layout_mode = 2
-text = "Privacidad y Datos"
-alignment = 0
-
-[node name="NavSpacer" type="Control" parent="HBoxLayout/NavigationSidebar" unique_id=1228492336]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="InfoBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1369581043]
-layout_mode = 2
-text = "Información"
-alignment = 0
-
-[node name="UpdateBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1846977018]
-visible = false
-layout_mode = 2
-text = "Actualizar Sistema"
-alignment = 0
-
-[node name="ContentArea" type="PanelContainer" parent="HBoxLayout" unique_id=844569107]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_ContentPanel")
-
-[node name="ContentMargin" type="MarginContainer" parent="HBoxLayout/ContentArea" unique_id=911115910]
-layout_mode = 2
-theme_override_constants/margin_left = 25
-theme_override_constants/margin_top = 25
-theme_override_constants/margin_right = 25
-theme_override_constants/margin_bottom = 25
-
-[node name="ModelsViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentMargin" unique_id=1107732885]
+[node name="NavigationSidebar" type="VBoxContainer" parent="HBoxLayout" unique_id=1254112330]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="LblSection1" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=213839214]
+[node name="ModelsBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=54752501]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+icon = ExtResource("3_ttceo")
+flat = true
+icon_alignment = 1
+
+[node name="PerformanceBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1813632882]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+icon = ExtResource("4_typf2")
+flat = true
+alignment = 0
+icon_alignment = 1
+
+[node name="ToolsBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=838995403]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+icon = ExtResource("5_0jj0d")
+flat = true
+alignment = 0
+icon_alignment = 1
+
+[node name="PreferencesBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=787730640]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+icon = ExtResource("6_jepcl")
+flat = true
+alignment = 0
+icon_alignment = 1
+
+[node name="PrivacyBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=753767845]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+icon = ExtResource("7_fm1s0")
+flat = true
+alignment = 0
+icon_alignment = 1
+
+[node name="NavSpacer" type="MarginContainer" parent="HBoxLayout/NavigationSidebar" unique_id=1278574634]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="InfoBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=402521015]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+icon = ExtResource("8_0jj0d")
+flat = true
+alignment = 0
+icon_alignment = 1
+
+[node name="UpdateBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=1210986976]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+icon = ExtResource("9_jepcl")
+flat = true
+alignment = 0
+icon_alignment = 1
+
+[node name="ContentArea" type="PanelContainer" parent="HBoxLayout" unique_id=1789819844]
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_ContentPanel")
+
+[node name="ContentScroll" type="ScrollContainer" parent="HBoxLayout/ContentArea" unique_id=1738340679]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ContentMargin" type="MarginContainer" parent="HBoxLayout/ContentArea/ContentScroll" unique_id=1796169179]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="ModelsViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin" unique_id=2081213219]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="LblSection1" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=918364815]
 layout_mode = 2
 text = "Perfil de Modelo Activo"
 
-[node name="ActiveModelSelector" type="OptionButton" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=1557784977]
+[node name="ActiveModelSelector" type="OptionButton" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=977808426]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="LblDisplayName" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=2144268257]
+[node name="LblDisplayName" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=2103440333]
 layout_mode = 2
 text = "Nombre Visual del Modelo"
 
-[node name="TxtIaDisplayNameInput" type="LineEdit" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=1280482981]
+[node name="TxtIaDisplayNameInput" type="LineEdit" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=1128099660]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Nombre visible para este perfil..."
 
-[node name="LblInputTokens" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=1224625732]
+[node name="LblInputTokens" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=1178826464]
 layout_mode = 2
 text = "Límite de Tokens de Entrada"
 
-[node name="NumInputTokensLimit" type="SpinBox" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=879627581]
+[node name="NumInputTokensLimit" type="SpinBox" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=2087649307]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 512.0
@@ -137,11 +217,12 @@ max_value = 131072.0
 step = 512.0
 value = 4096.0
 
-[node name="LblOutputTokens" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=959379313]
+[node name="LblOutputTokens" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=824845102]
 layout_mode = 2
 text = "Límite de Tokens de Salida"
 
-[node name="NumOutputTokensLimit" type="SpinBox" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=135301098]
+[node name="NumOutputTokensLimit" type="SpinBox" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=70538451]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 128.0
@@ -149,103 +230,140 @@ max_value = 32768.0
 step = 128.0
 value = 2048.0
 
-[node name="LblImport" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=1347450937]
+[node name="LblContextWindow" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=1971109996]
+layout_mode = 2
+text = "Ventana de Contexto (tokens)"
+
+[node name="NumContextWindowSize" type="SpinBox" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=1392866067]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 2048.0
+max_value = 200000.0
+step = 512.0
+value = 4096.0
+
+[node name="LblImport" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=1374032617]
 layout_mode = 2
 text = "Importar Pesos del Modelo"
 
-[node name="ImportHBox" type="HBoxContainer" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer" unique_id=696718724]
+[node name="ImportHBox" type="HBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=207413743]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="WeightImportLineEdit" type="LineEdit" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/ImportHBox" unique_id=1003781723]
+[node name="WeightImportLineEdit" type="LineEdit" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/ImportHBox" unique_id=793488954]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "/ruta/absoluta/al/modelo.gguf"
 
-[node name="WeightImportBtn" type="Button" parent="HBoxLayout/ContentArea/ContentMargin/ModelsViewContainer/ImportHBox" unique_id=1186672054]
+[node name="WeightImportBtn" type="Button" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/ImportHBox" unique_id=1513331412]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Importar"
 
-[node name="PerformanceViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentMargin" unique_id=382192828]
+[node name="PerformanceViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin" unique_id=2117732419]
+unique_name_in_owner = true
 visible = false
 layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
 theme_override_constants/separation = 12
 
-[node name="LblCpu" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer" unique_id=710917342]
+[node name="LblCpu" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer" unique_id=1986170320]
 layout_mode = 2
 text = "Hilos de CPU"
 
-[node name="CpuThreadsSpinBox" type="SpinBox" parent="HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer" unique_id=1303291777]
+[node name="CpuThreadsSpinBox" type="SpinBox" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer" unique_id=2066381498]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 1.0
 max_value = 64.0
 value = 4.0
 
-[node name="LblGpu" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer" unique_id=1149166443]
+[node name="LblGpu" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer" unique_id=1826008082]
 layout_mode = 2
 text = "Capas GPU Offload"
 
-[node name="GpuLayersSpinBox" type="SpinBox" parent="HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer" unique_id=2046368069]
+[node name="GpuLayersSpinBox" type="SpinBox" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer" unique_id=1221562906]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 max_value = 120.0
 
-[node name="LblRam" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer" unique_id=27870532]
+[node name="LblRam" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer" unique_id=1160913349]
 layout_mode = 2
 text = "Techo de Saturación RAM (MB)"
 
-[node name="RamSaturationSpinBox" type="SpinBox" parent="HBoxLayout/ContentArea/ContentMargin/PerformanceViewContainer" unique_id=1492005690]
+[node name="RamSaturationSpinBox" type="SpinBox" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer" unique_id=892450108]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 max_value = 65536.0
 step = 512.0
 value = 8192.0
 
-[node name="ToolsViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentMargin" unique_id=84152442]
+[node name="ToolsViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin" unique_id=797721289]
+unique_name_in_owner = true
 visible = false
 layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
 theme_override_constants/separation = 12
 
-[node name="LblTools" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/ToolsViewContainer" unique_id=632044417]
+[node name="LblTools" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ToolsViewContainer" unique_id=543802482]
 layout_mode = 2
 text = "Permisos del Toolkit MCP"
 
-[node name="ToolsGrid" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentMargin/ToolsViewContainer" unique_id=1099235957]
+[node name="ToolsGrid" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ToolsViewContainer" unique_id=1617817833]
+unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="PreferencesViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentMargin" unique_id=595993959]
+[node name="PreferencesViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin" unique_id=176250805]
+unique_name_in_owner = true
 visible = false
 layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
 theme_override_constants/separation = 12
 
-[node name="LblTheme" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/PreferencesViewContainer" unique_id=2115440963]
+[node name="LblTheme" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=485047510]
 layout_mode = 2
 text = "Apariencia"
 
-[node name="DarkModeToggle" type="CheckButton" parent="HBoxLayout/ContentArea/ContentMargin/PreferencesViewContainer" unique_id=1840762533]
+[node name="DarkModeToggle" type="CheckButton" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=151056094]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Modo Oscuro"
 
-[node name="PrivacyViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentMargin" unique_id=831192049]
+[node name="PrivacyViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin" unique_id=1587880699]
+unique_name_in_owner = true
 visible = false
 layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
 theme_override_constants/separation = 12
 
-[node name="LblStorage" type="Label" parent="HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer" unique_id=1584133946]
+[node name="LblStorage" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PrivacyViewContainer" unique_id=1443779631]
 layout_mode = 2
 text = "Directorio de Almacenamiento"
 
-[node name="StoragePathLineEdit" type="LineEdit" parent="HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer" unique_id=567021694]
+[node name="StoragePathLineEdit" type="LineEdit" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PrivacyViewContainer" unique_id=1008336656]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "user://history/"
 
-[node name="PurgeDataBtn" type="Button" parent="HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer" unique_id=1953876231]
+[node name="PurgeDataBtn" type="Button" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PrivacyViewContainer" unique_id=1568866042]
+unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Purgar Todos los Datos Locales"
 
-[node name="TelemetryToggle" type="CheckButton" parent="HBoxLayout/ContentArea/ContentMargin/PrivacyViewContainer" unique_id=1566090292]
+[node name="TelemetryToggle" type="CheckButton" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PrivacyViewContainer" unique_id=1684812508]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Deshabilitar Telemetría (Aislamiento de Red)"

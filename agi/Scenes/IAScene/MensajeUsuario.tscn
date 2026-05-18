@@ -72,9 +72,9 @@ anti_aliasing_size = 1.5
 theme_override_constants/separation = 15
 alignment = 2
 script = ExtResource("1_frmkv")
-_messageBody = NodePath("MessageBubble/MessageBody")
-_copyBtn = NodePath("UserActions/CopyUserBtn")
-_minimizeBtn = NodePath("UserActions/MinimizeUserBtn")
+_messageBody = NodePath("MessageBubble/MarginContainer/MessageBody")
+_copyBtn = NodePath("CopyUserBtn")
+_minimizeBtn = NodePath("MinimizeUserBtn")
 
 [node name="LeftSpacer" type="Panel" parent="." unique_id=1493116569]
 custom_minimum_size = Vector2(100, 0)

@@ -303,65 +303,100 @@ namespace Logic.Network
         }
 
         /// <summary>
-        /// Establishes a persistent ClientWebSocket connection directed to the native Sherpa C++ TTS engine.
-        /// Parses standard JSON requests expected by Sherpa and manages raw binary payload reception robustly without 
-        /// relying on legacy string-based control signals from the Python bridge.
-        /// Integrates mandatory Speaker ID parameters to explicitly map to multi-language .bin voice assets.
+        /// Opens a WebSocket connection to the Kokoro ONNX TTS server at <c>ws://127.0.0.1:8888</c>,
+        /// transmits the text as <c>{"text": "..."}</c>, and accumulates the full WAV response.
         /// </summary>
+        /// <remarks>
+        /// PROTOCOL CONTRACT (tts_server.py):
+        ///   → Client sends: text frame JSON <c>{"text": "sentence"}</c>
+        ///   ← Server replies: one binary frame containing a complete WAV file (RIFF header + PCM)
+        ///   ← Server then closes the connection naturally.
+        ///
+        /// CRITICAL: The server sends the WAV as one logical message, but the .NET WebSocket
+        /// client receives it in network-MTU-sized chunks (result.EndOfMessage == false for
+        /// intermediate chunks). All chunks MUST be accumulated before emitting to NativeTTSManager,
+        /// otherwise only a 8KB fragment would be played, producing silent or corrupt audio.
+        /// </remarks>
+        /// <param name="textToSynthesize">Cleaned plain-text sentence to synthesize.</param>
         public async Task RequestTTSWebSocket(string textToSynthesize)
         {
+            if (string.IsNullOrWhiteSpace(textToSynthesize)) return;
+
             try
             {
                 using var ws = new ClientWebSocket();
-                Uri serverUri = new Uri("ws://127.0.0.1:8888");
+                await ws.ConnectAsync(new Uri("ws://127.0.0.1:8888"), global::System.Threading.CancellationToken.None);
 
-                await ws.ConnectAsync(serverUri, global::System.Threading.CancellationToken.None);
+                // Exact payload schema consumed by tts_server.py: data.get("text", "")
+                // The server does NOT use any other field — keep the payload minimal.
+                string jsonPayload = $"{{\"text\":\"{EscapeJsonString(textToSynthesize)}\"}}";
+                byte[] sendBytes = global::System.Text.Encoding.UTF8.GetBytes(jsonPayload);
 
-                // Instancia y empaqueta el diccionario estricto esperado por el binario C++ de Sherpa.
-                // Inyecta el índice del hablante (sid) para resolver la asignación de voz en modelos que consolidan múltiples firmas acústicas.
-                var payload = new
-                {
-                    text = textToSynthesize,
-                    sid = 0
-                };
+                GD.Print($"[TTS→WS] Dispatching: {jsonPayload}");
 
-                string jsonPayload = global::System.Text.Json.JsonSerializer.Serialize(payload);
-                byte[] bytes = global::System.Text.Encoding.UTF8.GetBytes(jsonPayload);
+                await ws.SendAsync(
+                    new ArraySegment<byte>(sendBytes),
+                    WebSocketMessageType.Text,
+                    true,
+                    global::System.Threading.CancellationToken.None);
 
-                await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, global::System.Threading.CancellationToken.None);
+                // Accumulate the complete WAV response before emitting.
+                // The server sends one complete WAV per synthesis request; .NET chunks it
+                // by MTU. We must reassemble all chunks into a single buffer.
+                using var wavAccumulator = new global::System.IO.MemoryStream();
+                byte[] recvBuffer = new byte[16384]; // 16 KB read window
 
-                byte[] buffer = new byte[8192];
-
-                // Evalúa el socket en un ciclo continuo que intercepta estructuras WAV nativas.
                 while (ws.State == WebSocketState.Open)
                 {
-                    var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), global::System.Threading.CancellationToken.None);
+                    WebSocketReceiveResult chunk = await ws.ReceiveAsync(
+                        new ArraySegment<byte>(recvBuffer),
+                        global::System.Threading.CancellationToken.None);
 
-                    if (result.MessageType == WebSocketMessageType.Binary)
+                    if (chunk.MessageType == WebSocketMessageType.Binary)
                     {
-                        byte[] audioChunk = new byte[result.Count];
-                        global::System.Array.Copy(buffer, audioChunk, result.Count);
+                        // Write this network chunk into the accumulator.
+                        wavAccumulator.Write(recvBuffer, 0, chunk.Count);
 
-                        CallDeferred(MethodName.EmitSignal, SignalName.TTSAudioChunkReceived, audioChunk);
-
-                        // Cierra controladamente el ciclo si la señal EOF se define por la clausura anticipada del socket tras el streaming binario.
-                        if (result.EndOfMessage && result.Count < buffer.Length)
+                        if (chunk.EndOfMessage)
                         {
-                            // Heurística de salida limpia dependiente de los chunks del binario nativo.
-                            break;
+                            // Full WAV received — emit once to NativeTTSManager.
+                            byte[] completeWav = wavAccumulator.ToArray();
+                            GD.Print($"[TTS←WS] WAV received: {completeWav.Length} bytes");
+                            CallDeferred(MethodName.EmitSignal, SignalName.TTSAudioChunkReceived, completeWav);
+                            wavAccumulator.SetLength(0); // Reset for any subsequent messages.
                         }
                     }
-                    else if (result.MessageType == WebSocketMessageType.Close)
+                    else if (chunk.MessageType == WebSocketMessageType.Close)
                     {
-                        // Resuelve y finaliza la conexión sistemáticamente acatando el cierre del servidor remoto C++.
+                        // Server closed cleanly after sending the WAV.
                         break;
+                    }
+                    else if (chunk.MessageType == WebSocketMessageType.Text)
+                    {
+                        // tts_server.py never sends text frames back; log if unexpected.
+                        string msg = global::System.Text.Encoding.UTF8.GetString(recvBuffer, 0, chunk.Count);
+                        GD.PrintErr($"[TTS←WS] Unexpected text frame: {msg}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"[NET ERROR] Native WebSocket TTS Engine Exception: {ex.Message}");
+                GD.PrintErr($"[TTS ERROR] WebSocket TTS engine exception: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Escapes characters that would break a manually-constructed JSON string literal.
+        /// Used only for the minimal TTS payload; all other payloads use JsonSerializer.
+        /// </summary>
+        private static string EscapeJsonString(string input)
+        {
+            return input
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r")
+                .Replace("\t", "\\t");
         }
 
         /// <summary>

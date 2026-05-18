@@ -1,125 +1,6 @@
 [gd_resource type="Theme" format=3 uid="uid://dp431ggy0dlek"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8uuvn"]
-bg_color = Color(0, 0, 0, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mhi4h"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
-bg_color = Color(0.299435, 0.299435, 0.299435, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_00sq8"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
-bg_color = Color(0.21134, 0.21134, 0.21134, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qc5r8"]
-content_margin_left = 6.0
-content_margin_top = 4.0
-content_margin_right = 6.0
-content_margin_bottom = 4.0
-bg_color = Color(0.161, 0.161, 0.161, 1)
-draw_center = false
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.21134, 0.21134, 0.21134, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_oyqra"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
-bg_color = Color(0.21134, 0.21134, 0.21134, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pyybr"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
-bg_color = Color(0.15134, 0.15134, 0.15134, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_k4xeh"]
-content_margin_left = 16.0
-content_margin_top = 4.0
-content_margin_right = 0.0
-content_margin_bottom = 4.0
-bg_color = Color(0.13202, 0.13202, 0.13202, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4cg2x"]
-content_margin_left = 8.0
-content_margin_top = 8.0
-content_margin_right = 8.0
-content_margin_bottom = 8.0
-bg_color = Color(0.13202, 0.13202, 0.13202, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_k1wut"]
-content_margin_left = 8.0
-content_margin_top = 4.8
-content_margin_right = 8.0
-content_margin_bottom = 4.8
-bg_color = Color(0.24909501, 0.24909501, 0.24909501, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vxxbi"]
-content_margin_left = 8.0
-content_margin_top = 4.8
-content_margin_right = 8.0
-content_margin_bottom = 4.8
-bg_color = Color(0.299435, 0.299435, 0.299435, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0oq2y"]
-content_margin_left = 6.0
-content_margin_top = 4.0
-content_margin_right = 6.0
-content_margin_bottom = 4.0
-bg_color = Color(0, 0, 0, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_yl06j"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_g5qhj"]
 content_margin_left = 15.0
 content_margin_top = 15.0
 content_margin_right = 15.0
@@ -469,13 +350,6 @@ shadow_color = Color(0, 0, 0, 0.3)
 shadow_size = 16
 shadow_offset = Vector2(0, 8)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vxqgt"]
-content_margin_left = 9.0
-content_margin_top = 9.0
-content_margin_right = 9.0
-content_margin_bottom = 9.0
-bg_color = Color(1, 0, 0, 1)
-
 [sub_resource type="StyleBoxLine" id="StyleBoxLine_mgsus"]
 color = Color(0.22, 0.22, 0.23, 1)
 grow_begin = -8.0
@@ -703,40 +577,7 @@ corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
 [resource]
-AcceptDialog/styles/panel = SubResource("StyleBoxFlat_8uuvn")
-AnimationBezierTrackEdit/colors/focus_color = Color(1, 1, 1, 0)
-AnimationBezierTrackEdit/colors/h_line_color = Color(1, 1, 1, 0.12)
-AnimationBezierTrackEdit/colors/track_focus_color = Color(1, 1, 1, 0.1)
-AnimationBezierTrackEdit/colors/v_line_color = Color(1, 1, 1, 0)
-AnimationTimelineEdit/colors/font_primary_color = Color(1, 1, 1, 0.7)
-AnimationTimelineEdit/colors/font_secondary_color = Color(1, 1, 1, 0.35)
-AnimationTimelineEdit/colors/h_line_color = Color(1, 1, 1, 0)
-AnimationTimelineEdit/colors/v_line_primary_color = Color(1, 1, 1, 0.4)
-AnimationTimelineEdit/colors/v_line_secondary_color = Color(1, 1, 1, 0.08)
-AnimationTimelineEdit/constants/text_primary_margin = 3
-AnimationTimelineEdit/constants/text_secondary_margin = 2
-AnimationTimelineEdit/constants/v_line_primary_margin = 4
-AnimationTimelineEdit/constants/v_line_primary_width = 2
-AnimationTimelineEdit/constants/v_line_secondary_margin = 6
-AnimationTimelineEdit/constants/v_line_secondary_width = 1
-AnimationTimelineEdit/styles/time_available = SubResource("StyleBoxFlat_mhi4h")
-AnimationTimelineEdit/styles/time_unavailable = SubResource("StyleBoxFlat_00sq8")
-AnimationTrackEdit/colors/h_line_color = Color(1, 1, 1, 0)
-AnimationTrackEdit/constants/h_separation = 6
-AnimationTrackEdit/styles/focus = SubResource("StyleBoxFlat_qc5r8")
-AnimationTrackEdit/styles/hover = SubResource("StyleBoxFlat_oyqra")
-AnimationTrackEdit/styles/odd = SubResource("StyleBoxFlat_pyybr")
-AnimationTrackEditGroup/colors/bg_color = Color(0.15134, 0.15134, 0.15134, 1)
-AnimationTrackEditGroup/colors/h_line_color = Color(1, 1, 1, 0)
-AnimationTrackEditGroup/colors/v_line_color = Color(1, 1, 1, 0)
-AnimationTrackEditGroup/constants/h_separation = 8
-AnimationTrackEditGroup/styles/header = SubResource("StyleBoxFlat_k4xeh")
-AssetLib/styles/panel = SubResource("StyleBoxFlat_4cg2x")
-BottomPanelButton/styles/hover = SubResource("StyleBoxFlat_k1wut")
-BottomPanelButton/styles/hover_pressed = SubResource("StyleBoxFlat_vxxbi")
-BottomPanelButton/styles/normal = SubResource("StyleBoxFlat_0oq2y")
-BottomPanelButton/styles/pressed = SubResource("StyleBoxFlat_k1wut")
-BubbleBot2/styles/panel = SubResource("StyleBoxFlat_yl06j")
+BubbleBot2/styles/panel = SubResource("StyleBoxFlat_g5qhj")
 BubbleUser2/styles/panel = SubResource("StyleBoxFlat_en4dn")
 Button/colors/font_color = Color(1, 1, 1, 1)
 Button/colors/font_disabled_color = Color(0.6, 0.6, 0.6, 1)

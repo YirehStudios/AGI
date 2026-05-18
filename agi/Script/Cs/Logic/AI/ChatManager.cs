@@ -236,13 +236,36 @@ namespace Logic.Lite
                             CallDeferred(MethodName.EmitSignal, SignalName.OnBotThoughtTokenReceived, $"\n[AGENTE: Ejecutando herramienta MCP '{toolName}']...\n");
                             CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolExecutionStarted, toolName);
 
-                            // --- INTERCEPTOR DE SEGURIDAD (ASK FIRST) ---
-                            bool requiresApproval = toolName == "os_command" || toolName == "create_new_file" || toolName == "read_file" || toolName == "fetch_url_content" || toolName == "edit_existing_file" || toolName == "single_find_and_replace" || toolName == "delete_file" || toolName == "rename_file";
+                            // ── SECURITY INTERCEPTOR: DATA-DRIVEN APPROVAL GATE ──────────────────
+                            // Permission is read from ConfigManager.ToolPermissions, set by the
+                            // Settings UI. This gate is fully controlled by the user — no hardcoded
+                            // tool names. Excluded tools (perm == 2) are already filtered out of
+                            // the MCP schema by SyncMCPTools(), so they should not reach this path.
+                            //   0 = Automatic  → execute without user interruption.
+                            //   1 = Ask First  → pause and require user confirmation.
+                            //   2 = Excluded   → safety fallback: deny silently.
+                            var configForApproval = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+                            int toolPermission = 1; // Default to Ask First when no preference saved.
+                            if (configForApproval?.ToolPermissions != null
+                                && configForApproval.ToolPermissions.TryGetValue(toolName, out int savedPerm))
+                            {
+                                toolPermission = savedPerm;
+                            }
+                            bool requiresApproval = toolPermission == 1; // Ask First
+                            bool isExcluded       = toolPermission == 2; // Excluded (safety fallback)
 
                             string finalJsonPayload = jsonBlock;
                             bool toolApproved = true;
 
-                            if (requiresApproval)
+                            if (isExcluded)
+                            {
+                                // Safety fallback: tool was excluded by the user in Settings.
+                                // SyncMCPTools() should have stripped it from the schema,
+                                // but block execution here as a second line of defense.
+                                GD.Print($"[AGENT] Tool '{toolName}' is EXCLUDED by user policy. Blocking execution.");
+                                toolApproved = false;
+                            }
+                            else if (requiresApproval)
                             {
                                 CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolApprovalRequired, toolName, finalJsonPayload);
                                 var userDecision = await ToSignal(this, SignalName.OnUserToolApprovalResponse);

@@ -11,8 +11,6 @@ subpixel_positioning = 0
 default_font = SubResource("SystemFont_regular")
 default_font_size = 15
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_jrrha"]
-
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_chatgpt_blob"]
 shader = ExtResource("2_jrrha")
 shader_parameter/voice_level = 0.0
@@ -113,7 +111,6 @@ theme_override_constants/separation = 0
 [node name="CenterArea" type="Panel" parent="MainContainer/LiveAreaContainer" unique_id=1594809293]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_styles/panel = SubResource("StyleBoxEmpty_jrrha")
 
 [node name="WaveVisualizer" type="ColorRect" parent="MainContainer/LiveAreaContainer/CenterArea" unique_id=1353382466]
 material = SubResource("ShaderMaterial_chatgpt_blob")

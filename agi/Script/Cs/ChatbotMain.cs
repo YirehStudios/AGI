@@ -30,8 +30,6 @@ namespace Logic.UI
         [Export] public VideoStream RandomVideo4;
 
         [ExportCategory("Hot-Swap UI")]
-        [Export] public PanelContainer LoadingOverlay;
-        [Export] public ProgressBar SwapProgressBar;
         [Export] public Control WelcomeOverlay;
 
         private AudioEffectRecord _recorder;
@@ -43,7 +41,6 @@ namespace Logic.UI
 
         private bool _isLiveModeEnabled = true;
         private bool _isWaitingForResponse = false;
-        private string _ttsBuffer = string.Empty;
         private string _fullMessageBuffer = string.Empty;
         private Random _randomGenerator = new Random();
 
@@ -190,9 +187,8 @@ namespace Logic.UI
             }
 
             TextInputField.Text = string.Empty;
-
-            TextInputField.Text = string.Empty;
             TextInputField.CustomMinimumSize = new Vector2(TextInputField.CustomMinimumSize.X, MinInputHeight);
+
             if (SendButton != null) SendButton.Disabled = true;
 
             var nuevoMsgUsuario = EscenaMensajeUsuario.Instantiate<Logic.UI.Components.MensajeUsuarioUI>();

@@ -114,6 +114,9 @@ font_names = PackedStringArray("Sans-Serif")
 font_weight = 700
 subpixel_positioning = 0
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4nqfe"]
+bg_color = Color(0.6, 0.6, 0.6, 0)
+
 [node name="MainApp" type="Panel" unique_id=488006737 node_paths=PackedStringArray("SidebarWrapper", "ContentContainer", "WelcomeOverlay", "CompanyLogo", "MenuToggleButton", "ChatBotModeButton", "LiveModeButton", "AgiModeButton", "HeaderTitle", "HistoryButton", "HistoryScroll", "HistoryListContainer", "UiAnimator", "SettingsTabBtn", "SettingsPanel", "SidebarContainer", "SidebarSettingsButton")]
 anchors_preset = 15
 anchor_right = 1.0
@@ -371,6 +374,7 @@ anchor_bottom = 1.0
 offset_right = 640.0
 grow_horizontal = 0
 grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_4nqfe")
 
 [node name="SettingsTabBtn" type="Button" parent="SettingsOverlay/SettingsPanel" unique_id=889900332]
 layout_mode = 1
@@ -393,10 +397,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 50
-theme_override_constants/margin_top = 60
-theme_override_constants/margin_right = 50
-theme_override_constants/margin_bottom = 60
 
 [node name="Settings" parent="SettingsOverlay/SettingsPanel/SettingsMargin" unique_id=1979954093 instance=ExtResource("14_settings")]
 layout_mode = 2
+mouse_filter = 0

@@ -46,6 +46,28 @@ namespace Logic.UI
         /// </summary>
         [Export] public Button UpdateBtn { get; set; }
 
+        [ExportGroup("Navigation Icons")]
+        /// <summary>Icon for the Models navigation category.</summary>
+        [Export] public Texture2D ModelsIcon { get; set; }
+
+        /// <summary>Icon for the Performance navigation category.</summary>
+        [Export] public Texture2D PerformanceIcon { get; set; }
+
+        /// <summary>Icon for the MCP Tools navigation category.</summary>
+        [Export] public Texture2D ToolsIcon { get; set; }
+
+        /// <summary>Icon for the Preferences navigation category.</summary>
+        [Export] public Texture2D PreferencesIcon { get; set; }
+
+        /// <summary>Icon for the Privacy navigation category.</summary>
+        [Export] public Texture2D PrivacyIcon { get; set; }
+
+        /// <summary>Icon for the Info button.</summary>
+        [Export] public Texture2D InfoIcon { get; set; }
+
+        /// <summary>Icon for the Update button.</summary>
+        [Export] public Texture2D UpdateIcon { get; set; }
+
         // ─────────────────────────────────────────────────────────────
         //  VIEW CONTAINER EXPORTS
         // ─────────────────────────────────────────────────────────────
@@ -85,6 +107,12 @@ namespace Logic.UI
 
         /// <summary>Maximum tokens the model may produce per response generation cycle.</summary>
         [Export] public SpinBox NumOutputTokensLimit { get; set; }
+
+        /// <summary>
+        /// Ventana de Contexto: combined token budget (input history + current turn).
+        /// Range 2048–200000. Immediately persisted to <see cref="ConfigManager.ChatTemplate.ContextCeiling"/>.
+        /// </summary>
+        [Export] public SpinBox NumContextWindowSize { get; set; }
 
         /// <summary>Filesystem path or URL for importing raw GGUF weight files.</summary>
         [Export] public LineEdit WeightImportLineEdit { get; set; }
@@ -151,10 +179,16 @@ namespace Logic.UI
         private NetworkManager _networkManager;
 
         /// <summary>
+        /// Index of the currently active sidebar view (0–4).
+        /// Tracked to avoid redundant re-renders when the user clicks the already-active button.
+        /// </summary>
+        private int _activeViewIndex = -1;
+
+        /// <summary>
         /// Maps dropdown item index → absolute globalized path of the corresponding model JSON manifest.
         /// Populated exclusively by <see cref="CargarModelosEnMenu"/>.
         /// </summary>
-        private readonly Dictionary<int, string> _rutasModelos = new();
+        private readonly Dictionary<int, string> _rutasModelos = [];
 
         // ─────────────────────────────────────────────────────────────
         //  GODOT LIFECYCLE
@@ -165,12 +199,18 @@ namespace Logic.UI
         {
             InitializeSystemLinks();
             ApplyStartupTheme();
+            SetupIcons();
+            ValidateExports();
             BindNavigationSignals();
             BindControlSignals();
+            SubscribeTTSPipeline();
             LoadActiveConfiguration();
 
-            // Default landing view is Models.
-            SwitchActiveView(0);
+            // Defer the initial view switch by one frame.
+            // This guarantees that QueueFree() calls issued during LoadActiveConfiguration()
+            // (e.g., inside PopulateToolsGrid()) are fully resolved before we touch
+            // visibility flags — preventing a deferred-deletion/layout re-entrancy freeze.
+            CallDeferred(MethodName.SwitchActiveView, 0);
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -194,6 +234,40 @@ namespace Logic.UI
         }
 
         /// <summary>
+        /// Dynamically assigns the navigation icon resources specified via the inspector properties 
+        /// directly onto the active texture parameters of their corresponding sidebar buttons.
+        /// </summary>
+        private void SetupIcons()
+        {
+            if (ModelsIcon != null && ModelsBtn != null) ModelsBtn.Icon = ModelsIcon;
+            if (PerformanceIcon != null && PerformanceBtn != null) PerformanceBtn.Icon = PerformanceIcon;
+            if (ToolsIcon != null && ToolsBtn != null) ToolsBtn.Icon = ToolsIcon;
+            if (PreferencesIcon != null && PreferencesBtn != null) PreferencesBtn.Icon = PreferencesIcon;
+            if (PrivacyIcon != null && PrivacyBtn != null) PrivacyBtn.Icon = PrivacyIcon;
+            if (InfoIcon != null && InfoBtn != null) InfoBtn.Icon = InfoIcon;
+            if (UpdateIcon != null && UpdateBtn != null) UpdateBtn.Icon = UpdateIcon;
+        }
+
+        /// <summary>
+        /// Iterates through the children of the unique navigation sidebar node, purging the string text
+        /// properties and scaling layout bounding fields to render a compact, icon-only control array.
+        /// </summary>
+        private void AdjustSidebarToIconOnly()
+        {
+            var sidebar = GetNodeOrNull<VBoxContainer>("%NavigationSidebar");
+            if (sidebar == null) return;
+
+            foreach (Node child in sidebar.GetChildren())
+            {
+                if (child is Button btn)
+                {
+                    btn.Text = string.Empty;
+                    btn.CustomMinimumSize = new Vector2(48, 48);
+                }
+            }
+        }
+
+        /// <summary>
         /// Reads the persisted <see cref="ConfigManager.DarkMode"/> flag and applies the
         /// matching global <see cref="Theme"/> via <see cref="ThemeManager"/> immediately on boot,
         /// resolving the startup theme initialization deficit.
@@ -204,34 +278,87 @@ namespace Logic.UI
             GetTree().Root.Theme = ThemeManager.Instance.ObtenerTemaGlobal(_configManager.DarkMode);
         }
 
+        /// <summary>
+        /// Scans all seven navigation Export properties and emits a <see cref="GD.PrintErr"/> for
+        /// each one that is null. A null export means the NodePath in the scene was not wired,
+        /// which is the most common source of silent navigation failures.
+        /// </summary>
+        private void ValidateExports()
+        {
+            if (ModelsBtn             == null) GD.PrintErr("[SETTINGS] Export not wired: ModelsBtn");
+            if (PerformanceBtn        == null) GD.PrintErr("[SETTINGS] Export not wired: PerformanceBtn");
+            if (ToolsBtn              == null) GD.PrintErr("[SETTINGS] Export not wired: ToolsBtn");
+            if (PreferencesBtn        == null) GD.PrintErr("[SETTINGS] Export not wired: PreferencesBtn");
+            if (PrivacyBtn            == null) GD.PrintErr("[SETTINGS] Export not wired: PrivacyBtn");
+            if (ModelsViewContainer      == null) GD.PrintErr("[SETTINGS] Export not wired: ModelsViewContainer");
+            if (PerformanceViewContainer == null) GD.PrintErr("[SETTINGS] Export not wired: PerformanceViewContainer");
+            if (ToolsViewContainer       == null) GD.PrintErr("[SETTINGS] Export not wired: ToolsViewContainer");
+            if (PreferencesViewContainer == null) GD.PrintErr("[SETTINGS] Export not wired: PreferencesViewContainer");
+            if (PrivacyViewContainer     == null) GD.PrintErr("[SETTINGS] Export not wired: PrivacyViewContainer");
+        }
+
         // ─────────────────────────────────────────────────────────────
         //  NAVIGATION
         // ─────────────────────────────────────────────────────────────
 
-        /// <summary>Connects every sidebar navigation button to the <see cref="SwitchActiveView"/> dispatcher.</summary>
+        /// <summary>
+        /// Connects every sidebar navigation button to the <see cref="SwitchActiveView"/> dispatcher.
+        /// Uses index-captured lambdas so each button closure captures its own immutable integer.
+        /// </summary>
         private void BindNavigationSignals()
         {
+            // Primary navigation — index is captured by value in each lambda.
             if (ModelsBtn      != null) ModelsBtn.Pressed      += () => SwitchActiveView(0);
             if (PerformanceBtn != null) PerformanceBtn.Pressed += () => SwitchActiveView(1);
             if (ToolsBtn       != null) ToolsBtn.Pressed       += () => SwitchActiveView(2);
             if (PreferencesBtn != null) PreferencesBtn.Pressed += () => SwitchActiveView(3);
             if (PrivacyBtn     != null) PrivacyBtn.Pressed     += () => SwitchActiveView(4);
-            if (InfoBtn        != null) InfoBtn.Pressed        += ShowInfoPanel;
+
+            // System buttons.
+            if (InfoBtn   != null) InfoBtn.Pressed   += ShowInfoPanel;
+            // UpdateBtn has no pressed handler by design — it is shown programmatically
+            // by the version-check subsystem when a footprint mismatch is detected.
         }
 
         /// <summary>
-        /// Mutually-exclusive view toggler. Exactly one view container is visible at any time.
+        /// Mutually-exclusive view switcher. Iterates the full container array unconditionally
+        /// so every container receives an explicit Visible assignment on every call —
+        /// preventing the partial-visible state that caused the PrivacyBtn soft-lock.
         /// </summary>
-        /// <param name="viewIndex">
-        /// 0 = Models, 1 = Performance, 2 = Tools, 3 = Preferences, 4 = Privacy.
-        /// </param>
+        /// <remarks>
+        /// CONTRACT:
+        /// - Array indices map 1-to-1 to button indices: 0=Models, 1=Performance, 2=Tools,
+        ///   3=Preferences, 4=Privacy.
+        /// - Every container's MouseFilter is forced to Ignore on every call, ensuring that
+        ///   invisible containers can never intercept mouse events from the sidebar buttons.
+        /// - Early-out if <paramref name="viewIndex"/> equals <see cref="_activeViewIndex"/>.
+        /// </remarks>
+        /// <param name="viewIndex">Target view index in [0, 4].</param>
         private void SwitchActiveView(int viewIndex)
         {
-            if (ModelsViewContainer      != null) ModelsViewContainer.Visible      = (viewIndex == 0);
-            if (PerformanceViewContainer != null) PerformanceViewContainer.Visible = (viewIndex == 1);
-            if (ToolsViewContainer       != null) ToolsViewContainer.Visible       = (viewIndex == 2);
-            if (PreferencesViewContainer != null) PreferencesViewContainer.Visible = (viewIndex == 3);
-            if (PrivacyViewContainer     != null) PrivacyViewContainer.Visible     = (viewIndex == 4);
+            if (viewIndex == _activeViewIndex) return;
+            _activeViewIndex = viewIndex;
+
+            // Build the dispatch table inline — zero allocations on repeated calls
+            // because the array only lives on the stack within this frame.
+            Container[] views =
+            [
+                ModelsViewContainer,
+                PerformanceViewContainer,
+                ToolsViewContainer,
+                PreferencesViewContainer,
+                PrivacyViewContainer,
+            ];
+
+            for (int i = 0; i < views.Length; i++)
+            {
+                if (views[i] == null) continue;
+                // Explicit unconditional assignment — no short-circuit, no partial state.
+                views[i].Visible     = (i == viewIndex);
+                views[i].MouseFilter = MouseFilterEnum.Ignore;
+            }
+
+            GD.Print($"[SETTINGS] SwitchActiveView → {viewIndex}");
         }
 
         /// <summary>
@@ -258,6 +385,7 @@ namespace Logic.UI
             if (TxtIaDisplayNameInput != null) TxtIaDisplayNameInput.TextChanged  += OnDisplayNameChanged;
             if (NumInputTokensLimit   != null) NumInputTokensLimit.ValueChanged   += v => UpdateInputTokenLimit((int)v);
             if (NumOutputTokensLimit  != null) NumOutputTokensLimit.ValueChanged  += v => UpdateOutputTokenLimit((int)v);
+            if (NumContextWindowSize  != null) NumContextWindowSize.ValueChanged  += v => UpdateContextWindow((int)v);
 
             // ── Performance ─────────────────────────────────────────
             if (CpuThreadsSpinBox   != null) CpuThreadsSpinBox.ValueChanged   += v => UpdateCpuThreads((int)v);
@@ -284,12 +412,21 @@ namespace Logic.UI
             if (_configManager == null) return;
 
             // ── Performance ─────────────────────────────────────────
-            if (CpuThreadsSpinBox    != null) CpuThreadsSpinBox.SetValueNoSignal(_configManager.PerformanceProfile.CpuThreads);
-            if (GpuLayersSpinBox     != null) GpuLayersSpinBox.SetValueNoSignal(_configManager.PerformanceProfile.GpuLayers);
-            if (RamSaturationSpinBox != null) RamSaturationSpinBox.SetValueNoSignal(_configManager.PerformanceProfile.RamSaturationCeilingMB);
+            CpuThreadsSpinBox?.SetValueNoSignal(_configManager.PerformanceProfile.CpuThreads);
+            GpuLayersSpinBox?.SetValueNoSignal(_configManager.PerformanceProfile.GpuLayers);
+            RamSaturationSpinBox?.SetValueNoSignal(_configManager.PerformanceProfile.RamSaturationCeilingMB);
 
             // ── Preferences ─────────────────────────────────────────
-            if (DarkModeToggle != null) DarkModeToggle.SetPressedNoSignal(_configManager.DarkMode);
+            bool isDark = _configManager.DarkMode;
+            DarkModeToggle?.SetPressedNoSignal(_configManager.DarkMode);
+            
+            if (Material is ShaderMaterial glassMat)
+            {
+                Color blendColor = isDark ? new Color(0.06f, 0.06f, 0.09f, 0.45f) : new Color(0.95f, 0.95f, 0.98f, 0.30f);
+                glassMat.SetShaderParameter("mix_color", blendColor);
+                glassMat.SetShaderParameter("blur_amount", isDark ? 2.0f : 1.5f);
+            }
+            UpdateThemeCornerRadius(isDark ? 16 : 8);
 
             // ── Models ──────────────────────────────────────────────
             CargarModelosEnMenu();
@@ -311,11 +448,12 @@ namespace Logic.UI
             if (TxtIaDisplayNameInput != null)
                 TxtIaDisplayNameInput.Text = profile.Nombre ?? string.Empty;
 
-            if (NumInputTokensLimit != null)
-                NumInputTokensLimit.SetValueNoSignal(profile.MaxInputTokens > 0 ? profile.MaxInputTokens : 4096);
+            NumInputTokensLimit?.SetValueNoSignal(profile.MaxInputTokens > 0 ? profile.MaxInputTokens : 4096);
 
-            if (NumOutputTokensLimit != null)
-                NumOutputTokensLimit.SetValueNoSignal(profile.MaxOutputTokens > 0 ? profile.MaxOutputTokens : 2048);
+            NumOutputTokensLimit?.SetValueNoSignal(profile.MaxOutputTokens > 0 ? profile.MaxOutputTokens : 2048);
+
+            if (profile.Template != null)
+                NumContextWindowSize?.SetValueNoSignal(profile.Template.ContextCeiling > 0 ? profile.Template.ContextCeiling : 4096);
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -409,42 +547,93 @@ namespace Logic.UI
 
         /// <summary>
         /// Dynamically constructs the MCP permission matrix inside <see cref="ToolsGrid"/>.
-        /// Each row contains a tool name label and a three-option permission selector
-        /// (Automatic = 0, Ask First = 1, Excluded = 2).
+        /// The tool list is sourced verbatim from the Python backend's <c>/call_tool</c> dispatch
+        /// table in <c>mcp_server.py</c> — any name not present there will silently fail at
+        /// runtime, so this list must be kept in sync with the backend.
         /// </summary>
+        /// <remarks>
+        /// Permission levels:
+        ///   0 = Automatic  — the agent executes without user interruption.
+        ///   1 = Ask First  — the agent pauses and the user must approve each call.
+        ///   2 = Excluded   — the tool is stripped from the MCP schema sent to the LLM.
+        ///
+        /// Destructive tools (marked ⚠) default to "Ask First" on first run when no
+        /// saved preference exists, protecting the user from unintentional mutations.
+        /// </remarks>
         private void PopulateToolsGrid()
         {
             if (ToolsGrid == null) return;
             foreach (Node child in ToolsGrid.GetChildren()) child.QueueFree();
 
-            string[] registeredTools =
-            {
-                "web_search", "os_command", "create_new_file", "read_file",
-                "edit_existing_file", "single_find_and_replace",
-                "fetch_url_content", "delete_file", "rename_file"
-            };
+            // ── Clean Canonical Registry (Human-readable only) ──────────────────
+            // Technical prefixes removed to prevent layout collapse.
+            (string Key, string Label, bool Destructive)[] toolDefinitions =
+            [
+                // ── Network ─────────────────────────────────────────────────────
+                ("web_search",             "Búsqueda Web",                        false),
+                ("fetch_url_content",      "Leer URL Externa",                    false),
 
-            foreach (string tool in registeredTools)
-            {
-                HBoxContainer row = new HBoxContainer();
+                // ── Filesystem: Read ────────────────────────────────────────────
+                ("read_file",              "Leer Archivo",                        false),
+                ("read_multiple_files",    "Leer Múltiples Archivos",             false),
+                ("file_glob_search",       "Búsqueda Glob de Archivos",            false),
+                ("grep_search",            "Búsqueda Regex en Directorio",        false),
+                ("ls",                     "Listar Directorio",                   false),
 
-                Label nameLabel = new Label
+                // ── Filesystem: Write ───────────────────────────────────────────
+                ("create_new_file",        "⚠ Crear Archivo",                     true),
+                ("create_directory",       "⚠ Crear Directorio",                  true),
+                ("edit_existing_file",     "⚠ Sobreescribir Archivo",             true),
+                ("single_find_and_replace","⚠ Reemplazar en Archivo",             true),
+
+                // ── Filesystem: Destructive ─────────────────────────────────────
+                ("delete_file",            "⚠ Eliminar Archivo",                  true),
+                ("rename_file",            "⚠ Mover/Renombrar Archivo",           true),
+
+                // ── System ──────────────────────────────────────────────────────
+                ("os_command",             "⚠ Ejecutar Comando del Sistema",      true),
+            ];
+
+            foreach (var (key, label, isDestructive) in toolDefinitions)
+            {
+                HBoxContainer row = new();
+                row.AddThemeConstantOverride("separation", 12);
+
+                Label nameLabel = new()
                 {
-                    Text = tool,
+                    Text                = label,
                     SizeFlagsHorizontal = SizeFlags.ExpandFill
                 };
 
-                OptionButton permSelector = new OptionButton();
-                permSelector.AddItem("Automatic",  0);
-                permSelector.AddItem("Ask First",  1);
-                permSelector.AddItem("Excluded",   2);
+                // Aesthetic amber tint for destructive tools
+                // Tint para herramientas destructivas adaptable al tema actual
+                if (isDestructive)
+                {
+                    bool isCurrentlyDark = DarkModeToggle != null && DarkModeToggle.ButtonPressed;
+                    
+                    // Si el DarkModeToggle está presionado, usa amarillo brillante; si no, un ámbar oscuro legible
+                    Color destructiveColor = (DarkModeToggle != null && DarkModeToggle.ButtonPressed) 
+                        ? new Color(1.0f, 0.78f, 0.22f)  // Amarillo brillante (Modo Noche)
+                        : new Color(0.72f, 0.43f, 0.0f);  // Ámbar quemado/Marrón dorado (Modo Día)
+                        
+                    nameLabel.AddThemeColorOverride("font_color", destructiveColor);
+                }
 
+                OptionButton permSelector = new();
+                permSelector.AddItem("Automático",   0);
+                permSelector.AddItem("Preguntar",    1);
+                permSelector.AddItem("Excluir",      2);
+
+                int defaultPerm = isDestructive ? 1 : 0;
                 int savedPermission = _configManager != null
-                    && _configManager.ToolPermissions.TryGetValue(tool, out int p) ? p : 0;
+                    && _configManager.ToolPermissions.TryGetValue(key, out int p) ? p : defaultPerm;
                 permSelector.Select(savedPermission);
 
-                string capturedTool = tool;
-                permSelector.ItemSelected += idx => OnToolPermissionChanged(capturedTool, (int)idx);
+                if (_configManager != null && !_configManager.ToolPermissions.ContainsKey(key))
+                    OnToolPermissionChanged(key, savedPermission);
+
+                string capturedKey = key;
+                permSelector.ItemSelected += idx => OnToolPermissionChanged(capturedKey, (int)idx);
 
                 row.AddChild(nameLabel);
                 row.AddChild(permSelector);
@@ -583,6 +772,63 @@ namespace Logic.UI
             SaveAndRestartBackend();
         }
 
+        /// <summary>
+        /// Updates the context ceiling field in the active profile's <see cref="ConfigManager.ChatTemplate"/>
+        /// and immediately serializes the change to disk — no backend restart needed for this parameter.
+        /// </summary>
+        private void UpdateContextWindow(int tokens)
+        {
+            if (_configManager?.ActiveProfile?.Template == null) return;
+            _configManager.ActiveProfile.Template.ContextCeiling = tokens;
+            SaveActiveProfileToDisk();
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        //  TTS PIPELINE SUBSCRIPTION (Phase 5)
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Subscribes to the <see cref="Logic.Lite.ChatManager.OnBotFinishedSpeaking"/> signal so that
+        /// every completed bot response is routed through the Kokoro WebSocket TTS pipeline in
+        /// <see cref="NetworkManager.RequestTTSWebSocket"/>.
+        /// The subscription lives in Settings because ChatbotMain is a pure messaging view with no audio coupling.
+        /// </summary>
+        private void SubscribeTTSPipeline()
+        {
+            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+            if (chatManager != null)
+                chatManager.OnBotFinishedSpeaking += OnBotFinishedSpeakingTTS;
+        }
+
+        /// <summary>
+        /// Receives the final cleaned bot response and asynchronously dispatches it to the
+        /// Kokoro ONNX TTS WebSocket server at <c>ws://127.0.0.1:8888</c>.
+        /// The raw WAV bytes returned by the server are handled downstream by
+        /// <see cref="NativeTTSManager"/> via <c>TTSAudioChunkReceived</c>.
+        /// </summary>
+        private async void OnBotFinishedSpeakingTTS(string spokenText)
+        {
+            if (string.IsNullOrWhiteSpace(spokenText)) return;
+            if (_networkManager == null) return;
+
+            try
+            {
+                await _networkManager.RequestTTSWebSocket(spokenText);
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"[SETTINGS/TTS] WebSocket dispatch failed: {ex.Message}");
+            }
+        }
+
+        /// <inheritdoc/>
+        public override void _ExitTree()
+        {
+            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+            if (chatManager != null)
+                chatManager.OnBotFinishedSpeaking -= OnBotFinishedSpeakingTTS;
+        }
+
         // ─────────────────────────────────────────────────────────────
         //  TOOLS HANDLER
         // ─────────────────────────────────────────────────────────────
@@ -606,9 +852,10 @@ namespace Logic.UI
 
         /// <summary>
         /// Toggles the application-wide theme by delegating to <see cref="ThemeManager.ObtenerTemaGlobal"/>.
-        /// Immediately propagates the new <see cref="Theme"/> to the entire scene tree root
-        /// and persists the preference to <see cref="ConfigManager"/>.
+        /// Immediately propagates the new <see cref="Theme"/> to the entire scene tree root, updates
+        /// real-time glass shader uniform parameters, and transitions the frame corner radius configuration.
         /// </summary>
+        /// <param name="isPressed">Indicates whether dark mode is currently active.</param>
         private void OnDarkModeToggled(bool isPressed)
         {
             if (_configManager != null)
@@ -621,6 +868,16 @@ namespace Logic.UI
             {
                 GetTree().Root.Theme = ThemeManager.Instance.ObtenerTemaGlobal(isPressed);
             }
+
+            if (Material is ShaderMaterial glassMat)
+            {
+                Color blendColor = isPressed ? new Color(0.06f, 0.06f, 0.09f, 0.45f) : new Color(0.95f, 0.95f, 0.98f, 0.30f);
+                glassMat.SetShaderParameter("mix_color", blendColor);
+                glassMat.SetShaderParameter("blur_amount", isPressed ? 2.0f : 1.5f);
+            }
+
+            UpdateThemeCornerRadius(isPressed ? 16 : 8);
+            PopulateToolsGrid();
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -672,6 +929,20 @@ namespace Logic.UI
                 _backendLauncher.StopBackend();
                 // StartBackend is called after StopBackend completes its synchronous teardown.
                 _backendLauncher.StartBackend();
+            }
+        }
+
+
+        /// <summary>
+        /// Locates the active flat StyleBox architecture belonging to the target panel control 
+        /// and updates the numerical corner rounding values uniformly across all edges.
+        /// </summary>
+        /// <param name="radius">The precise perimeter border radius layout dimension in pixels.</param>
+        public void UpdateThemeCornerRadius(int radius)
+        {
+            if (GetThemeStylebox("panel") is StyleBoxFlat panelStyle)
+            {
+                panelStyle.SetCornerRadiusAll(radius);
             }
         }
     }
