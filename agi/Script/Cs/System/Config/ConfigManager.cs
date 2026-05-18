@@ -26,6 +26,37 @@ namespace Logic.System.Config
             CloudAPI
         }
 
+        /// <summary>
+        /// Specifies the network isolation and routing topology configuration for local and remote endpoints.
+        /// </summary>
+        public enum NetworkState
+        {
+            StrictLocalhost,
+            LanPublic,
+            CloudAPI
+        }
+
+        /// <summary>
+        /// Defines the compute resource boundaries, scaling behaviors, and latency mitigation profiles.
+        /// </summary>
+        public enum PerformanceTier
+        {
+            Low,
+            Medium,
+            High
+        }
+
+        /// <summary> Gets or sets the current operational network isolation state. </summary>
+        public NetworkState CurrentNetworkState { get; set; } = NetworkState.StrictLocalhost;
+
+        /// <summary> Gets or sets the target compute capability profile for infrastructure allocation. </summary>
+        public PerformanceTier CurrentPerformanceTier { get; set; } = PerformanceTier.Medium;
+
+        /// <summary>
+        /// Computes the correct target interface binding address based on the designated network state topology.
+        /// </summary>
+        public string TargetBindAddress => CurrentNetworkState == NetworkState.LanPublic ? "0.0.0.0" : "127.0.0.1";
+
         /// <summary> Gets or sets the target endpoint for OpenAI-compatible cloud providers (Gemini, DeepSeek, etc.). </summary>
         public string CloudApiUrl { get; set; } = "https://api.openai.com/v1";
         
@@ -119,6 +150,7 @@ namespace Logic.System.Config
 
         /// <summary>
         /// Internal data structure used for JSON serialization and persistence of the application state.
+        /// Updated to securely capture and persist advanced network states and compute performance profiles.
         /// </summary>
         private class ConfigState
         {
@@ -138,6 +170,8 @@ namespace Logic.System.Config
             public string CloudApiKey { get; set; }
             public string CloudModelName { get; set; }
             public bool? DarkMode { get; set; }
+            public NetworkState? NetworkState { get; set; }
+            public PerformanceTier? PerformanceTier { get; set; }
         }
 
         /// <summary>
@@ -241,6 +275,7 @@ namespace Logic.System.Config
 
         /// <summary>
         /// Synchronizes class properties into the ConfigState DTO and persists the resulting JSON to the filesystem.
+        /// Extended to safely capture topological network changes and structural performance tiers.
         /// </summary>
         public void SaveConfiguration()
         {
@@ -268,7 +303,9 @@ namespace Logic.System.Config
                     CloudApiUrl = CloudApiUrl,
                     CloudApiKey = CloudApiKey,
                     CloudModelName = CloudModelName,
-                    DarkMode = DarkMode
+                    DarkMode = DarkMode,
+                    NetworkState = CurrentNetworkState,
+                    PerformanceTier = CurrentPerformanceTier
                 };
 
                 JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
@@ -284,7 +321,8 @@ namespace Logic.System.Config
 
         /// <summary>
         /// Reads the preference manifest from disk and restores the application state, 
-        /// including local engine paths and cloud service parameters.
+        /// including local engine paths, cloud service parameters, network topology, and performance tiers.
+        /// Includes fallback validation checks to handle structural schema changes safely.
         /// </summary>
         public void LoadConfiguration()
         {
@@ -311,13 +349,14 @@ namespace Logic.System.Config
                     if (!string.IsNullOrEmpty(state.ActiveTTSEngine)) ActiveTTSEngine = state.ActiveTTSEngine;
                     if (!string.IsNullOrEmpty(state.ActiveTTSModel)) ActiveTTSModel = state.ActiveTTSModel;
 
-                    // Restoring universal cloud state with safety fallbacks.
                     CloudApiUrl = state.CloudApiUrl ?? "https://api.openai.com/v1";
                     CloudApiKey = state.CloudApiKey ?? string.Empty;
                     CloudModelName = state.CloudModelName ?? "gemini-1.5-pro";
 
-                    // Restores the theme preference using a nullable fallback evaluation to maintain default state integrity.
                     DarkMode = state.DarkMode ?? true;
+                    
+                    CurrentNetworkState = state.NetworkState ?? NetworkState.StrictLocalhost;
+                    CurrentPerformanceTier = state.PerformanceTier ?? PerformanceTier.Medium;
                 }
             }
             catch (Exception ex)

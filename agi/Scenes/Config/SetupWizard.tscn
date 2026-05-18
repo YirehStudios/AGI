@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://duf7dvpij16me"]
 
 [ext_resource type="Script" uid="uid://dt6nsxyppscs7" path="res://Script/Cs/SetupWizard.cs" id="1_r16en"]
+[ext_resource type="PackedScene" uid="uid://cqll67xn4338a" path="res://Scenes/IAScene/DynamicSelectionPanel.tscn" id="2_dynamic_panel"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_glass_panel"]
 content_margin_left = 50.0
@@ -103,7 +104,9 @@ corner_radius_top_right = 10
 corner_radius_bottom_right = 10
 corner_radius_bottom_left = 10
 
-[node name="SetupWizard" type="Control" unique_id=120493504 node_paths=PackedStringArray("PanelWelcome", "PanelDependencies", "PanelModeSelection", "PanelModelSelection", "PanelDownloading", "BtnTemaOscuro", "BtnTemaClaro", "SetupBackground", "TerminalLog", "InstallProgress", "BtnComenzar", "BtnServidorRemoto", "BtnLocalHost", "TxtCommandDisplay", "BtnCopyCommand", "LblRestartWarning", "ModelListContainer", "ModelDownloadProgress", "ModelDownloadStatus", "BtnConnect", "TxtRemoteUrlInput", "ChkIsLan", "BtnAdvancedSettings", "AdvancedContainer", "TxtCustomPort", "BtnStartBatchDownload")]
+[sub_resource type="ButtonGroup" id="ButtonGroup_performance"]
+
+[node name="SetupWizard" type="Control" unique_id=120493504 node_paths=PackedStringArray("PanelWelcome", "PanelDependencies", "PanelModeSelection", "PanelPerformanceProfile", "PanelDownloading", "BtnTemaOscuro", "BtnTemaClaro", "SetupBackground", "TerminalLog", "InstallProgress", "BtnComenzar", "BtnLocalHost", "BtnConnectCloud", "BtnConnectLan", "TxtCommandDisplay", "BtnCopyCommand", "LblRestartWarning", "ModelDownloadProgress", "ModelDownloadStatus", "TxtLanIpInput", "TxtApiKeyInput", "ChkIsLanBroadcasting", "TxtCustomPort", "BtnPerformanceContinuar", "BtnLowPerf", "BtnMedPerf", "BtnHighPerf", "BtnNextPerf")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -114,7 +117,8 @@ script = ExtResource("1_r16en")
 PanelWelcome = NodePath("Background/CenterContainer/PanelWelcome")
 PanelDependencies = NodePath("Background/CenterContainer/PanelDependencies")
 PanelModeSelection = NodePath("Background/CenterContainer/PanelModeSelection")
-PanelModelSelection = NodePath("Background/CenterContainer/PanelModelSelection")
+PanelPerformanceProfile = NodePath("Background/CenterContainer/PanelPerformanceProfile")
+MainSelectionPanelScene = ExtResource("2_dynamic_panel")
 PanelDownloading = NodePath("Background/CenterContainer/PanelDownloading")
 BtnTemaOscuro = NodePath("Background/CenterContainer/PanelWelcome/Layout/ThemeSelection/BtnTemaOscuro")
 BtnTemaClaro = NodePath("Background/CenterContainer/PanelWelcome/Layout/ThemeSelection/BtnTemaClaro")
@@ -122,21 +126,23 @@ SetupBackground = NodePath("Background")
 TerminalLog = NodePath("Background/CenterContainer/PanelDependencies/Layout/TerminalLog")
 InstallProgress = NodePath("Background/CenterContainer/PanelDependencies/Layout/InstallProgress")
 BtnComenzar = NodePath("Background/CenterContainer/PanelWelcome/Layout/BtnComenzar")
-BtnServidorRemoto = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/BtnConnect")
-BtnLocalHost = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/LocalSide/BtnLocalHost")
+BtnLocalHost = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LocalHostCard/CardLayout/BtnLocalHost")
+BtnConnectCloud = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout/BtnConnectCloud")
+BtnConnectLan = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout/BtnConnectLan")
 TxtCommandDisplay = NodePath("Background/CenterContainer/PanelDependencies/Layout/TxtCommandDisplay")
 BtnCopyCommand = NodePath("Background/CenterContainer/PanelDependencies/Layout/BtnCopyCommand")
 LblRestartWarning = NodePath("Background/CenterContainer/PanelDependencies/Layout/LblRestartWarning")
-ModelListContainer = NodePath("Background/CenterContainer/PanelModelSelection/Layout/ScrollContainer/ModelListContainer")
 ModelDownloadProgress = NodePath("Background/CenterContainer/PanelDownloading/Layout/ModelDownloadProgress")
 ModelDownloadStatus = NodePath("Background/CenterContainer/PanelDownloading/Layout/ModelDownloadStatus")
-BtnConnect = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/BtnConnect")
-TxtRemoteUrlInput = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/TxtRemoteUrlInput")
-ChkIsLan = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/AdvancedContainer/ChkIsLan")
-BtnAdvancedSettings = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/BtnAdvancedSettings")
-AdvancedContainer = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/AdvancedContainer")
-TxtCustomPort = NodePath("Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/AdvancedContainer/TxtCustomPort")
-BtnStartBatchDownload = NodePath("Background/CenterContainer/PanelModelSelection/Layout/BtnStartBatchDownload")
+TxtLanIpInput = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout/TxtLanIpInput")
+TxtApiKeyInput = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout/TxtApiKeyInput")
+ChkIsLanBroadcasting = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout/ChkIsLanBroadcasting")
+TxtCustomPort = NodePath("Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout/TxtCustomPort")
+BtnPerformanceContinuar = NodePath("Background/CenterContainer/PanelPerformanceProfile/Layout/BtnNextPerf")
+BtnLowPerf = NodePath("Background/CenterContainer/PanelPerformanceProfile/Layout/ProfileSelection/BtnLowPerf")
+BtnMedPerf = NodePath("Background/CenterContainer/PanelPerformanceProfile/Layout/ProfileSelection/BtnMedPerf")
+BtnHighPerf = NodePath("Background/CenterContainer/PanelPerformanceProfile/Layout/ProfileSelection/BtnHighPerf")
+BtnNextPerf = NodePath("Background/CenterContainer/PanelPerformanceProfile/Layout/BtnNextPerf")
 
 [node name="Background" type="ColorRect" parent="." unique_id=1167415774]
 layout_mode = 1
@@ -168,7 +174,7 @@ alignment = 1
 [node name="Title" type="Label" parent="Background/CenterContainer/PanelWelcome/Layout" unique_id=1518548364]
 layout_mode = 2
 theme_override_font_sizes/font_size = 42
-text = "Bienvenido al AGI"
+text = "Bienvenido"
 horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="Background/CenterContainer/PanelWelcome/Layout" unique_id=2139667359]
@@ -282,15 +288,93 @@ layout_mode = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_progress_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_progress_fill")
 
+[node name="PanelPerformanceProfile" type="PanelContainer" parent="Background/CenterContainer" unique_id=491102958]
+visible = false
+custom_minimum_size = Vector2(800, 500)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_glass_panel")
+
+[node name="Layout" type="VBoxContainer" parent="Background/CenterContainer/PanelPerformanceProfile" unique_id=119283745]
+layout_mode = 2
+theme_override_constants/separation = 30
+alignment = 1
+
+[node name="Title" type="Label" parent="Background/CenterContainer/PanelPerformanceProfile/Layout" unique_id=110294756]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Perfil de Rendimiento"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Background/CenterContainer/PanelPerformanceProfile/Layout" unique_id=302948112]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "Asigna recursos de hardware para la ejecución de tencesor"
+horizontal_alignment = 1
+
+[node name="ProfileSelection" type="HBoxContainer" parent="Background/CenterContainer/PanelPerformanceProfile/Layout" unique_id=402948113]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="BtnLowPerf" type="Button" parent="Background/CenterContainer/PanelPerformanceProfile/Layout/ProfileSelection" unique_id=502948114]
+custom_minimum_size = Vector2(220, 90)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/focus = SubResource("StyleBoxFlat_btn_pressed")
+toggle_mode = true
+button_group = SubResource("ButtonGroup_performance")
+text = "Bajo Rendimiento"
+
+[node name="BtnMedPerf" type="Button" parent="Background/CenterContainer/PanelPerformanceProfile/Layout/ProfileSelection" unique_id=602948115]
+custom_minimum_size = Vector2(220, 90)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/focus = SubResource("StyleBoxFlat_btn_pressed")
+toggle_mode = true
+button_pressed = true
+button_group = SubResource("ButtonGroup_performance")
+text = "Rendimiento Medio"
+
+[node name="BtnHighPerf" type="Button" parent="Background/CenterContainer/PanelPerformanceProfile/Layout/ProfileSelection" unique_id=702948116]
+custom_minimum_size = Vector2(220, 90)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/focus = SubResource("StyleBoxFlat_btn_pressed")
+toggle_mode = true
+button_group = SubResource("ButtonGroup_performance")
+text = "Alto Rendimiento"
+
+[node name="DescLabel" type="RichTextLabel" parent="Background/CenterContainer/PanelPerformanceProfile/Layout" unique_id=802948117]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+bbcode_enabled = true
+text = "[center][color=#999999]Selecciona un perfil para ver su impacto en el hardware.[/color][/center]"
+
+[node name="BtnNextPerf" type="Button" parent="Background/CenterContainer/PanelPerformanceProfile/Layout" unique_id=902948118]
+custom_minimum_size = Vector2(250, 55)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_primary")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_primary")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_primary_hover")
+theme_override_styles/focus = SubResource("StyleBoxFlat_btn_primary_hover")
+text = "Continuar"
+
 [node name="PanelModeSelection" type="PanelContainer" parent="Background/CenterContainer" unique_id=1693987322]
 visible = false
-custom_minimum_size = Vector2(750, 400)
+custom_minimum_size = Vector2(950, 550)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_glass_panel")
 
 [node name="Layout" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection" unique_id=569732960]
 layout_mode = 2
-theme_override_constants/separation = 40
+theme_override_constants/separation = 30
 alignment = 1
 
 [node name="Title" type="Label" parent="Background/CenterContainer/PanelModeSelection/Layout" unique_id=255411991]
@@ -299,30 +383,82 @@ theme_override_font_sizes/font_size = 32
 text = "Conexión al Núcleo"
 horizontal_alignment = 1
 
-[node name="HBox" type="HBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout" unique_id=1217320519]
+[node name="ConnectionsHBox" type="HBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout" unique_id=1217320519]
 layout_mode = 2
-theme_override_constants/separation = 60
+theme_override_constants/separation = 25
 alignment = 1
 
-[node name="LocalSide" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox" unique_id=442123875]
+[node name="CloudCard" type="PanelContainer" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox" unique_id=10112233]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_input")
+
+[node name="CardLayout" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard" unique_id=10112234]
+layout_mode = 2
 theme_override_constants/separation = 15
 alignment = 1
 
-[node name="ModeDesc" type="Label" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/LocalSide" unique_id=961817662]
+[node name="CardTitle" type="Label" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout" unique_id=10112235]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Cloud API"
+horizontal_alignment = 1
+
+[node name="CardDesc" type="Label" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout" unique_id=10112236]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
-text = "Usa los recursos de tu hardware local."
+theme_override_font_sizes/font_size = 14
+text = "Procesamiento remoto mediante API externa"
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="SpacerLocal" type="Control" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/LocalSide" unique_id=816073597]
-custom_minimum_size = Vector2(0, 15)
+[node name="TxtApiKeyInput" type="LineEdit" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout" unique_id=10112237]
+custom_minimum_size = Vector2(0, 45)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_input")
+theme_override_styles/focus = SubResource("StyleBoxFlat_input")
+placeholder_text = "API Token"
+alignment = 1
+
+[node name="BtnConnectCloud" type="Button" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout" unique_id=10112238]
+custom_minimum_size = Vector2(0, 55)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_primary")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_primary")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_primary_hover")
+theme_override_styles/focus = SubResource("StyleBoxFlat_btn_primary_hover")
+text = "Conectar Cloud"
+
+[node name="LocalHostCard" type="PanelContainer" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox" unique_id=20112233]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_input")
+
+[node name="CardLayout" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LocalHostCard" unique_id=20112234]
+layout_mode = 2
+theme_override_constants/separation = 15
+alignment = 1
+
+[node name="CardTitle" type="Label" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LocalHostCard/CardLayout" unique_id=20112235]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Local Host"
+horizontal_alignment = 1
+
+[node name="CardDesc" type="Label" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LocalHostCard/CardLayout" unique_id=20112236]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+text = "Aislamiento estricto interno en tu máquina"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Spacer" type="Control" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LocalHostCard/CardLayout" unique_id=20112237]
+custom_minimum_size = Vector2(0, 45)
 layout_mode = 2
 
-[node name="BtnLocalHost" type="Button" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/LocalSide" unique_id=2005386788]
-custom_minimum_size = Vector2(0, 70)
+[node name="BtnLocalHost" type="Button" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LocalHostCard/CardLayout" unique_id=2005386788]
+custom_minimum_size = Vector2(0, 55)
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_primary")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_primary")
@@ -330,100 +466,59 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_btn_primary_hover")
 theme_override_styles/focus = SubResource("StyleBoxFlat_btn_primary_hover")
 text = "Iniciar Local Host"
 
-[node name="RemoteSide" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox" unique_id=1310230149]
+[node name="LanCard" type="PanelContainer" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox" unique_id=30112233]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 15
+theme_override_styles/panel = SubResource("StyleBoxFlat_input")
 
-[node name="TxtRemoteUrlInput" type="LineEdit" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide" unique_id=1822061004]
-custom_minimum_size = Vector2(0, 50)
+[node name="CardLayout" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard" unique_id=30112234]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="CardTitle" type="Label" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout" unique_id=30112235]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Local Network"
+horizontal_alignment = 1
+
+[node name="CardDesc" type="Label" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout" unique_id=30112236]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+text = "Transmisión en red local (LAN broadcasting)"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="TxtLanIpInput" type="LineEdit" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout" unique_id=30112237]
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_input")
 theme_override_styles/focus = SubResource("StyleBoxFlat_input")
-placeholder_text = "IP del Servidor Remoto"
+placeholder_text = "Dirección IP"
 alignment = 1
 
-[node name="BtnAdvancedSettings" type="Button" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide" unique_id=247052712]
-layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
-theme_override_styles/focus = SubResource("StyleBoxFlat_btn_hover")
-text = "⚙ Opciones de Red"
-
-[node name="AdvancedContainer" type="VBoxContainer" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide" unique_id=1837030879]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="ChkIsLan" type="CheckBox" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/AdvancedContainer" unique_id=940285534]
-layout_mode = 2
-text = "Conexión LAN"
-
-[node name="TxtCustomPort" type="LineEdit" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide/AdvancedContainer" unique_id=1704599212]
+[node name="TxtCustomPort" type="LineEdit" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout" unique_id=1704599212]
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_input")
 theme_override_styles/focus = SubResource("StyleBoxFlat_input")
 placeholder_text = "Puerto (Def. 8080)"
 alignment = 1
 
-[node name="SpacerRemote" type="Control" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide" unique_id=545612677]
-custom_minimum_size = Vector2(0, 15)
-layout_mode = 2
-
-[node name="BtnConnect" type="Button" parent="Background/CenterContainer/PanelModeSelection/Layout/HBox/RemoteSide" unique_id=224865071]
-custom_minimum_size = Vector2(0, 70)
-layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_primary")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_primary")
-theme_override_styles/hover = SubResource("StyleBoxFlat_btn_primary_hover")
-theme_override_styles/focus = SubResource("StyleBoxFlat_btn_primary_hover")
-text = "Conectar Remoto"
-
-[node name="PanelModelSelection" type="PanelContainer" parent="Background/CenterContainer" unique_id=1514115279]
-visible = false
-custom_minimum_size = Vector2(900, 650)
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_glass_panel")
-
-[node name="Layout" type="VBoxContainer" parent="Background/CenterContainer/PanelModelSelection" unique_id=2051444956]
-layout_mode = 2
-theme_override_constants/separation = 25
-
-[node name="Title" type="Label" parent="Background/CenterContainer/PanelModelSelection/Layout" unique_id=531377441]
-layout_mode = 2
-theme_override_font_sizes/font_size = 30
-text = "Selección de Tensores"
-horizontal_alignment = 1
-
-[node name="Subtitle" type="Label" parent="Background/CenterContainer/PanelModelSelection/Layout" unique_id=48860731]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
-text = "Elige tus modelos base para LLM, STT y TTS"
-horizontal_alignment = 1
-
-[node name="ScrollContainer" type="ScrollContainer" parent="Background/CenterContainer/PanelModelSelection/Layout" unique_id=1849190899]
-layout_mode = 2
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-
-[node name="ModelListContainer" type="VBoxContainer" parent="Background/CenterContainer/PanelModelSelection/Layout/ScrollContainer" unique_id=1156336347]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 15
-
-[node name="SpacerList" type="Control" parent="Background/CenterContainer/PanelModelSelection/Layout" unique_id=761177647]
-custom_minimum_size = Vector2(0, 10)
-layout_mode = 2
-
-[node name="BtnStartBatchDownload" type="Button" parent="Background/CenterContainer/PanelModelSelection/Layout" unique_id=2049936478]
-custom_minimum_size = Vector2(400, 60)
+[node name="ChkIsLanBroadcasting" type="CheckBox" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout" unique_id=940285534]
 layout_mode = 2
 size_flags_horizontal = 4
+text = "Habilitar Difusión"
+
+[node name="BtnConnectLan" type="Button" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout" unique_id=30112238]
+custom_minimum_size = Vector2(0, 55)
+layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_primary")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_primary")
 theme_override_styles/hover = SubResource("StyleBoxFlat_btn_primary_hover")
 theme_override_styles/focus = SubResource("StyleBoxFlat_btn_primary_hover")
-text = "Confirmar y Descargar por Lotes"
+text = "Conectar LAN"
 
 [node name="PanelDownloading" type="PanelContainer" parent="Background/CenterContainer" unique_id=1654014997]
 visible = false
@@ -454,3 +549,11 @@ layout_mode = 2
 size_flags_horizontal = 4
 theme_override_styles/background = SubResource("StyleBoxFlat_progress_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_progress_fill")
+
+[node name="DynamicSelectionPanel" parent="." unique_id=1387545586 instance=ExtResource("2_dynamic_panel")]
+layout_mode = 0
+anchors_preset = 0
+anchor_right = 0.0
+anchor_bottom = 0.0
+grow_horizontal = 1
+grow_vertical = 1

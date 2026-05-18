@@ -5,6 +5,7 @@ using Logic.System.Config;
 using Logic.System.Drivers;
 using Logic.Network;
 using System.Threading.Tasks;
+
 namespace Logic.Utils
 {
     /// <summary>
@@ -13,20 +14,31 @@ namespace Logic.Utils
     /// </summary>
     public partial class SetupWizard : Control
     {
+        /// <summary>
+        /// Defines the explicit operational checkpoints within the initialization and setup pipeline.
+        /// Unified to support both core dependency checks and advanced multi-panel model configurations.
+        /// </summary>
         public enum WizardState
         {
             Welcome,
             Dependencies,
             ModeSelection,
+            SelectNetworkTopology,
             ModelSelection,
+            SelectLLM,
+            SelectSTT,
+            SelectTTS,
+            SelectPerformance,
             Downloading,
-            StartingServer
+            StartingServer,
+            ExecutionReady
         }
 
         [Export] public Control PanelWelcome;
         [Export] public Control PanelDependencies;
         [Export] public Control PanelModeSelection;
-        [Export] public Control PanelModelSelection;
+        [Export] public Control PanelPerformanceProfile; 
+        [Export] public PackedScene MainSelectionPanelScene;
         [Export] public Control PanelDownloading;
 
         [Export] public Button BtnTemaOscuro;
@@ -36,43 +48,47 @@ namespace Logic.Utils
         [Export] public RichTextLabel TerminalLog;
         [Export] public ProgressBar InstallProgress;
         [Export] public Button BtnComenzar;
-        [Export] public Button BtnServidorRemoto;
         [Export] public Button BtnLocalHost;
+        [Export] public Button BtnConnectCloud;          
+        [Export] public Button BtnConnectLan;            
         [Export] public TextEdit TxtCommandDisplay;
         [Export] public Button BtnCopyCommand;
         [Export] public RichTextLabel LblRestartWarning;
-        [Export] public VBoxContainer ModelListContainer;
 
         [Export] public string MainChatScenePath = "res://Scenes/IAScene/MainApp.tscn";
         [Export] public ProgressBar ModelDownloadProgress;
         [Export] public RichTextLabel ModelDownloadStatus;
-        [Export] public Button BtnConnect;
-        [Export] public LineEdit TxtRemoteUrlInput;
-        [Export] public CheckBox ChkIsLan;
-        [Export] public Button BtnAdvancedSettings;
-        [Export] public VBoxContainer AdvancedContainer;
+
+        [Export] public LineEdit TxtLanIpInput;          
+        [Export] public LineEdit TxtApiKeyInput;         
+        [Export] public CheckBox ChkIsLanBroadcasting;   
         [Export] public LineEdit TxtCustomPort;
-        [Export] public Button BtnStartBatchDownload;
+        [Export] public Button BtnPerformanceContinuar;
+        [Export] public Button BtnLowPerf;
+        [Export] public Button BtnMedPerf;
+        [Export] public Button BtnHighPerf;
+        [Export] public Button BtnNextPerf;
+
+        private int _currentPerformanceSelection = 1;
 
         private DownloadManager _downloadManager;
-        private WizardState _currentState;
+        private WizardState _currentWizardState = WizardState.Welcome;
+        private Logic.System.Config.ConfigManager _configManager;
+        private Logic.Backend.BackendLauncher _backendLauncher;
         private DependencyInstaller _dependencyInstaller;
-        private ConfigManager _configManager;
         private PackageManager _packageManager;
         private EnvironmentManager _environmentManager;
+        private Logic.UI.DynamicSelectionPanel _activeSelectionPanel;
 
         private ConfigManager.ModelPreset _selectedLLM;
         private ConfigManager.ModelPreset _selectedSTT;
         private ConfigManager.ModelPreset _selectedTTS;
         
-
-        private List<ConfigManager.ModelPreset> _debugSelectedList = new List<ConfigManager.ModelPreset>();
         private bool _esModoOscuro = true; 
 
-
         /// <summary>
-        /// Initializes the core managers and child nodes, and binds the UI signals to their respective handlers.
-        /// Evaluates the underlying platform to determine the initial routing logic.
+        /// Initializes core subsystems, binds UI signals, and evaluates initial state conditions.
+        /// Dynamic sub-scene confirmation wiring is deferred to the runtime instantiation sequence.
         /// </summary>
         public override void _Ready()
         {
@@ -84,7 +100,6 @@ namespace Logic.Utils
             AddChild(_dependencyInstaller);
 
             _downloadManager = GetNode<DownloadManager>("/root/DownloadManager");
-
             _downloadManager.DownloadCompleted += OnModelDownloadCompleted;
             _downloadManager.DownloadProgress += OnModelDownloadProgress;
 
@@ -104,27 +119,13 @@ namespace Logic.Utils
                 BtnComenzar.Pressed += () => SwitchState(WizardState.Dependencies);
             }
 
-            if (AdvancedContainer != null)
+            if (BtnConnectLan != null)
             {
-                AdvancedContainer.Visible = false;
-            }
-
-            if (BtnAdvancedSettings != null)
-            {
-                BtnAdvancedSettings.Pressed += () =>
+                BtnConnectLan.Pressed += () =>
                 {
-                    if (AdvancedContainer != null)
-                        AdvancedContainer.Visible = !AdvancedContainer.Visible;
-                };
-            }
-
-            if (BtnConnect != null)
-            {
-                BtnConnect.Pressed += () =>
-                {
-                    string urlIngresada = TxtRemoteUrlInput != null ? TxtRemoteUrlInput.Text.Trim() : "";
+                    string urlIngresada = TxtLanIpInput != null ? TxtLanIpInput.Text.Trim() : "";
                     string puerto = TxtCustomPort != null && !string.IsNullOrWhiteSpace(TxtCustomPort.Text) ? TxtCustomPort.Text.Trim() : "8080";
-                    bool isLan = ChkIsLan != null && ChkIsLan.ButtonPressed;
+                    bool isLan = ChkIsLanBroadcasting != null && ChkIsLanBroadcasting.ButtonPressed;
 
                     if (string.IsNullOrWhiteSpace(urlIngresada))
                     {
@@ -138,6 +139,25 @@ namespace Logic.Utils
                 };
             }
 
+            if (BtnConnectCloud != null)
+            {
+                BtnConnectCloud.Pressed += () =>
+                {
+                    string apiKey = TxtApiKeyInput != null ? TxtApiKeyInput.Text.Trim() : "";
+                    if (!string.IsNullOrWhiteSpace(apiKey))
+                    {
+                        _configManager.CloudApiKey = apiKey;
+                        _configManager.CurrentMode = ConfigManager.AppMode.CloudAPI;
+                        _configManager.CurrentNetworkState = ConfigManager.NetworkState.CloudAPI;
+                        
+                        _configManager.CurrentPerformanceTier = ConfigManager.PerformanceTier.High;
+                        
+                        _configManager.SaveConfiguration();
+                        TransitionToMainScene();
+                    }
+                };
+            }
+
             if (BtnLocalHost != null)
             {
                 BtnLocalHost.Pressed += SelectLocalMode;
@@ -148,10 +168,24 @@ namespace Logic.Utils
                 BtnCopyCommand.Pressed += OnCopyCommandPressed;
             }
 
-            if (BtnStartBatchDownload != null)
+            if (BtnLowPerf != null)
             {
-                BtnStartBatchDownload.Disabled = true;
-                        BtnStartBatchDownload.Pressed += StartModelDownload;
+                BtnLowPerf.Pressed += () => SetPerformanceSelection(0);
+            }
+
+            if (BtnMedPerf != null)
+            {
+                BtnMedPerf.Pressed += () => SetPerformanceSelection(1);
+            }
+
+            if (BtnHighPerf != null)
+            {
+                BtnHighPerf.Pressed += () => SetPerformanceSelection(2);
+            }
+
+            if (BtnNextPerf != null)
+            {
+                BtnNextPerf.Pressed += OnPerformanceNextPressed;
             }
 
             if (_configManager.SetupCompleted)
@@ -175,18 +209,14 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Executes the fast boot sequence, bypassing the initial configuration interface.
-        /// Performs a mandatory audit of system dependencies before proceeding with service instantiation.
-        /// Updated to recognize CloudAPI mode and bypass local infrastructure initialization.
+        /// Executes the fast boot sequence, bypassing the initial configuration interface if configuration is complete.
         /// </summary>
         private async void FastBootSequence()
         {
             PanelWelcome.Visible = false;
 
-            // Performs an asynchronous comprehensive verification of required system tools and binaries.
             var auditResult = await _dependencyInstaller.AuditSystemDependenciesAsync();
 
-            // Evaluates environment integrity; in the absence of dependencies, invalidates configuration state and redirects to setup flow.
             if (!auditResult.IsReady) 
             {    
                 GD.PrintErr("FastBoot: Missing critical dependencies. Reverting to installation menu.");    
@@ -199,7 +229,6 @@ namespace Logic.Utils
                 return;
             }
 
-            // Proceeds with normal initialization flow by validating the application mode persisted in ConfigManager.
             if (_configManager.CurrentMode == ConfigManager.AppMode.LocalHost)
             {
                 StartLlamaServer();
@@ -209,7 +238,6 @@ namespace Logic.Utils
                 Logic.Network.NetworkManager network = GetNodeOrNull<Logic.Network.NetworkManager>("/root/NetworkManager");
                 network.PerformHandshake();
 
-                // Suspends execution until receiving the handshake completion signal from the network layer.
                 var signalResult = await ToSignal(network, Logic.Network.NetworkManager.SignalName.HandshakeCompleted);
                 bool success = (bool)signalResult[0];
 
@@ -219,7 +247,6 @@ namespace Logic.Utils
                 }
                 else
                 {
-                    // Resets configuration flags and returns to mode selector upon failure to negotiate with remote host.
                     _configManager.SetupCompleted = false;
                     _configManager.SaveConfiguration();
 
@@ -230,25 +257,27 @@ namespace Logic.Utils
             }
             else if (_configManager.CurrentMode == ConfigManager.AppMode.CloudAPI)
             {
-                // CloudAPI mode detected. Initializing local microservices (Search/TTS) through the backend launcher.
                 GD.Print("SetupWizard: CloudAPI mode detected. Initializing local microservices (Search/TTS)...");
                 StartLlamaServer();
             }
         }
 
+        /// <summary>
+        /// Handles state-specific background initialization, fetching and filtering metadata for the shared panel context.
+        /// Dynamically instantiates the selection panel sub-scene on-demand and enforces strict minimum dimensional bounds 
+        /// to prevent layout collapse within parent CenterContainer viewports.
+        /// </summary>
         private async void HandleStateInitialization(WizardState state)
         {
             switch (state)
             {
                 case WizardState.Dependencies:
-                    // Implements a timed execution context to prevent UI freezing during dependency verification.
                     var auditTask = _dependencyInstaller.AuditSystemDependenciesAsync();
                     var timeoutTask = Task.Delay(4000);
 
                     if (await Task.WhenAny(auditTask, timeoutTask) == auditTask)
                     {
                         var result = auditTask.Result;
-                        // Evaluates the boolean flag to determine if the local environment meets the operational baseline.
                         if (result.IsReady)
                         {
                             SwitchState(WizardState.ModeSelection);
@@ -256,7 +285,6 @@ namespace Logic.Utils
                         else
                         {
                             if (PanelDependencies != null) PanelDependencies.Visible = true;
-                            
                             if (TerminalLog != null) TerminalLog.Text = result.AuditLog;
 
                             if (TxtCommandDisplay != null)
@@ -277,14 +305,88 @@ namespace Logic.Utils
                     }
                     else
                     {
-                        // Forces the state transition if the shell execution halts indefinitely.
                         GD.Print("SetupWizard: La auditoría se atascó. Forzando salto a ModeSelection...");
                         SwitchState(WizardState.ModeSelection);
                     }
                     break;
 
                 case WizardState.ModelSelection:
-                    PopulateModelPresets();
+                case WizardState.SelectLLM:
+                case WizardState.SelectSTT:
+                case WizardState.SelectTTS:
+                    if (_activeSelectionPanel == null && MainSelectionPanelScene != null)
+                    {
+                        _activeSelectionPanel = MainSelectionPanelScene.Instantiate<Logic.UI.DynamicSelectionPanel>();
+                        var container = GetNodeOrNull<Control>("Background/CenterContainer");
+                        if (container != null)
+                        {
+                            container.AddChild(_activeSelectionPanel);
+                        }
+                        
+                        // Enforces a structural dimension size block to override default layout constraints inside CenterContainers.
+                        _activeSelectionPanel.CustomMinimumSize = new Vector2(800, 600);
+                        _activeSelectionPanel.ModelConfirmed += OnDynamicModelConfirmed;
+                    }
+
+                    if (_activeSelectionPanel != null)
+                    {
+                        List<ConfigManager.ModelPreset> presets = await _configManager.GetOrDownloadPresetsAsync();
+                        var displayPayload = new Logic.UI.PanelDisplayData();
+
+                        if (state == WizardState.SelectSTT)
+                        {
+                            displayPayload.Title = "Reconocimiento de Voz (STT)";
+                            displayPayload.Category = Logic.UI.ModelCategory.STT;
+                            foreach (var preset in presets)
+                            {
+                                if (preset.Name.Contains("Whisper"))
+                                {
+                                    displayPayload.Items.Add(new Logic.UI.ModelItemData
+                                    {
+                                        Name = preset.Name,
+                                        Description = preset.Description,
+                                        TargetExecutable = "whisper-server"
+                                    });
+                                }
+                            }
+                        }
+                        else if (state == WizardState.SelectTTS)
+                        {
+                            displayPayload.Title = "Síntesis de Voz (TTS)";
+                            displayPayload.Category = Logic.UI.ModelCategory.TTS;
+                            foreach (var preset in presets)
+                            {
+                                if (preset.Name.Contains("Sherpa") || preset.Name.Contains("Piper") || preset.Name.Contains("Kokoro"))
+                                {
+                                    displayPayload.Items.Add(new Logic.UI.ModelItemData
+                                    {
+                                        Name = preset.Name,
+                                        Description = preset.Description,
+                                        TargetExecutable = "sherpa-onnx"
+                                    });
+                                }
+                            }
+                        }
+                        else
+                        {
+                            displayPayload.Title = "Modelos de Lenguaje (LLM)";
+                            displayPayload.Category = Logic.UI.ModelCategory.LLM;
+                            foreach (var preset in presets)
+                            {
+                                if (!preset.Name.Contains("Whisper") && !preset.Name.Contains("Sherpa") && !preset.Name.Contains("Piper") && !preset.Name.Contains("Kokoro"))
+                                {
+                                    displayPayload.Items.Add(new Logic.UI.ModelItemData
+                                    {
+                                        Name = preset.Name,
+                                        Description = preset.Description,
+                                        TargetExecutable = "llama-server"
+                                    });
+                                }
+                            }
+                        }
+
+                        _activeSelectionPanel.LoadPanelData(displayPayload);
+                    }
                     break;
 
                 case WizardState.Downloading:
@@ -293,65 +395,21 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Classifies the selected model into LLM, STT, or TTS internal properties based on object nomenclature.
-        /// Unlocks the batch download operation once all semantic dependencies are assigned.
-        /// </summary>
-        /// <param name="preset">The configuration object of the selected model.</param>
-       private void OnModelSelected(global::Logic.System.Config.ConfigManager.ModelPreset preset, Button clickedButton, bool isPressed)
-        {
-            if (isPressed)
-            {
-                clickedButton.Text = "¡Seleccionado!";
-                if (!_debugSelectedList.Contains(preset)) _debugSelectedList.Add(preset);
-                
-                if (preset.Name.Contains("Whisper")) _selectedSTT = preset;
-                else if (preset.Name.Contains("Sherpa") || preset.Name.Contains("Piper") || preset.Name.Contains("Kokoro")) _selectedTTS = preset;
-                else _selectedLLM = preset;
-            }
-            else
-            {
-                clickedButton.Text = "Seleccionar";
-                if (_debugSelectedList.Contains(preset)) _debugSelectedList.Remove(preset);
-                
-                if (preset.Name.Contains("Whisper")) _selectedSTT = null;
-                else if (preset.Name.Contains("Sherpa") || preset.Name.Contains("Piper") || preset.Name.Contains("Kokoro")) _selectedTTS = null;
-                else _selectedLLM = null;
-            }
-
-            if (BtnStartBatchDownload != null)
-            {
-                bool listo = _debugSelectedList.Count >= 3;
-                BtnStartBatchDownload.Disabled = !listo;
-                BtnStartBatchDownload.Text = listo ? 
-                    $"Descargar {_debugSelectedList.Count} Componentes" : 
-                    "Selecciona 3 modelos para continuar";
-                
-                BtnStartBatchDownload.Modulate = listo ? new Color(1, 1, 1, 1) : new Color(1, 1, 1, 0.5f);
-            }
-        }
-        /// <summary>
-        /// Orchestrates the asynchronous retrieval of execution engines, Python environments, and selected models.
-        /// Resolves all URLs via the JSON manifest to ensure environment consistency and data-driven updates.
+        /// Orchestrates the asynchronous retrieval and installation of execution engines, execution environments, and selected models.
         /// </summary>
         private async void StartModelDownload()
         {
             SwitchState(WizardState.Downloading);
 
-            // ==========================================
-            // NUEVO: Limpieza preventiva pre-descarga
-            // ==========================================
             Logic.Backend.BackendLauncher backend = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
             if (backend != null)
             {
                 GD.Print("SetupWizard: Ejecutando purga preventiva de procesos para liberar bloqueos de archivos...");
                 backend.TerminateOrphanedResources();
             }
-            // ==========================================
 
-            // Manifest retrieval of engines from remote source or local cache.
             ConfigManager.EngineConfig engineConfigs = await _configManager.GetOrDownloadEnginesAsync();
             
-
             if (engineConfigs == null)
             {
                 GD.PrintErr("SetupWizard: Critical error. Engine configuration could not be retrieved.");
@@ -360,10 +418,7 @@ namespace Logic.Utils
                 return;
             }
 
-            // Operating environment evaluation for binary selection and sharing path definition.
             bool isWindows = _environmentManager.IsWindows;
-            string osFolder = isWindows ? "windows" : "linux";
-            
             string shareBinPath = "user://bin/";
             string globalSharePath = ProjectSettings.GlobalizePath(shareBinPath);
 
@@ -382,24 +437,19 @@ namespace Logic.Utils
             string currentPythonUrl = isWindows ? engineConfigs.Python.WindowsUrl : engineConfigs.Python.LinuxUrl;
             string sherpaArchive = isWindows ? "sherpa-onnx-win.tar.bz2" : "sherpa-onnx-linux.tar.bz2";
 
-            // Provisioning of the tts_server.py bridge script using manifest URL.
             if (engineConfigs.TtsServer != null && !string.IsNullOrEmpty(engineConfigs.TtsServer.Url))
             {
                 if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando puente de comunicación TTS...[/center]";
                 await _downloadManager.DownloadFileAsync(engineConfigs.TtsServer.Url, shareBinPath, "tts_server.py");
             }
 
-            // Provisioning both the legacy TTS and the new Search/MCP Python environments independently.
-            // Dynamically retrieves the Search Server and MCP Gateway URLs from the engine manifest.
             string searchServerUrl = engineConfigs.search_server?.Url ?? ""; 
             string mcpServerUrl = engineConfigs.McpServer?.Url ?? ""; 
             
-            // Updated call targeting the refactored microservices environment provisioning logic.
             bool searchOk = await _packageManager.EnsureMicroservicesEnvironmentAsync(currentPythonUrl, searchServerUrl, mcpServerUrl);
             bool ttsOk = await _packageManager.EnsurePythonEnvironmentAsync(currentPythonUrl);
             bool pythonOk = searchOk && ttsOk;
 
-            // Engine preparation phase: download, integrity verification, and extraction.
             if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Llama Server...[/center]";
             bool llamaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentLlamaUrl, llamaArchive, "llama", "llama-server");
 
@@ -417,7 +467,6 @@ namespace Logic.Utils
                 return;
             }
 
-            // Models directory initialization and selected presets processing queue.
             string modelsDir = _environmentManager.ModelsPath;
             global::System.IO.Directory.CreateDirectory(modelsDir);
 
@@ -500,11 +549,8 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Evaluates the network transfer boolean result for an individual model mapping.
-        /// Updates the UI text and resets or maximizes the visual progress bar based on the boolean flag.
+        /// Handles download completion notifications from the download manager thread.
         /// </summary>
-        /// <param name="fileName">The string identifier of the processed file.</param>
-        /// <param name="success">The final integrity validation flag post-download.</param>
         private void OnModelDownloadCompleted(string fileName, bool success)
         {
             if (success)
@@ -520,7 +566,7 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Transitions the internal UI state and subscribes to the BackendLauncher singleton events.
+        /// Switches UI state to server execution and hooks up backend communication signals.
         /// </summary>
         private void StartLlamaServer()
         {
@@ -548,10 +594,8 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Processes the raw terminal string output originating from the container initialization.
-        /// Truncates the text array to fit the UI constraints and interpolates the progress bar visually.
+        /// Processes real-time logs emitted by the active backend engine subprocess.
         /// </summary>
-        /// <param name="logMessage">The unformatted string received from the standard output.</param>
         private void OnBuildLogReceived(string logMessage)
         {
             if (ModelDownloadStatus != null)
@@ -567,8 +611,7 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Executes upon receiving the server ready signal. Unsubscribes from backend events, 
-        /// maximizes the progress variable, and routes to the main application scene.
+        /// Event handler triggered once backend local microservices successfully finish initialization.
         /// </summary>
         private void OnBackendReady()
         {
@@ -589,8 +632,7 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Executes upon receiving a server failure signal. Unsubscribes from connection events,
-        /// applies a red-tint font override, and resets the progress visual tracker.
+        /// Event handler triggered when a backend local service fails during startup execution.
         /// </summary>
         private void OnBackendError()
         {
@@ -613,11 +655,8 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Subscriber method reflecting byte transfer progression via linear assignment 
-        /// over the UI elements based on parameters emitted by the underlying network thread.
+        /// Updates the graphical progression bar coordinates following ongoing data stream reads.
         /// </summary>
-        /// <param name="fileName">The string identifier of the file in transit.</param>
-        /// <param name="percentage">The calculated float fraction of the total file size.</param>
         private void OnModelDownloadProgress(string fileName, float percentage)
         {
             if (ModelDownloadProgress != null)
@@ -632,8 +671,7 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Transfers the bash command generated by the dependency resolver into the OS clipboard 
-        /// via the DisplayServer interface. Yields a scene tree timeout to toggle the UI state temporarily.
+        /// Copies the generated console tool requirements command directly onto the system clipboard.
         /// </summary>
         private async void OnCopyCommandPressed()
         {
@@ -647,7 +685,6 @@ namespace Logic.Utils
                     string originalText = BtnCopyCommand.Text;
                     BtnCopyCommand.Text = "¡Copiado!";
 
-                    // Yields the thread context until the SceneTree timer emits its timeout signal.
                     await ToSignal(GetTree().CreateTimer(2.0), SceneTreeTimer.SignalName.Timeout);
 
                     BtnCopyCommand.Text = originalText;
@@ -656,47 +693,16 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Overwrites the internal enumerator property tracking the state and evaluates 
-        /// boolean assignments for the UI panel visibilities based on the requested target state.
+        /// Explicit state-switching boundary execution endpoint ensuring structural canvas sterility.
         /// </summary>
-        /// <param name="newState">The target state structure to enforce across the UI.</param>
         public void SwitchState(WizardState state)
         {
-            // Resets the visibility state of all primary interface panels to ensure a clean rendering context.
-            if (PanelWelcome != null) PanelWelcome.Visible = false;
-            if (PanelDependencies != null) PanelDependencies.Visible = false;
-            if (PanelModeSelection != null) PanelModeSelection.Visible = false;
-            if (PanelModelSelection != null) PanelModelSelection.Visible = false;
-            if (PanelDownloading != null) PanelDownloading.Visible = false;
-
-            // Evaluates the requested enumerator state to conditionally map the visibility boolean of the corresponding target UI component.
-            switch (state)
-            {
-                case WizardState.Welcome:
-                    if (PanelWelcome != null) PanelWelcome.Visible = true;
-                    break;
-                case WizardState.Dependencies:
-                    if (PanelDependencies != null) PanelDependencies.Visible = true;
-                    break;
-                case WizardState.ModeSelection:
-                    if (PanelModeSelection != null) PanelModeSelection.Visible = true;
-                    break;
-                case WizardState.ModelSelection:
-                    if (PanelModelSelection != null) PanelModelSelection.Visible = true;
-                    break;
-                case WizardState.Downloading:
-                case WizardState.StartingServer:
-                    if (PanelDownloading != null) PanelDownloading.Visible = true;
-                    break;
-            }
-
-            // Dispatches the internal workflow initialization bindings for the activated logical state.
-            HandleStateInitialization(state);
+            _currentWizardState = state;
+            UpdateWizardUIOverview();
         }
 
         /// <summary>
-        /// Yields execution for a single engine process frame to ensure node parameters are fully drawn,
-        /// then assigns the vertical scrollbar offset to its respective maximum constraint limit.
+        /// Adjusts scroll indices over logging contexts targeting bottom terminal boundaries.
         /// </summary>
         private async void ScrollToBottom()
         {
@@ -713,10 +719,8 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Evaluates the outcome boolean of the installation script subprocess.
-        /// Transitions the internal state index or appends standard error output formatting depending on the result.
+        /// Evaluates outcome flags emitted post programmatic runtime dependency platform runs.
         /// </summary>
-        /// <param name="success">The parsed process exit code validation flag.</param>
         private void OnInstallationCompleted(bool success)
         {
             if (success)
@@ -733,10 +737,8 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Overwrites the application mode enum to RemoteUI in the ConfigManager, assigns the string URL, 
-        /// triggers a file persistence operation, and transitions the active scene.
+        /// Configures remote access connection profiles and instantly invokes scene swap operations.
         /// </summary>
-        /// <param name="hostUrl">The serialized string representing the target IP and port.</param>
         public void SelectRemoteMode(string hostUrl)
         {
             _configManager.CurrentMode = ConfigManager.AppMode.RemoteUI;
@@ -747,99 +749,17 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Sets the internal application mode property to LocalHost and invokes the state transition 
-        /// method to render the model selection user interface.
+        /// Maps runtime choices securely towards local orchestration processing environments.
         /// </summary>
         public void SelectLocalMode()
         {
             _configManager.CurrentMode = ConfigManager.AppMode.LocalHost;
-            SwitchState(WizardState.ModelSelection);
+            SwitchState(WizardState.SelectLLM);
         }
 
         /// <summary>
-        /// Iteratively invokes QueueFree on all child nodes within the list container. Awaits an asynchronous 
-        /// fetch request pointing to the configuration preset array, then dynamically instantiates 
-        /// PanelContainers and Control UI elements for each parsed JSON mapping.
+        /// Commits individual machine tier properties targeting internal performance matrices.
         /// </summary>
-        private async void PopulateModelPresets()
-        {
-            if (ModelListContainer != null)
-            {
-                foreach (Node child in ModelListContainer.GetChildren())
-                {
-                    child.QueueFree();
-                }
-            }
-
-            // 1. TU CÓDIGO ORIGINAL (Descarga asíncrona perfecta)
-            List<ConfigManager.ModelPreset> presets = await _configManager.GetOrDownloadPresetsAsync();
-
-            if (presets == null || presets.Count == 0) return;
-
-            // 2. Revisamos el tema desde tu ConfigManager de interfaz (usando ruta global para no confundir)
-            bool esOscuro = _esModoOscuro;
-
-            foreach (ConfigManager.ModelPreset preset in presets)
-            {
-                // 3. LA TARJETA APPLE (Con sus márgenes y redondeos)
-                PanelContainer cardPanel = new PanelContainer();
-                
-                Godot.StyleBoxFlat cardStyle = new Godot.StyleBoxFlat
-                {
-                    BgColor = esOscuro ? new Color(0.12f, 0.12f, 0.12f, 0.85f) : new Color(1f, 1f, 1f, 0.9f),
-                    BorderColor = esOscuro ? new Color(0.3f, 0.3f, 0.3f, 0.4f) : new Color(0.85f, 0.85f, 0.85f, 0.8f),
-                    BorderWidthLeft = 1, BorderWidthTop = 1, BorderWidthRight = 1, BorderWidthBottom = 1,
-                    CornerRadiusTopLeft = 20, CornerRadiusTopRight = 20,
-                    CornerRadiusBottomLeft = 20, CornerRadiusBottomRight = 20,
-                    ContentMarginLeft = 25, ContentMarginTop = 25, 
-                    ContentMarginRight = 25, ContentMarginBottom = 25
-                };
-                cardPanel.AddThemeStyleboxOverride("panel", cardStyle);
-
-                // 4. TU ESTRUCTURA ORIGINAL (HBoxContainer para separar texto a la izquierda y botón a la derecha)
-                HBoxContainer cardLayout = new HBoxContainer();
-                VBoxContainer textContainer = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-
-                // 5. TEXTOS INTELIGENTES (Blancos en modo oscuro, negros en claro)
-                Label nameLabel = new Label { Text = preset.Name };
-                nameLabel.AddThemeFontSizeOverride("font_size", 22);
-                nameLabel.AddThemeColorOverride("font_color", esOscuro ? new Color(0.9f, 0.9f, 0.9f, 1) : new Color(0.1f, 0.1f, 0.1f, 1));
-
-                Label descLabel = new Label { Text = preset.Description, AutowrapMode = TextServer.AutowrapMode.WordSmart };
-                descLabel.AddThemeColorOverride("font_color", esOscuro ? new Color(0.7f, 0.7f, 0.7f, 1) : new Color(0.4f, 0.4f, 0.4f, 1));
-                
-                textContainer.AddChild(nameLabel);
-                textContainer.AddChild(descLabel);
-                
-                // Espaciador invisible para que el botón no se pegue al texto
-                Control spacer = new Control { CustomMinimumSize = new Vector2(15, 0) };
-
-                // 6. TU BOTÓN ORIGINAL
-                Button actionButton = new Button();
-                actionButton.Text = "Seleccionar";
-                actionButton.ToggleMode = true;
-                actionButton.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter; // Para que no se estire a lo alto
-
-                actionButton.Toggled += (isPressed) => 
-                {
-                    var presetExacto = (Logic.System.Config.ConfigManager.ModelPreset)preset;
-                    OnModelSelected(presetExacto, actionButton, isPressed);
-                };
-                
-                // Ensamblamos todo como tú lo tenías
-                cardLayout.AddChild(textContainer);
-                cardLayout.AddChild(spacer);
-                cardLayout.AddChild(actionButton);
-                cardPanel.AddChild(cardLayout);
-
-                if (ModelListContainer != null) ModelListContainer.AddChild(cardPanel);
-            }
-        }
-        /// <summary>
-        /// Validates the disk size constraint of the allocated binary asset through the ConfigManager's internal evaluation function.
-        /// Persists configuration states mapped to the scene transitions upon validating the file.
-        /// </summary>
-        /// <param name="expectedSize">The numerical constraint defining the integrity check byte limit.</param>
         public void ConfirmModelSelection(long expectedSize)
         {
             var validationResult = _configManager.ValidateModelIntegrity(expectedSize);
@@ -855,21 +775,349 @@ namespace Logic.Utils
         }
 
         /// <summary>
-        /// Interacts directly with the active Godot SceneTree API to request an unmanaged scene swap 
-        /// utilizing the defined persistent system path.
+        /// Procesa las transiciones secuenciales hacia adelante dentro de la máquina de estados del asistente.
+        /// Corrige la omisión de la pantalla de rendimiento insertando el estado SelectPerformance inmediatamente
+        /// después de culminar la etapa SelectTTS, permitiendo la selección explícita antes de iniciar la descarga.
+        /// </summary>
+        public void TransitionToNextState()
+        {
+            if (_configManager == null)
+            {
+                _configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+            }
+
+            switch (_currentWizardState)
+            {
+                case WizardState.Welcome:
+                    _currentWizardState = WizardState.SelectNetworkTopology;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.SelectNetworkTopology:
+                    _currentWizardState = WizardState.SelectLLM;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.ModelSelection:
+                    _currentWizardState = WizardState.SelectSTT;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.SelectLLM:
+                    if (_selectedLLM == null && _configManager.CurrentNetworkState != Logic.System.Config.ConfigManager.NetworkState.CloudAPI)
+                    {
+                        GD.PrintErr("SetupWizard: Validation failed. A local language model target must be designated before proceeding.");
+                        return;
+                    }
+                    _currentWizardState = WizardState.SelectSTT;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.SelectSTT:
+                    _currentWizardState = WizardState.SelectTTS;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.SelectTTS:
+                    _currentWizardState = WizardState.SelectPerformance;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.SelectPerformance:
+                    _currentWizardState = WizardState.Downloading;
+                    UpdateWizardUIOverview();
+                    StartModelDownload();
+                    break;
+
+                case WizardState.ExecutionReady:
+                    GD.Print("SetupWizard: Pipeline already in operational state. Execution blocked.");
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Recedes active context indices backwards over predefined linear pipeline coordinates.
+        /// </summary>
+        public void TransitionToPreviousState()
+        {
+            switch (_currentWizardState)
+            {
+                case WizardState.SelectNetworkTopology:
+                    _currentWizardState = WizardState.Welcome;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.SelectLLM:
+                    _currentWizardState = WizardState.SelectNetworkTopology;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.SelectSTT:
+                    _currentWizardState = WizardState.SelectLLM;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.SelectTTS:
+                    _currentWizardState = WizardState.SelectSTT;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.SelectPerformance:
+                    _currentWizardState = WizardState.SelectTTS;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.ExecutionReady:
+                    _currentWizardState = WizardState.SelectPerformance;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.Welcome:
+                default:
+                    GD.Print("SetupWizard: Boundary constraint reached. Backward navigation blocked.");
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Commits individual resource performance metrics straight onto local disk partitions.
+        /// </summary>
+        public void ApplyPerformanceTierConfiguration(int uiSelectionIndex)
+        {
+            if (_configManager == null)
+            {
+                _configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+            }
+
+            if (_configManager == null)
+            {
+                GD.PrintErr("SetupWizard: Failed to coordinate serialization. ConfigManager infrastructure unresolved.");
+                return;
+            }
+
+            switch (uiSelectionIndex)
+            {
+                case 0:
+                    _configManager.CurrentPerformanceTier = Logic.System.Config.ConfigManager.PerformanceTier.Low;
+                    GD.Print("SetupWizard: Performance tier updated to LOW profile. Lazy loading assigned to speech engines.");
+                    break;
+
+                case 1:
+                    _configManager.CurrentPerformanceTier = Logic.System.Config.ConfigManager.PerformanceTier.Medium;
+                    GD.Print("SetupWizard: Performance tier updated to MEDIUM profile. Baseline resource metrics applied.");
+                    break;
+
+                case 2:
+                    _configManager.CurrentPerformanceTier = Logic.System.Config.ConfigManager.PerformanceTier.High;
+                    GD.Print("SetupWizard: Performance tier updated to HIGH profile. Compute allocation expanded to maximum system ceiling.");
+                    break;
+
+                default:
+                    _configManager.CurrentPerformanceTier = Logic.System.Config.ConfigManager.PerformanceTier.High;
+                    GD.PushWarning("SetupWizard: Out-of-bounds index intercepted. Defaulting to balanced HIGH configuration.");
+                    break;
+            }
+
+            _configManager.SaveConfiguration();
+            GD.Print("SetupWizard: Performance parameters safely committed to disk data storage layers.");
+            TransitionToNextState();
+        }
+
+        /// <summary>
+        /// Negotiates network binding setups adapting sockets safely for local network distribution.
+        /// </summary>
+        public void ExecuteNetworkConnectionSequence(bool useLanTopology)
+        {
+            if (_configManager == null)
+            {
+                _configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+            }
+
+            if (_configManager == null)
+            {
+                GD.PrintErr("SetupWizard: Critical error encountered during initialization. System missing ConfigManager core components.");
+                return;
+            }
+
+            if (useLanTopology)
+            {
+                _configManager.CurrentNetworkState = Logic.System.Config.ConfigManager.NetworkState.LanPublic;
+                _configManager.IsLanConnection = true;
+                
+                string resolvedLocalIP = "127.0.0.1";
+                try
+                {
+                    using (global::System.Net.Sockets.Socket networkSocket = new global::System.Net.Sockets.Socket(global::System.Net.Sockets.AddressFamily.InterNetwork, global::System.Net.Sockets.SocketType.Dgram, 0))
+                    {
+                        networkSocket.Connect("8.8.8.8", 65530);
+                        if (networkSocket.LocalEndPoint is global::System.Net.IPEndPoint networkEndPoint)
+                        {
+                            resolvedLocalIP = networkEndPoint.Address.ToString();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    GD.PrintErr($"SetupWizard: Operating system interface extraction error. Falling back to loopback address structures: {ex.Message}");
+                }
+
+                _configManager.RemoteHostUrl = $"http://{resolvedLocalIP}:{_configManager.CustomPort}";
+                GD.Print($"SetupWizard: LAN Public network settings applied. Host assigned external routing endpoint: {_configManager.RemoteHostUrl} [Bind Address: 0.0.0.0]");
+            }
+            else
+            {
+                _configManager.CurrentNetworkState = Logic.System.Config.ConfigManager.NetworkState.StrictLocalhost;
+                _configManager.IsLanConnection = false;
+                _configManager.RemoteHostUrl = $"http://127.0.0.1:{_configManager.CustomPort}";
+                GD.Print($"SetupWizard: Localhost routing properties initialized. Subprocess visibility restricted to internal loopback socket matrices: {_configManager.RemoteHostUrl}");
+            }
+
+            _configManager.SaveConfiguration();
+            UpdateNetworkUIFeedbackPanel(_configManager.RemoteHostUrl);
+        }
+
+        /// <summary>
+        /// Validates pre-execution dependencies and passes startup flags down to backend systems.
+        /// </summary>
+        private void ExecuteFinalDeploymentPipeline()
+        {
+            if (_backendLauncher == null)
+            {
+                _backendLauncher = GetNodeOrNull<Logic.Backend.BackendLauncher>("/root/BackendLauncher");
+            }
+
+            if (_backendLauncher != null)
+            {
+                _configManager.SetupCompleted = true;
+                _configManager.SaveConfiguration();
+                
+                GD.Print("SetupWizard: All initialization conditions confirmed. Routing startup sequences to BackendLauncher.");
+                _backendLauncher.StartBackend();
+            }
+            else
+            {
+                GD.PrintErr("SetupWizard: Fatal execution fault. Unable to locate the operational BackendLauncher component path.");
+            }
+        }
+
+        /// <summary>
+        /// Evaluates active state indexes to synchronize interface panel visibility settings.
+        /// Automatically manages the layout allocation and disposal lifecycle of the transient selection panel sub-scene.
+        /// </summary>
+        private void UpdateWizardUIOverview()
+        {
+            if (PanelWelcome != null) 
+                PanelWelcome.Visible = (_currentWizardState == WizardState.Welcome);
+                
+            if (PanelDependencies != null) 
+                PanelDependencies.Visible = (_currentWizardState == WizardState.Dependencies);
+                
+            if (PanelModeSelection != null) 
+                PanelModeSelection.Visible = (_currentWizardState == WizardState.ModeSelection || _currentWizardState == WizardState.SelectNetworkTopology);
+
+            if (PanelPerformanceProfile != null)
+                PanelPerformanceProfile.Visible = (_currentWizardState == WizardState.SelectPerformance);
+                
+            bool isSelectionState = (_currentWizardState == WizardState.ModelSelection || _currentWizardState == WizardState.SelectLLM || _currentWizardState == WizardState.SelectSTT || _currentWizardState == WizardState.SelectTTS);
+            
+            if (isSelectionState)
+            {
+                if (_activeSelectionPanel != null)
+                {
+                    _activeSelectionPanel.Visible = true;
+                }
+            }
+            else
+            {
+                if (_activeSelectionPanel != null)
+                {
+                    _activeSelectionPanel.ModelConfirmed -= OnDynamicModelConfirmed;
+                    _activeSelectionPanel.QueueFree();
+                    _activeSelectionPanel = null;
+                }
+            }
+                    
+            if (PanelDownloading != null) 
+                PanelDownloading.Visible = (_currentWizardState == WizardState.Downloading || _currentWizardState == WizardState.StartingServer);
+
+            HandleStateInitialization(_currentWizardState);
+        }
+
+        /// <summary>
+        /// Populates active network connection values across corresponding interface layouts.
+        /// </summary>
+        private void UpdateNetworkUIFeedbackPanel(string hostUrl)
+        {
+            if (TxtLanIpInput != null)
+            {
+                TxtLanIpInput.Text = hostUrl;
+            }
+
+            if (ModelDownloadStatus != null)
+            {
+                ModelDownloadStatus.Text = $"[center]Network socket mapping initialized at: {hostUrl}[/center]";
+            }
+        }
+
+        /// <summary>
+        /// Validates metadata tokens forwarded by shared layout panels and caches target parameters locally.
+        /// Manual UI button updates have been stripped out to ensure a fully automated pipeline traversal.
+        /// </summary>
+        private async void OnDynamicModelConfirmed(int categoryIndex, string modelName, string targetExecutable)
+        {
+            List<ConfigManager.ModelPreset> presets = await _configManager.GetOrDownloadPresetsAsync();
+            ConfigManager.ModelPreset verifiedPreset = presets.Find(targetPreset => targetPreset.Name == modelName);
+
+            if (verifiedPreset != null)
+            {
+                Logic.UI.ModelCategory category = (Logic.UI.ModelCategory)categoryIndex;
+                switch (category)
+                {
+                    case Logic.UI.ModelCategory.LLM:
+                        _selectedLLM = verifiedPreset;
+                        GD.Print($"SetupWizard: Language model reference assigned successfully: {modelName}");
+                        break;
+                        
+                    case Logic.UI.ModelCategory.STT:
+                        _selectedSTT = verifiedPreset;
+                        GD.Print($"SetupWizard: Speech-to-text validation parameters bound: {modelName}");
+                        break;
+                        
+                    case Logic.UI.ModelCategory.TTS:
+                        _selectedTTS = verifiedPreset;
+                        GD.Print($"SetupWizard: Audio generation tensor parameters bound: {modelName}");
+                        break;
+                }
+            }
+
+            TransitionToNextState();
+        }
+
+        /// <summary>
+        /// Invokes scene swap operations targeting core execution scene files.
         /// </summary>
         private void TransitionToMainScene()
         {
             GetTree().ChangeSceneToFile(MainChatScenePath);
         }
 
+        private void OnPerformanceNextPressed()
+        {
+            ApplyPerformanceTierConfiguration(_currentPerformanceSelection);
+        }
+
+        private void SetPerformanceSelection(int tierIndex)
+        {
+            _currentPerformanceSelection = tierIndex;
+
+            if (BtnLowPerf != null) BtnLowPerf.ButtonPressed = (tierIndex == 0);
+            if (BtnMedPerf != null) BtnMedPerf.ButtonPressed = (tierIndex == 1);
+            if (BtnHighPerf != null) BtnHighPerf.ButtonPressed = (tierIndex == 2);
+        }
+
         /// <summary>
-        /// Instructs the NetworkManager to dispatch an asynchronous HTTP handshake sequence to the defined remote interface.
-        /// Awaits the Signal resolution natively and persists variables prior to scene traversal logic on HTTP 200/Success.
+        /// Validates operational availability across targeted remote server addresses.
         /// </summary>
-        /// <param name="baseUrl">The sanitized string sequence representing the IPv4 or domain routing.</param>
-        /// <param name="isLan">A boolean validation identifier determining internal or external structural endpoints.</param>
-        /// <param name="port">The concatenated system port targeting the remote API daemon process.</param>
         public async void ConfirmRemoteConnection(string baseUrl, bool isLan, string port)
         {
             if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "Verificando conexión con el servidor...";
@@ -902,11 +1150,10 @@ namespace Logic.Utils
                 }
             }
         }
+
         /// <summary>
-        /// Sets the internal configuration theme variable, updates the unified configuration singleton property,
-        /// triggers global data persistence, and loads the corresponding theme resource layout file.
+        /// Commits target aesthetic variations directly to configuration files and applies UI updates.
         /// </summary>
-        /// <param name="esOscuro">A boolean evaluation flag representing dark mode selection state.</param>
         private void SeleccionarTema(bool esOscuro)
         {
             _esModoOscuro = esOscuro;
@@ -931,6 +1178,5 @@ namespace Logic.Utils
                 bgPanel.AddThemeStyleboxOverride("panel", style);
             }
         }
-
     }
 }

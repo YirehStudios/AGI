@@ -1,0 +1,42 @@
+[gd_scene format=3 uid="uid://cqll67xn4338a"]
+
+[ext_resource type="Script" uid="uid://eghy481ceax3" path="res://Script/Cs/Logic/Theme/DynamicSelectionPanel.cs" id="1_am8ls"]
+
+[node name="DynamicSelectionPanel" type="Panel" unique_id=1387545586 node_paths=PackedStringArray("TitleLabel", "ItemContainer")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_am8ls")
+TitleLabel = NodePath("MarginContainer/MainLayout/TitleLabel")
+ItemContainer = NodePath("MarginContainer/MainLayout/ScrollList/ItemContainer")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=222678841]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MainLayout" type="VBoxContainer" parent="MarginContainer" unique_id=584619215]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/MainLayout" unique_id=1844098239]
+layout_mode = 2
+theme_type_variation = &"HeaderLarge"
+
+[node name="ScrollList" type="ScrollContainer" parent="MarginContainer/MainLayout" unique_id=1875057591]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ItemContainer" type="VBoxContainer" parent="MarginContainer/MainLayout/ScrollList" unique_id=1024414774]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="DescriptionLabel" type="Label" parent="MarginContainer/MainLayout/ScrollList/ItemContainer" unique_id=1754119]
+custom_minimum_size = Vector2(350, 0)
+layout_mode = 2
+autowrap_mode = 3
