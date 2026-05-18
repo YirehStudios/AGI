@@ -113,7 +113,7 @@ font_names = PackedStringArray("Sans-Serif")
 font_weight = 700
 subpixel_positioning = 0
 
-[node name="MainApp" type="Panel" unique_id=488006737 node_paths=PackedStringArray("SidebarWrapper", "ContentContainer", "WelcomeOverlay", "SettingsPanel", "SidebarContainer", "CompanyLogo", "MenuToggleButton", "ChatBotModeButton", "LiveModeButton", "AgiModeButton", "HeaderTitle", "HistoryButton", "SettingsTabBtn", "SidebarSettingsButton", "DarkModeToggle", "HistoryScroll", "HistoryListContainer", "UiAnimator")]
+[node name="MainApp" type="Panel" unique_id=488006737 node_paths=PackedStringArray("SidebarWrapper", "ContentContainer", "WelcomeOverlay", "CompanyLogo", "MenuToggleButton", "ChatBotModeButton", "LiveModeButton", "AgiModeButton", "HeaderTitle", "HistoryButton", "HistoryScroll", "HistoryListContainer", "UiAnimator", "SettingsTabBtn", "SettingsPanel", "DarkModeToggle", "SidebarContainer", "SidebarSettingsButton")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -124,9 +124,7 @@ ChatbotScene = ExtResource("2_dpcee")
 LivemodeScene = ExtResource("3_l7jlp")
 SidebarWrapper = NodePath("MainLayout/SidebarWrapper")
 ContentContainer = NodePath("MainLayout/RightColumn/ViewWrapper/ContentContainer")
-WelcomeOverlay = NodePath("MainLayout/RightColumn/ViewWrapper/WelcomeOverlay")
-SettingsPanel = NodePath("SettingsOverlay/SettingsPanel")
-SidebarContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer")
+WelcomeOverlay = NodePath("")
 CompanyLogo = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/LogoMargin/LogoContainer/CompanyLogo")
 MenuToggleButton = NodePath("MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout/MenuToggleButton")
 ChatBotModeButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/ChatBotModeButton")
@@ -134,12 +132,14 @@ LiveModeButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMar
 AgiModeButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/AgiModeButton")
 HeaderTitle = NodePath("MainLayout/RightColumn/HeaderPanel/HeaderMargin/HeaderLayout/HeaderTitle")
 HistoryButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/HistoryButton")
-SettingsTabBtn = NodePath("SettingsOverlay/SettingsPanel/SettingsTabBtn")
-SidebarSettingsButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/SettingsButton")
-DarkModeToggle = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3/CheckButton")
 HistoryScroll = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/HistoryScroll")
 HistoryListContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/HistoryScroll/HistoryListContainer")
 UiAnimator = NodePath("UiAnimator")
+SettingsTabBtn = NodePath("SettingsOverlay/SettingsPanel/SettingsTabBtn")
+SettingsPanel = NodePath("SettingsOverlay/SettingsPanel")
+DarkModeToggle = NodePath("SettingsOverlay/SettingsPanel/SettingsMargin/SettingsContent/SettingItem3/CheckButton")
+SidebarContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer")
+SidebarSettingsButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/SettingsButton")
 
 [node name="FondoGlobal" type="ColorRect" parent="." unique_id=1109724638]
 layout_mode = 1
@@ -336,18 +336,6 @@ size_flags_vertical = 3
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 2
 theme_type_variation = &"FondoApp"
-
-[node name="WelcomeOverlay" type="CenterContainer" parent="MainLayout/RightColumn/ViewWrapper" unique_id=777666555]
-layout_mode = 2
-mouse_filter = 2
-
-[node name="WelcomeLabel" type="Label" parent="MainLayout/RightColumn/ViewWrapper/WelcomeOverlay" unique_id=444555666]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.55, 0.55, 0.55, 1)
-theme_override_fonts/font = SubResource("SystemFont_bold")
-theme_override_font_sizes/font_size = 24
-text = "Bienvenido a AGI de que hablamos hoy"
-horizontal_alignment = 1
 
 [node name="SettingsOverlay" type="Panel" parent="." unique_id=664321001]
 self_modulate = Color(1, 1, 1, 0)

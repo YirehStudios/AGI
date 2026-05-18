@@ -36,14 +36,21 @@ namespace Logic.UI.Components
             var miBurbuja = GetNodeOrNull<PanelContainer>("MessageBubble");
             if (miBurbuja == null || ThemeManager.Instance == null) return;
 
-            Theme temaActivo = ThemeManager.Instance.ObtenerTemaGlobal(ThemeManager.Instance.EsModoOscuro);
+            bool esOscuro = ThemeManager.Instance.EsModoOscuro;
+            Theme temaActivo = ThemeManager.Instance.ObtenerTemaGlobal(esOscuro);
 
             if (temaActivo != null && temaActivo.HasStylebox("panel", "BubbleBot2"))
             {
                 miBurbuja.AddThemeStyleboxOverride("panel", temaActivo.GetStylebox("panel", "BubbleBot2"));
             }
 
-            Color colorPensando = ThemeManager.Instance.EsModoOscuro ? new Color("e0e0e0") : new Color("808080");
+            Color colorTexto = esOscuro ? new Color(0.9f, 0.9f, 0.9f) : new Color(0.15f, 0.15f, 0.15f);
+            if (_messageBody != null)
+            {
+                _messageBody.AddThemeColorOverride("default_color", colorTexto);
+            }
+
+            Color colorPensando = esOscuro ? new Color("e0e0e0") : new Color("808080");
             if (_botActionsLabel != null) _botActionsLabel.AddThemeColorOverride("font_color", colorPensando);
         }
 
