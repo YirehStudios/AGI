@@ -4,7 +4,6 @@
 [ext_resource type="PackedScene" uid="uid://bolcjtvklqbax" path="res://Scenes/IAScene/Chatbot.tscn" id="2_dpcee"]
 [ext_resource type="Texture2D" uid="uid://dxui8em8fu8w3" path="res://Resources/logo.png" id="2_logo"]
 [ext_resource type="PackedScene" uid="uid://bx5yq2jklxap" path="res://Scenes/IAScene/Livemode.tscn" id="3_l7jlp"]
-[ext_resource type="Script" uid="uid://b3rw6k46obs1j" path="res://Script/Cs/Logic/Theme/FondoUI.cs" id="4_ide7w"]
 [ext_resource type="Texture2D" uid="uid://c4uj1r172utru" path="res://Resources/Images/Icons/Util/ChatMode.svg" id="5_ide7w"]
 [ext_resource type="Texture2D" uid="uid://dxcnkms337jlm" path="res://Resources/Images/Icons/Util/LiveMode.svg" id="6_8bqqk"]
 [ext_resource type="Texture2D" uid="uid://b1vmdijvvtehk" path="res://Resources/Images/Icons/Util/Modo3D.svg" id="7_ide7w"]
@@ -144,18 +143,15 @@ SettingsPanel = NodePath("SettingsOverlay/SettingsPanel")
 SidebarContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer")
 SidebarSettingsButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/SettingsButton")
 
-[node name="FondoGlobal" type="ColorRect" parent="." unique_id=1109724638]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("4_ide7w")
+[node name="Panel" type="Panel" parent="." unique_id=1331394132]
+layout_mode = 0
+offset_left = -389.0
+offset_top = -336.0
+offset_right = 2888.0
+offset_bottom = 1527.0
 
 [node name="UiAnimator" type="AnimationPlayer" parent="." unique_id=365541031]
 libraries/ = SubResource("AnimationLibrary_ui")
-autoplay = &"logo_idle"
 
 [node name="MainLayout" type="HBoxContainer" parent="." unique_id=730713609]
 layout_mode = 1

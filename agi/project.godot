@@ -15,6 +15,8 @@ run/main_scene="uid://duf7dvpij16me"
 config/use_custom_user_dir=true
 config/custom_user_dir_name="agi"
 config/features=PackedStringArray("4.6", "C#", "Forward Plus")
+run/max_fps=60
+run/low_processor_mode=true
 boot_splash/bg_color=Color(1, 1, 1, 1)
 boot_splash/stretch_mode=0
 boot_splash/image="uid://dxui8em8fu8w3"
@@ -43,7 +45,7 @@ window/size/viewport_height=1080
 window/size/mode=2
 window/energy_saving/keep_screen_on=false
 window/stretch/mode="canvas_items"
-window/stretch/aspect="ignore"
+window/stretch/aspect="expand"
 
 [dotnet]
 
@@ -64,6 +66,8 @@ theme/custom_font="uid://eeyew7a4rkic"
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 lights_and_shadows/use_physical_light_units=true
 viewport/hdr_2d=true

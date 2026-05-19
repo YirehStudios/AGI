@@ -31,7 +31,6 @@ namespace Logic.Backend
         private int _retryCount = 0;
         private const int MaxRetries = 3;
         private Logic.System.Config.ConfigManager _configManager;
-        private Logic.Backend.NativeTTSManager _ttsManager;
         private dynamic _environmentManager;
 
         public override void _Ready()

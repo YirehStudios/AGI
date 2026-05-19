@@ -30,9 +30,8 @@ public partial class LivemodeMain : Panel
     private const float MaxSilenceDuration = 3f;
     private float _recordingStartTime = 0.0f;
     private float _debugTimer = 0.0f;
-    private AudioStreamGeneratorPlayback _ttsPlayback;
-    private Queue<Vector2> _pcmBuffer = new Queue<Vector2>();
     private float _ttsFinishTimer = 0.0f;
+    private global::System.Collections.Generic.Queue<AudioStreamWav> _audioQueue = new global::System.Collections.Generic.Queue<AudioStreamWav>();
 
     public override void _Ready()
     {
@@ -53,14 +52,6 @@ public partial class LivemodeMain : Panel
             GD.Print("[FLAG] MIC: Hardware listener successfully mapped to Godot node.");
         }
 
-        // Activates the audio generator loop to keep the bus open to receive pushed vectors securely.
-        if (AIVoicePlayer != null && AIVoicePlayer.Stream is AudioStreamGenerator)
-        {
-            AIVoicePlayer.Play();
-            _ttsPlayback = (AudioStreamGeneratorPlayback)AIVoicePlayer.GetStreamPlayback();
-            GD.Print("[FLAG] TTS: AudioStreamGenerator continuously listening to PCM chunks.");
-        }
-
         if (WaveVisualizer != null)
         {
             _wavesMaterial = WaveVisualizer.Material as ShaderMaterial;
@@ -77,6 +68,7 @@ public partial class LivemodeMain : Panel
         var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
         if (chatManager != null)
         {
+            chatManager.IsLiveModeActive = true;
             chatManager.OnBotStartedThinking += OnBotStartedThinking;
             chatManager.OnBotFinishedSpeaking += OnBotFinishedSpeaking;
         }
@@ -98,16 +90,11 @@ public partial class LivemodeMain : Panel
     {
         _debugTimer += (float)delta;
 
-        // Efficiently consumes the PCM FIFO buffer based on hardware availability.
-        if (_ttsPlayback != null && _pcmBuffer.Count > 0)
+        // Consumes the asynchronous TTS queue dynamically to ensure sequential, gapless playback.
+        if (AIVoicePlayer != null && !AIVoicePlayer.Playing && _audioQueue.Count > 0)
         {
-            int framesAvailable = _ttsPlayback.GetFramesAvailable();
-            int framesToPush = Math.Min(framesAvailable, _pcmBuffer.Count);
-
-            for (int i = 0; i < framesToPush; i++)
-            {
-                _ttsPlayback.PushFrame(_pcmBuffer.Dequeue());
-            }
+            AIVoicePlayer.Stream = _audioQueue.Dequeue();
+            AIVoicePlayer.Play();
         }
 
         // Samples raw amplitude from the hardware buses for UI visualization.
@@ -158,10 +145,9 @@ public partial class LivemodeMain : Panel
         if (_currentState == LiveState.SpeakingTTS)
         {
             bool isStillGenerating = _isLlamaThinking;
-            bool hasPendingAudio = _pcmBuffer.Count > 0;
-            bool isCurrentlySounding = TargetVoiceLevel > 0.01f;
+            bool isCurrentlySounding = TargetVoiceLevel > 0.01f || (AIVoicePlayer != null && AIVoicePlayer.Playing) || _audioQueue.Count > 0;
 
-            if (isStillGenerating || hasPendingAudio || isCurrentlySounding)
+            if (isStillGenerating || isCurrentlySounding)
             {
                 _ttsFinishTimer = 0.0f;
             }
@@ -204,32 +190,63 @@ public partial class LivemodeMain : Panel
             return;
         }
 
-        GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager")?.SendToAI(text);
+        var activeTools = new global::System.Collections.Generic.List<string> { "Time", "MCP" };
+        GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager")?.SendToAI(text, 1, activeTools);
     }
 
     /// <summary>
-    /// Processes incoming 16-bit PCM byte arrays originating directly from the websocket stream.
-    /// Casts data into floating-point bounds and queues them in RAM to decouple network speed from audio clock.
+    /// Dynamically constructs an AudioStreamWav from the incoming byte array and assigns it to the voice player.
+    /// Extracts the WAV header metadata (sample rate, channel count, bit depth) to support flexible TTS generation.
     /// </summary>
-    private void OnTTSAudioChunkReceived(byte[] pcmData)
+    /// <param name="wavBytes">The complete WAV file byte array returned by the network stream.</param>
+    private void OnTTSAudioChunkReceived(byte[] wavBytes)
     {
-        if (_ttsPlayback == null) return;
+        if (wavBytes == null || wavBytes.Length < 44) return;
 
         UpdateStatus(LiveState.SpeakingTTS);
 
-        int startIndex = 0;
-        if (pcmData.Length > 44 && pcmData[0] == 'R' && pcmData[1] == 'I' && pcmData[2] == 'F' && pcmData[3] == 'F')
+        try
         {
-            startIndex = 44;
+            int sampleRate = BitConverter.ToInt32(wavBytes, 24);
+            short numChannels = BitConverter.ToInt16(wavBytes, 22);
+            short bitsPerSample = BitConverter.ToInt16(wavBytes, 34);
+
+            int dataOffset = 44;
+            for (int i = 12; i < wavBytes.Length - 8; i++)
+            {
+                if (wavBytes[i] == 'd' && wavBytes[i + 1] == 'a' &&
+                    wavBytes[i + 2] == 't' && wavBytes[i + 3] == 'a')
+                {
+                    dataOffset = i + 8;
+                    break;
+                }
+            }
+
+            if (dataOffset >= wavBytes.Length)
+            {
+                GD.PrintErr("[TTS] WAV 'data' chunk not found. Skipping audio playback.");
+                return;
+            }
+
+            int pcmLength = wavBytes.Length - dataOffset;
+            byte[] pcmData = new byte[pcmLength];
+            Array.Copy(wavBytes, dataOffset, pcmData, 0, pcmLength);
+
+            var stream = new AudioStreamWav
+            {
+                Format = bitsPerSample == 16 
+                    ? AudioStreamWav.FormatEnum.Format16Bits 
+                    : AudioStreamWav.FormatEnum.Format8Bits,
+                MixRate = sampleRate,
+                Stereo = numChannels > 1,
+                Data = pcmData
+            };
+
+            _audioQueue.Enqueue(stream);
         }
-
-        for (int i = startIndex; i < pcmData.Length - 1; i += 2)
+        catch (Exception ex)
         {
-            short sample = global::System.BitConverter.ToInt16(pcmData, i);
-            float floatSample = sample / 32768f;
-
-            // REFACTOR: Enqueue frames instead of pushing directly, avoiding buffer overruns
-            _pcmBuffer.Enqueue(new Vector2(floatSample, floatSample));
+            GD.PrintErr($"[TTS ERROR] Failed to process WAV bytes: {ex.Message}");
         }
     }
 
@@ -359,6 +376,7 @@ public partial class LivemodeMain : Panel
         var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
         if (chatManager != null)
         {
+            chatManager.IsLiveModeActive = false;
             chatManager.OnBotStartedThinking -= OnBotStartedThinking;
             chatManager.OnBotFinishedSpeaking -= OnBotFinishedSpeaking;
         }

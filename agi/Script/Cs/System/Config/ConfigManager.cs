@@ -85,6 +85,12 @@ namespace Logic.System.Config
         public string ActiveTTSEngine { get; set; } = "sherpa-onnx";
         public string ActiveTTSModel { get; set; } = "vits-piper-es_ES-miro-high";
 
+        public int PersistedSelectedAiMode { get; set; } = 1; // Default to Focus (1)
+        public int PersistedToolTimeActive { get; set; } = 1; // Default to Active (1)
+        public int PersistedToolWebSearchActive { get; set; } = 0; // Default to Inactive (0)
+        public int PersistedToolMcpActive { get; set; } = 1; // Default to Active (1)
+        public List<string> PinnedChats { get; set; } = new List<string>();
+
         /// <summary>
         /// Provides a global static reference to the active configuration manager instance.
         /// </summary>
@@ -212,6 +218,11 @@ namespace Logic.System.Config
             public string ActiveProfilePath { get; set; }
             public ComputePerformanceProfile PerformanceProfile { get; set; }
             public Dictionary<string, int> ToolPermissions { get; set; }
+            public int? PersistedSelectedAiMode { get; set; }
+            public int? PersistedToolTimeActive { get; set; }
+            public int? PersistedToolWebSearchActive { get; set; }
+            public int? PersistedToolMcpActive { get; set; }
+            public List<string> PinnedChats { get; set; }
         }
 
         /// <summary>
@@ -348,7 +359,12 @@ namespace Logic.System.Config
                     PerformanceTier = this.CurrentPerformanceTier,
                     ActiveProfilePath = this.ActiveProfilePath,
                     PerformanceProfile = this.PerformanceProfile,
-                    ToolPermissions = this.ToolPermissions
+                    ToolPermissions = this.ToolPermissions,
+                    PersistedSelectedAiMode = this.PersistedSelectedAiMode,
+                    PersistedToolTimeActive = this.PersistedToolTimeActive,
+                    PersistedToolWebSearchActive = this.PersistedToolWebSearchActive,
+                    PersistedToolMcpActive = this.PersistedToolMcpActive,
+                    PinnedChats = this.PinnedChats
                 };
 
                 JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
@@ -401,6 +417,11 @@ namespace Logic.System.Config
                     if (state.ActiveProfilePath != null) ActiveProfilePath = state.ActiveProfilePath;
                     if (state.PerformanceProfile != null) PerformanceProfile = state.PerformanceProfile;
                     if (state.ToolPermissions != null) ToolPermissions = state.ToolPermissions;
+                    if (state.PersistedSelectedAiMode.HasValue) PersistedSelectedAiMode = state.PersistedSelectedAiMode.Value;
+                    if (state.PersistedToolTimeActive.HasValue) PersistedToolTimeActive = state.PersistedToolTimeActive.Value;
+                    if (state.PersistedToolWebSearchActive.HasValue) PersistedToolWebSearchActive = state.PersistedToolWebSearchActive.Value;
+                    if (state.PersistedToolMcpActive.HasValue) PersistedToolMcpActive = state.PersistedToolMcpActive.Value;
+                    if (state.PinnedChats != null) PinnedChats = state.PinnedChats;
                 }
             }
             catch (Exception ex)

@@ -30,5 +30,5 @@ void fragment() {
    float alpha = 1.0 - smoothstep(final_radius - 0.02, final_radius + 0.02, r);
 
    // Asignamos el color final (Blanco puro, usando alpha para la forma)
-   COLOR = vec4(1.0, 1.0, 1.0, alpha);
+   COLOR = vec4(9.0, 0.6, 0.7, alpha);
 }

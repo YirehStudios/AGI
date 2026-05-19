@@ -12,8 +12,20 @@
 [ext_resource type="VideoStream" uid="uid://0esyq17ynyll" path="res://Resources/Farming-Simulator.ogv" id="7_amhcu"]
 [ext_resource type="VideoStream" uid="uid://bc7xtarwn1qiv" path="res://Resources/Paisaje.ogv" id="8_675c4"]
 [ext_resource type="VideoStream" uid="uid://b7hhl2fcqhlrl" path="res://Resources/Super-Tux.ogv" id="9_u6rn7"]
+[ext_resource type="Texture2D" uid="uid://xtmrl6a6jgwf" path="res://Resources/Images/Icons/Util/Tools2.svg" id="12_2d4k7"]
+[ext_resource type="Texture2D" uid="uid://d0tsudji8krk8" path="res://Resources/Images/Icons/Util/Tools.svg" id="12_u6rn7"]
+[ext_resource type="Texture2D" uid="uid://cal47j4iliryc" path="res://Resources/Images/Icons/Util/Flash.svg" id="13_143c2"]
 [ext_resource type="PackedScene" uid="uid://crfads6pfh14x" path="res://Scenes/IAScene/CodeEdit.tscn" id="13_amhcu"]
-[ext_resource type="Shader" path="res://Resources/Shaders/frosted_glass.gdshader" id="14_glass"]
+[ext_resource type="Texture2D" uid="uid://dv8x38vp6vjl3" path="res://Resources/Images/Icons/Util/Focus.svg" id="14_b06b1"]
+[ext_resource type="Shader" uid="uid://c5f447olcpncs" path="res://Resources/Shaders/frosted_glass.gdshader" id="14_glass"]
+[ext_resource type="FontFile" uid="uid://b1c5skpnsmnx6" path="res://Resources/Fonts/Roboto/static/Roboto-Light.ttf" id="14_lgxif"]
+[ext_resource type="Texture2D" uid="uid://c4la2h86y35n1" path="res://Resources/Images/Icons/Util/Deep.svg" id="15_rq6ts"]
+[ext_resource type="Texture2D" uid="uid://cbypwe1dq3q2a" path="res://Resources/Images/Icons/Util/Web Search.svg" id="19_cae2h"]
+[ext_resource type="Texture2D" uid="uid://i3iqvqvfchtg" path="res://Resources/Images/Icons/Util/Real Time.svg" id="20_js05h"]
+[ext_resource type="Texture2D" uid="uid://fdt2x4hs7d40" path="res://Resources/Images/Icons/Util/Deep Search.svg" id="21_rp26x"]
+[ext_resource type="Texture2D" uid="uid://c6d5wmoj46v43" path="res://Resources/Images/Icons/Util/image.svg" id="22_2c06c"]
+[ext_resource type="Texture2D" uid="uid://cpx37bn2p26k4" path="res://Resources/Images/Icons/Util/Video.svg" id="23_wyifx"]
+[ext_resource type="Texture2D" uid="uid://c7ynkw0628mb6" path="res://Resources/Images/Icons/Util/Voice.svg" id="24_cdhtr"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jta4j"]
 bg_color = Color(0.2739657, 0.6233799, 0.9242838, 1)
@@ -22,12 +34,25 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_js05h"]
+bg_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+corner_detail = 20
+
+[sub_resource type="LabelSettings" id="LabelSettings_pdmg7"]
+font = ExtResource("14_lgxif")
+font_size = 10
+font_color = Color(0.7708395, 0.77083945, 0.77083945, 1)
+
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_FrostedOverlay"]
 shader = ExtResource("14_glass")
 shader_parameter/blur_amount = 2.5
 shader_parameter/mix_color = Color(0.04, 0.04, 0.07, 0.45)
 
-[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "ToolSelector", "CodeBlockTemplate", "LoadingOverlay")]
+[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "ModeSelector", "ToggleToolTime", "ToggleToolWebSearch", "ToggleToolMCP", "CodeBlockTemplate")]
 self_modulate = Color(1, 1, 1, 0)
 anchors_preset = 15
 anchor_right = 1.0
@@ -41,7 +66,10 @@ TextInputField = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/Input
 SendButton = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/SendButton")
 EscenaMensajeUsuario = ExtResource("2_jta4j")
 EscenaMensajeBot = ExtResource("3_amhcu")
-ToolSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolSelector")
+ModeSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ModeSelector")
+ToggleToolTime = NodePath("ToolsMenuPanel/MenuMargin/MenuLayout/ToggleToolTime")
+ToggleToolWebSearch = NodePath("ToolsMenuPanel/MenuMargin/MenuLayout/ToggleToolWebSearch")
+ToggleToolMCP = NodePath("ToolsMenuPanel/MenuMargin/MenuLayout/ToggleToolMCP")
 CodeBlockTemplate = NodePath("CodeBlockTemplate")
 RandomImage1 = ExtResource("2_q7f8p")
 RandomImage2 = ExtResource("3_jta4j")
@@ -51,7 +79,6 @@ RandomVideo1 = ExtResource("6_jta4j")
 RandomVideo2 = ExtResource("7_amhcu")
 RandomVideo3 = ExtResource("8_675c4")
 RandomVideo4 = ExtResource("9_u6rn7")
-LoadingOverlay = NodePath("LoadingOverlay")
 
 [node name="MainContainer" type="HBoxContainer" parent="." unique_id=2091277489]
 layout_mode = 1
@@ -100,19 +127,29 @@ layout_mode = 2
 layout_mode = 2
 theme_override_constants/separation = 15
 
-[node name="ToolSelector" type="OptionButton" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=1507819661]
-custom_minimum_size = Vector2(160, 40)
+[node name="ToolsMenuButton" type="Button" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=1984700183]
+custom_minimum_size = Vector2(45, 45)
 layout_mode = 2
 size_flags_vertical = 4
-theme_override_constants/align_to_largest_stylebox = 50
-theme_override_font_sizes/font_size = 16
+text = "➕"
+icon = ExtResource("12_2d4k7")
+flat = true
+icon_alignment = 2
+
+[node name="ModeSelector" type="OptionButton" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=1136507933]
+custom_minimum_size = Vector2(100, 40)
+layout_mode = 2
+size_flags_vertical = 4
 selected = 0
 item_count = 3
-popup/item_0/text = "Chat Normal"
+popup/item_0/text = "Flash"
+popup/item_0/icon = ExtResource("13_143c2")
 popup/item_0/id = 0
-popup/item_1/text = "Generar Imagen"
+popup/item_1/text = "Focus"
+popup/item_1/icon = ExtResource("14_b06b1")
 popup/item_1/id = 1
-popup/item_2/text = "Generar Video"
+popup/item_2/text = "Deep"
+popup/item_2/icon = ExtResource("15_rq6ts")
 popup/item_2/id = 2
 
 [node name="TextInputField" type="TextEdit" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=733254512]
@@ -132,24 +169,119 @@ icon = ExtResource("5_ug3aw")
 icon_alignment = 1
 expand_icon = true
 
+[node name="ToolsMenuPanel" type="PanelContainer" parent="." unique_id=717173464]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = -345.0
+offset_right = 240.0
+offset_bottom = -115.0
+grow_vertical = 0
+
+[node name="panel" type="Panel" parent="ToolsMenuPanel" unique_id=1056386332]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_js05h")
+
+[node name="MenuMargin" type="MarginContainer" parent="ToolsMenuPanel" unique_id=256920277]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="MenuLayout" type="VBoxContainer" parent="ToolsMenuPanel/MenuMargin" unique_id=1653324152]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Label" type="Label" parent="ToolsMenuPanel/MenuMargin/MenuLayout" unique_id=1145622880]
+layout_mode = 2
+text = "Tools"
+label_settings = SubResource("LabelSettings_pdmg7")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ToggleToolMCP" type="Button" parent="ToolsMenuPanel/MenuMargin/MenuLayout" unique_id=1805582121]
+layout_mode = 2
+theme_override_colors/font_pressed_color = Color(0.2739657, 0.6233799, 0.9242838, 1)
+theme_override_colors/font_hover_pressed_color = Color(0.4, 0.7, 1, 1)
+toggle_mode = true
+text = "MCP Tools"
+icon = ExtResource("12_u6rn7")
+flat = true
+alignment = 0
+
+[node name="ToggleToolWebSearch" type="Button" parent="ToolsMenuPanel/MenuMargin/MenuLayout" unique_id=1941441846]
+layout_mode = 2
+theme_override_colors/font_pressed_color = Color(0.2739657, 0.6233799, 0.9242838, 1)
+theme_override_colors/font_hover_pressed_color = Color(0.4, 0.7, 1, 1)
+toggle_mode = true
+text = "Web Search"
+icon = ExtResource("19_cae2h")
+flat = true
+alignment = 0
+
+[node name="ToggleToolTime" type="Button" parent="ToolsMenuPanel/MenuMargin/MenuLayout" unique_id=14509716]
+layout_mode = 2
+theme_override_colors/font_pressed_color = Color(0.2739657, 0.6233799, 0.9242838, 1)
+theme_override_colors/font_hover_pressed_color = Color(0.4, 0.7, 1, 1)
+toggle_mode = true
+text = "Real Time"
+icon = ExtResource("20_js05h")
+flat = true
+alignment = 0
+
+[node name="ToolDeepSearch" type="Button" parent="ToolsMenuPanel/MenuMargin/MenuLayout" unique_id=1968832778]
+layout_mode = 2
+disabled = true
+text = "Deep Search"
+icon = ExtResource("21_rp26x")
+flat = true
+alignment = 0
+
+[node name="ToolImage" type="Button" parent="ToolsMenuPanel/MenuMargin/MenuLayout" unique_id=1705898862]
+layout_mode = 2
+disabled = true
+text = "Image"
+icon = ExtResource("22_2c06c")
+flat = true
+alignment = 0
+
+[node name="ToolVideo" type="Button" parent="ToolsMenuPanel/MenuMargin/MenuLayout" unique_id=1911063531]
+layout_mode = 2
+disabled = true
+text = "Video"
+icon = ExtResource("23_wyifx")
+flat = true
+alignment = 0
+
+[node name="ToolVoice" type="Button" parent="ToolsMenuPanel/MenuMargin/MenuLayout" unique_id=1920324087]
+layout_mode = 2
+disabled = true
+text = "Voice"
+icon = ExtResource("24_cdhtr")
+flat = true
+alignment = 0
+
 [node name="CodeBlockTemplate" parent="." unique_id=1328119999 instance=ExtResource("13_amhcu")]
 visible = false
 layout_mode = 0
 
 [node name="LoadingOverlay" type="ColorRect" parent="." unique_id=138519178]
 visible = false
+material = SubResource("ShaderMaterial_FrostedOverlay")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 0)
-material = SubResource("ShaderMaterial_FrostedOverlay")
 mouse_filter = 2
+color = Color(0, 0, 0, 0)
 
 [node name="CenterContainer" type="CenterContainer" parent="LoadingOverlay" unique_id=1199029492]
-layout_mode = 2
+layout_mode = 0
 mouse_filter = 2
 
 [node name="SwapProgressBar" type="ProgressBar" parent="LoadingOverlay/CenterContainer" unique_id=1955606566]

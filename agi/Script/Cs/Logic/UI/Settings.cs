@@ -203,7 +203,6 @@ namespace Logic.UI
             ValidateExports();
             BindNavigationSignals();
             BindControlSignals();
-            SubscribeTTSPipeline();
             LoadActiveConfiguration();
 
             // Defer the initial view switch by one frame.
@@ -784,52 +783,6 @@ namespace Logic.UI
         }
 
         // ─────────────────────────────────────────────────────────────
-        //  TTS PIPELINE SUBSCRIPTION (Phase 5)
-        // ─────────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Subscribes to the <see cref="Logic.Lite.ChatManager.OnBotFinishedSpeaking"/> signal so that
-        /// every completed bot response is routed through the Kokoro WebSocket TTS pipeline in
-        /// <see cref="NetworkManager.RequestTTSWebSocket"/>.
-        /// The subscription lives in Settings because ChatbotMain is a pure messaging view with no audio coupling.
-        /// </summary>
-        private void SubscribeTTSPipeline()
-        {
-            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
-            if (chatManager != null)
-                chatManager.OnBotFinishedSpeaking += OnBotFinishedSpeakingTTS;
-        }
-
-        /// <summary>
-        /// Receives the final cleaned bot response and asynchronously dispatches it to the
-        /// Kokoro ONNX TTS WebSocket server at <c>ws://127.0.0.1:8888</c>.
-        /// The raw WAV bytes returned by the server are handled downstream by
-        /// <see cref="NativeTTSManager"/> via <c>TTSAudioChunkReceived</c>.
-        /// </summary>
-        private async void OnBotFinishedSpeakingTTS(string spokenText)
-        {
-            if (string.IsNullOrWhiteSpace(spokenText)) return;
-            if (_networkManager == null) return;
-
-            try
-            {
-                await _networkManager.RequestTTSWebSocket(spokenText);
-            }
-            catch (Exception ex)
-            {
-                GD.PrintErr($"[SETTINGS/TTS] WebSocket dispatch failed: {ex.Message}");
-            }
-        }
-
-        /// <inheritdoc/>
-        public override void _ExitTree()
-        {
-            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
-            if (chatManager != null)
-                chatManager.OnBotFinishedSpeaking -= OnBotFinishedSpeakingTTS;
-        }
-
-        // ─────────────────────────────────────────────────────────────
         //  TOOLS HANDLER
         // ─────────────────────────────────────────────────────────────
 
@@ -867,6 +820,13 @@ namespace Logic.UI
             if (ThemeManager.Instance != null)
             {
                 GetTree().Root.Theme = ThemeManager.Instance.ObtenerTemaGlobal(isPressed);
+            }
+
+            // Notify MainApp to update the active view/Chatbot theme dynamically
+            var mainApp = GetTree().Root.FindChild("MainApp", true, false) as MainApp;
+            if (mainApp != null)
+            {
+                mainApp.SetThemeMode(isPressed);
             }
 
             if (Material is ShaderMaterial glassMat)

@@ -16,7 +16,11 @@ namespace Logic.UI
         [Export] public PackedScene EscenaMensajeUsuario;
         [Export] public PackedScene EscenaMensajeBot;
 
-        [Export] public OptionButton ToolSelector;
+        [ExportCategory("AI Execution State")]
+        [Export] public OptionButton ModeSelector; // 0 = Flash, 1 = Focus, 2 = Deep
+        [Export] public Button ToggleToolTime;
+        [Export] public Button ToggleToolWebSearch;
+        [Export] public Button ToggleToolMCP; // For Filesystem/OS operations
 
         [Export] public PanelContainer CodeBlockTemplate;
         [Export] public Texture2D RandomImage1;
@@ -79,6 +83,86 @@ namespace Logic.UI
                 networkManager.STTCompleted += OnSTTCompleted;
             }
 
+            // Wire up the ToolsMenuPanel toggle logic
+            var toolsMenuButton = GetNodeOrNull<Button>("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolsMenuButton");
+            var toolsMenuPanel = GetNodeOrNull<Control>("ToolsMenuPanel");
+
+            if (toolsMenuPanel != null)
+            {
+                toolsMenuPanel.Visible = false; // Start hidden
+                if (toolsMenuButton != null)
+                {
+                    toolsMenuButton.Pressed += () =>
+                    {
+                        toolsMenuPanel.Visible = !toolsMenuPanel.Visible;
+                    };
+                }
+            }
+
+            // Set default tool active states on start from persisted settings
+            var configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+            if (configManager != null)
+            {
+                // Load persisted settings
+                if (ModeSelector != null)
+                {
+                    ModeSelector.Selected = configManager.PersistedSelectedAiMode;
+                }
+                if (ToggleToolTime != null)
+                {
+                    ToggleToolTime.ButtonPressed = configManager.PersistedToolTimeActive == 1;
+                }
+                if (ToggleToolWebSearch != null)
+                {
+                    ToggleToolWebSearch.ButtonPressed = configManager.PersistedToolWebSearchActive == 1;
+                }
+                if (ToggleToolMCP != null)
+                {
+                    ToggleToolMCP.ButtonPressed = configManager.PersistedToolMcpActive == 1;
+                }
+
+                // Connect signals to save settings when modified
+                if (ModeSelector != null)
+                {
+                    ModeSelector.ItemSelected += (long index) =>
+                    {
+                        configManager.PersistedSelectedAiMode = (int)index;
+                        configManager.SaveConfiguration();
+                    };
+                }
+                if (ToggleToolTime != null)
+                {
+                    ToggleToolTime.Toggled += (bool toggledOn) =>
+                    {
+                        configManager.PersistedToolTimeActive = toggledOn ? 1 : 0;
+                        configManager.SaveConfiguration();
+                    };
+                }
+                if (ToggleToolWebSearch != null)
+                {
+                    ToggleToolWebSearch.Toggled += (bool toggledOn) =>
+                    {
+                        configManager.PersistedToolWebSearchActive = toggledOn ? 1 : 0;
+                        configManager.SaveConfiguration();
+                    };
+                }
+                if (ToggleToolMCP != null)
+                {
+                    ToggleToolMCP.Toggled += (bool toggledOn) =>
+                    {
+                        configManager.PersistedToolMcpActive = toggledOn ? 1 : 0;
+                        configManager.SaveConfiguration();
+                    };
+                }
+            }
+            else
+            {
+                if (ToggleToolTime != null) ToggleToolTime.ButtonPressed = true;
+                if (ToggleToolMCP != null) ToggleToolMCP.ButtonPressed = true;
+            }
+
+            // Dynamically load active messages from global ChatManager memory on startup
+            LoadActiveMessagesIntoUI();
         }
 
         /// <summary>
@@ -200,28 +284,24 @@ namespace Logic.UI
 
             ScrollToBottom();
 
-            int selectedTool = ToolSelector != null ? ToolSelector.Selected : 0;
+            // Capture Mode (Default to 1: Focus)
+            int selectedMode = ModeSelector != null ? ModeSelector.Selected : 1;
 
-            if (selectedTool == 1)
+            // Build Active Tools List
+            var activeTools = new global::System.Collections.Generic.List<string>();
+            if (ToggleToolTime != null && ToggleToolTime.ButtonPressed) activeTools.Add("Time");
+            if (ToggleToolWebSearch != null && ToggleToolWebSearch.ButtonPressed) activeTools.Add("Web Search");
+            if (ToggleToolMCP != null && ToggleToolMCP.ButtonPressed) activeTools.Add("MCP");
+
+            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+            if (chatManager != null)
             {
-                await GenerateMockMediaResponse(false);
-            }
-            else if (selectedTool == 2)
-            {
-                await GenerateMockMediaResponse(true);
+                await chatManager.SendToAI(text, selectedMode, activeTools);
             }
             else
             {
-                var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
-                if (chatManager != null)
-                {
-                    await chatManager.SendToAI(text);
-                }
-                else
-                {
-                    _isWaitingForResponse = false;
-                    if (SendButton != null) SendButton.Disabled = false;
-                }
+                _isWaitingForResponse = false;
+                if (SendButton != null) SendButton.Disabled = false;
             }
         }
 
@@ -348,6 +428,341 @@ namespace Logic.UI
                     }
                 }
             }
+
+            // ─────────────────────────────────────────────────────────────
+            //  DYNAMIC STYLE OVERRIDES FOR PREMIUM UI VISIBILITY
+            // ─────────────────────────────────────────────────────────────
+
+            // 1. ToolsMenuPanel Style (Characterized by HSL Charcoal in Dark and soft White in Light)
+            var toolsMenuPanel = GetNodeOrNull<PanelContainer>("ToolsMenuPanel");
+            var toolsPanelChild = GetNodeOrNull<Panel>("ToolsMenuPanel/panel");
+
+            StyleBoxFlat toolsPanelStyle = new StyleBoxFlat();
+            toolsPanelStyle.CornerRadiusTopLeft = 12;
+            toolsPanelStyle.CornerRadiusTopRight = 12;
+            toolsPanelStyle.CornerRadiusBottomLeft = 12;
+            toolsPanelStyle.CornerRadiusBottomRight = 12;
+            toolsPanelStyle.SetContentMarginAll(12);
+
+            if (isDark)
+            {
+                toolsPanelStyle.BgColor = new Color(0.12f, 0.12f, 0.16f, 0.95f); // Premium dark glass
+                toolsPanelStyle.BorderWidthLeft = 1;
+                toolsPanelStyle.BorderWidthTop = 1;
+                toolsPanelStyle.BorderWidthRight = 1;
+                toolsPanelStyle.BorderWidthBottom = 1;
+                toolsPanelStyle.BorderColor = new Color(0.25f, 0.25f, 0.32f, 0.4f);
+                toolsPanelStyle.ShadowColor = new Color(0, 0, 0, 0.3f);
+                toolsPanelStyle.ShadowSize = 8;
+            }
+            else
+            {
+                toolsPanelStyle.BgColor = new Color(0.98f, 0.98f, 1.0f, 0.98f); // Soft light glass
+                toolsPanelStyle.BorderWidthLeft = 1;
+                toolsPanelStyle.BorderWidthTop = 1;
+                toolsPanelStyle.BorderWidthRight = 1;
+                toolsPanelStyle.BorderWidthBottom = 1;
+                toolsPanelStyle.BorderColor = new Color(0.8f, 0.8f, 0.85f, 0.5f);
+                toolsPanelStyle.ShadowColor = new Color(0, 0, 0, 0.1f);
+                toolsPanelStyle.ShadowSize = 6;
+            }
+
+            if (toolsMenuPanel != null)
+            {
+                toolsMenuPanel.AddThemeStyleboxOverride("panel", toolsPanelStyle);
+            }
+            if (toolsPanelChild != null)
+            {
+                toolsPanelChild.AddThemeStyleboxOverride("panel", toolsPanelStyle);
+            }
+
+            // 2. Tools Menu Typography & Flat Button Overrides
+            var toolsLabel = GetNodeOrNull<Label>("ToolsMenuPanel/MenuMargin/MenuLayout/Label");
+            if (toolsLabel != null)
+            {
+                toolsLabel.AddThemeColorOverride("font_color", isDark ? new Color(0.9f, 0.9f, 0.95f) : new Color(0.15f, 0.15f, 0.2f));
+            }
+
+            var menuLayout = GetNodeOrNull<VBoxContainer>("ToolsMenuPanel/MenuMargin/MenuLayout");
+            if (menuLayout != null)
+            {
+                foreach (Node child in menuLayout.GetChildren())
+                {
+                    if (child is Button btn && child != toolsLabel)
+                    {
+                        Color normalColor = isDark ? new Color(0.85f, 0.85f, 0.9f) : new Color(0.2f, 0.2f, 0.25f);
+                        Color hoverColor = isDark ? new Color(1.0f, 1.0f, 1.0f) : new Color(0.05f, 0.05f, 0.1f);
+                        Color pressedColor = new Color(0.274f, 0.623f, 0.924f); // Brand Active Blue
+
+                        btn.AddThemeColorOverride("font_color", normalColor);
+                        btn.AddThemeColorOverride("font_hover_color", hoverColor);
+                        btn.AddThemeColorOverride("font_pressed_color", pressedColor);
+                        btn.AddThemeColorOverride("font_focus_color", hoverColor);
+
+                        // Dynamic native icon coloring for hover/normal/pressed button events
+                        btn.AddThemeColorOverride("icon_normal_color", normalColor);
+                        btn.AddThemeColorOverride("icon_hover_color", hoverColor);
+                        btn.AddThemeColorOverride("icon_pressed_color", pressedColor);
+                        btn.AddThemeColorOverride("icon_hover_pressed_color", pressedColor);
+                        btn.AddThemeColorOverride("icon_focus_color", hoverColor);
+                    }
+                }
+            }
+
+            // 3. TextEdit (TextInputField) Premium Styling
+            if (TextInputField != null)
+            {
+                StyleBoxFlat textInputStyle = new StyleBoxFlat();
+                textInputStyle.CornerRadiusTopLeft = 8;
+                textInputStyle.CornerRadiusTopRight = 8;
+                textInputStyle.CornerRadiusBottomLeft = 8;
+                textInputStyle.CornerRadiusBottomRight = 8;
+                textInputStyle.SetContentMarginAll(10);
+
+                if (isDark)
+                {
+                    textInputStyle.BgColor = new Color(0.12f, 0.12f, 0.15f);
+                    textInputStyle.BorderWidthLeft = 1;
+                    textInputStyle.BorderWidthTop = 1;
+                    textInputStyle.BorderWidthRight = 1;
+                    textInputStyle.BorderWidthBottom = 1;
+                    textInputStyle.BorderColor = new Color(0.22f, 0.22f, 0.28f);
+
+                    TextInputField.AddThemeColorOverride("font_color", new Color(0.9f, 0.9f, 0.95f));
+                    TextInputField.AddThemeColorOverride("font_placeholder_color", new Color(0.5f, 0.5f, 0.55f));
+                    TextInputField.AddThemeColorOverride("caret_color", new Color(0.9f, 0.9f, 0.95f));
+                }
+                else
+                {
+                    textInputStyle.BgColor = new Color(0.96f, 0.96f, 0.98f);
+                    textInputStyle.BorderWidthLeft = 1;
+                    textInputStyle.BorderWidthTop = 1;
+                    textInputStyle.BorderWidthRight = 1;
+                    textInputStyle.BorderWidthBottom = 1;
+                    textInputStyle.BorderColor = new Color(0.85f, 0.85f, 0.9f);
+
+                    TextInputField.AddThemeColorOverride("font_color", new Color(0.15f, 0.15f, 0.2f));
+                    TextInputField.AddThemeColorOverride("font_placeholder_color", new Color(0.6f, 0.6f, 0.65f));
+                    TextInputField.AddThemeColorOverride("caret_color", new Color(0.15f, 0.15f, 0.2f));
+                }
+
+                TextInputField.AddThemeStyleboxOverride("normal", textInputStyle);
+                TextInputField.AddThemeStyleboxOverride("focus", textInputStyle);
+            }
+
+            // 4. OptionButton (ModeSelector) Premium Styling
+            if (ModeSelector != null)
+            {
+                StyleBoxFlat modeSelectStyleNormal = new StyleBoxFlat();
+                modeSelectStyleNormal.CornerRadiusTopLeft = 8;
+                modeSelectStyleNormal.CornerRadiusTopRight = 8;
+                modeSelectStyleNormal.CornerRadiusBottomLeft = 8;
+                modeSelectStyleNormal.CornerRadiusBottomRight = 8;
+                modeSelectStyleNormal.SetContentMarginAll(8);
+
+                StyleBoxFlat modeSelectStyleHover = modeSelectStyleNormal.Duplicate() as StyleBoxFlat;
+
+                if (isDark)
+                {
+                    modeSelectStyleNormal.BgColor = new Color(0.16f, 0.16f, 0.2f);
+                    modeSelectStyleNormal.BorderWidthLeft = 1;
+                    modeSelectStyleNormal.BorderWidthTop = 1;
+                    modeSelectStyleNormal.BorderWidthRight = 1;
+                    modeSelectStyleNormal.BorderWidthBottom = 1;
+                    modeSelectStyleNormal.BorderColor = new Color(0.26f, 0.26f, 0.32f);
+
+                    modeSelectStyleHover.BgColor = new Color(0.2f, 0.2f, 0.25f);
+                    modeSelectStyleHover.BorderWidthLeft = 1;
+                    modeSelectStyleHover.BorderWidthTop = 1;
+                    modeSelectStyleHover.BorderWidthRight = 1;
+                    modeSelectStyleHover.BorderWidthBottom = 1;
+                    modeSelectStyleHover.BorderColor = new Color(0.35f, 0.35f, 0.42f);
+
+                    Color textColor = new Color(0.9f, 0.9f, 0.95f);
+                    ModeSelector.AddThemeColorOverride("font_color", textColor);
+                    ModeSelector.AddThemeColorOverride("font_hover_color", new Color(1.0f, 1.0f, 1.0f));
+                    ModeSelector.AddThemeColorOverride("font_pressed_color", textColor);
+                    ModeSelector.AddThemeColorOverride("font_focus_color", textColor);
+                    ModeSelector.AddThemeColorOverride("icon_normal_color", textColor);
+                    ModeSelector.AddThemeColorOverride("icon_hover_color", new Color(1.0f, 1.0f, 1.0f));
+                }
+                else
+                {
+                    modeSelectStyleNormal.BgColor = new Color(0.92f, 0.92f, 0.95f);
+                    modeSelectStyleNormal.BorderWidthLeft = 1;
+                    modeSelectStyleNormal.BorderWidthTop = 1;
+                    modeSelectStyleNormal.BorderWidthRight = 1;
+                    modeSelectStyleNormal.BorderWidthBottom = 1;
+                    modeSelectStyleNormal.BorderColor = new Color(0.8f, 0.8f, 0.85f);
+
+                    modeSelectStyleHover.BgColor = new Color(0.86f, 0.86f, 0.9f);
+                    modeSelectStyleHover.BorderWidthLeft = 1;
+                    modeSelectStyleHover.BorderWidthTop = 1;
+                    modeSelectStyleHover.BorderWidthRight = 1;
+                    modeSelectStyleHover.BorderWidthBottom = 1;
+                    modeSelectStyleHover.BorderColor = new Color(0.7f, 0.7f, 0.75f);
+
+                    Color textColor = new Color(0.15f, 0.15f, 0.2f);
+                    ModeSelector.AddThemeColorOverride("font_color", textColor);
+                    ModeSelector.AddThemeColorOverride("font_hover_color", new Color(0.05f, 0.05f, 0.1f));
+                    ModeSelector.AddThemeColorOverride("font_pressed_color", textColor);
+                    ModeSelector.AddThemeColorOverride("font_focus_color", textColor);
+                    ModeSelector.AddThemeColorOverride("icon_normal_color", textColor);
+                    ModeSelector.AddThemeColorOverride("icon_hover_color", new Color(0.05f, 0.05f, 0.1f));
+                }
+
+                ModeSelector.AddThemeStyleboxOverride("normal", modeSelectStyleNormal);
+                ModeSelector.AddThemeStyleboxOverride("hover", modeSelectStyleHover);
+                ModeSelector.AddThemeStyleboxOverride("pressed", modeSelectStyleNormal);
+                ModeSelector.AddThemeStyleboxOverride("focus", modeSelectStyleNormal);
+
+                var popup = ModeSelector.GetPopup();
+                if (popup != null)
+                {
+                    StyleBoxFlat popupStyle = new StyleBoxFlat();
+                    popupStyle.CornerRadiusTopLeft = 10;
+                    popupStyle.CornerRadiusTopRight = 10;
+                    popupStyle.CornerRadiusBottomLeft = 10;
+                    popupStyle.CornerRadiusBottomRight = 10;
+                    popupStyle.SetContentMarginAll(8);
+
+                    if (isDark)
+                    {
+                        popupStyle.BgColor = new Color(0.12f, 0.12f, 0.15f);
+                        popupStyle.BorderWidthLeft = 1;
+                        popupStyle.BorderWidthTop = 1;
+                        popupStyle.BorderWidthRight = 1;
+                        popupStyle.BorderWidthBottom = 1;
+                        popupStyle.BorderColor = new Color(0.22f, 0.22f, 0.28f);
+
+                        popup.AddThemeColorOverride("font_color", new Color(0.85f, 0.85f, 0.9f));
+                        popup.AddThemeColorOverride("font_hover_color", new Color(1.0f, 1.0f, 1.0f));
+                    }
+                    else
+                    {
+                        popupStyle.BgColor = new Color(0.98f, 0.98f, 1.0f);
+                        popupStyle.BorderWidthLeft = 1;
+                        popupStyle.BorderWidthTop = 1;
+                        popupStyle.BorderWidthRight = 1;
+                        popupStyle.BorderWidthBottom = 1;
+                        popupStyle.BorderColor = new Color(0.8f, 0.8f, 0.85f);
+
+                        popup.AddThemeColorOverride("font_color", new Color(0.15f, 0.15f, 0.2f));
+                        popup.AddThemeColorOverride("font_hover_color", new Color(0.05f, 0.05f, 0.1f));
+                    }
+
+                    popup.AddThemeStyleboxOverride("panel", popupStyle);
+                }
+            }
+
+            // 5. InputPanel Container Style (Outer background of input area)
+            var inputPanel = GetNodeOrNull<PanelContainer>("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel");
+            if (inputPanel != null)
+            {
+                StyleBoxFlat inputPanelStyle = new StyleBoxFlat();
+                inputPanelStyle.CornerRadiusTopLeft = 12;
+                inputPanelStyle.CornerRadiusTopRight = 12;
+                inputPanelStyle.CornerRadiusBottomLeft = 12;
+                inputPanelStyle.CornerRadiusBottomRight = 12;
+                inputPanelStyle.SetContentMarginAll(8);
+
+                if (isDark)
+                {
+                    inputPanelStyle.BgColor = new Color(0.07f, 0.07f, 0.09f);
+                    inputPanelStyle.BorderWidthLeft = 1;
+                    inputPanelStyle.BorderWidthTop = 1;
+                    inputPanelStyle.BorderWidthRight = 1;
+                    inputPanelStyle.BorderWidthBottom = 1;
+                    inputPanelStyle.BorderColor = new Color(0.18f, 0.18f, 0.22f);
+                }
+                else
+                {
+                    inputPanelStyle.BgColor = new Color(1.0f, 1.0f, 1.0f);
+                    inputPanelStyle.BorderWidthLeft = 1;
+                    inputPanelStyle.BorderWidthTop = 1;
+                    inputPanelStyle.BorderWidthRight = 1;
+                    inputPanelStyle.BorderWidthBottom = 1;
+                    inputPanelStyle.BorderColor = new Color(0.85f, 0.85f, 0.9f);
+                    inputPanelStyle.ShadowColor = new Color(0, 0, 0, 0.05f);
+                    inputPanelStyle.ShadowSize = 6;
+                }
+
+                inputPanel.AddThemeStyleboxOverride("panel", inputPanelStyle);
+            }
+
+            // 6. ToolsMenuButton Style (Briefcase icon toggle)
+            var toolsMenuButton = GetNodeOrNull<Button>("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolsMenuButton");
+            if (toolsMenuButton != null)
+            {
+                Color btnColor = isDark ? new Color(0.85f, 0.85f, 0.9f) : new Color(0.2f, 0.2f, 0.25f);
+                Color btnHoverColor = isDark ? new Color(1.0f, 1.0f, 1.0f) : new Color(0.05f, 0.05f, 0.1f);
+
+                toolsMenuButton.AddThemeColorOverride("icon_normal_color", btnColor);
+                toolsMenuButton.AddThemeColorOverride("icon_hover_color", btnHoverColor);
+                toolsMenuButton.AddThemeColorOverride("icon_pressed_color", new Color(0.274f, 0.623f, 0.924f));
+                toolsMenuButton.AddThemeColorOverride("icon_focus_color", btnHoverColor);
+            }
+
+            // 7. SendButton Style
+            if (SendButton != null)
+            {
+                StyleBoxFlat sendStyleNormal = new StyleBoxFlat();
+                sendStyleNormal.CornerRadiusTopLeft = 12;
+                sendStyleNormal.CornerRadiusTopRight = 12;
+                sendStyleNormal.CornerRadiusBottomLeft = 12;
+                sendStyleNormal.CornerRadiusBottomRight = 12;
+                sendStyleNormal.BgColor = new Color(0.274f, 0.623f, 0.924f);
+
+                StyleBoxFlat sendStyleHover = sendStyleNormal.Duplicate() as StyleBoxFlat;
+                sendStyleHover.BgColor = new Color(0.35f, 0.7f, 1.0f);
+
+                SendButton.AddThemeStyleboxOverride("normal", sendStyleNormal);
+                SendButton.AddThemeStyleboxOverride("hover", sendStyleHover);
+                SendButton.AddThemeStyleboxOverride("pressed", sendStyleNormal);
+                SendButton.AddThemeStyleboxOverride("focus", sendStyleNormal);
+            }
+        }
+
+        public void LoadActiveMessagesIntoUI()
+        {
+            if (MessagesContainer != null)
+            {
+                foreach (Node child in MessagesContainer.GetChildren())
+                {
+                    child.QueueFree();
+                }
+            }
+
+            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+            if (chatManager == null || chatManager.CurrentSession == null) return;
+
+            foreach (var msg in chatManager.CurrentSession.Messages)
+            {
+                if (msg.Role == "user")
+                {
+                    if (EscenaMensajeUsuario != null)
+                    {
+                        var nuevoMsgUsuario = EscenaMensajeUsuario.Instantiate<Logic.UI.Components.MensajeUsuarioUI>();
+                        MessagesContainer.AddChild(nuevoMsgUsuario);
+                        if (MessagesContainer.Theme != null) nuevoMsgUsuario.Theme = MessagesContainer.Theme;
+                        nuevoMsgUsuario.ConfigurarMensaje(msg.Content);
+                    }
+                }
+                else if (msg.Role == "assistant")
+                {
+                    if (EscenaMensajeBot != null)
+                    {
+                        var nuevoMsgBot = EscenaMensajeBot.Instantiate<Logic.UI.Components.MensajeBotUI>();
+                        MessagesContainer.AddChild(nuevoMsgBot);
+                        if (MessagesContainer.Theme != null) nuevoMsgBot.Theme = MessagesContainer.Theme;
+                        
+                        nuevoMsgBot.AgregarToken(msg.Content);
+                        nuevoMsgBot.FinalizarRespuesta();
+                    }
+                }
+            }
+
+            ScrollToBottom();
         }
 
         // Model selection and hot-swap logic has been migrated to Settings.cs.

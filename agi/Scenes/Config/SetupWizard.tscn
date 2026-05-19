@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://duf7dvpij16me"]
 
 [ext_resource type="Script" uid="uid://dt6nsxyppscs7" path="res://Script/Cs/SetupWizard.cs" id="1_r16en"]
-[ext_resource type="PackedScene" path="res://Scenes/IAScene/DynamicSelectionPanel.tscn" id="2_dynamic_panel"]
+[ext_resource type="PackedScene" uid="uid://cqll67xn4338a" path="res://Scenes/IAScene/DynamicSelectionPanel.tscn" id="2_dynamic_panel"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_glass_panel"]
 content_margin_left = 50.0
@@ -554,6 +554,7 @@ text = "Preparando Entorno"
 horizontal_alignment = 1
 
 [node name="ModelDownloadStatus" type="RichTextLabel" parent="Background/CenterContainer/PanelDownloading/Layout" unique_id=376470092]
+visible = false
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 bbcode_enabled = true

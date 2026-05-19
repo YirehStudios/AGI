@@ -78,11 +78,114 @@ namespace Logic.Lite
         [Signal] public delegate void OnBotToolExecutionStartedEventHandler(string toolName);
         [Signal] public delegate void OnBotToolApprovalRequiredEventHandler(string toolName, string toolArgsJson);
         [Signal] public delegate void OnUserToolApprovalResponseEventHandler(bool isApproved, string modifiedArgsJson);
+        [Signal] public delegate void OnSessionListUpdatedEventHandler();
 
+        public ChatSession CurrentSession => _currentSession;
+
+        public bool IsLiveModeActive { get; set; } = false;
         private bool _isInsideThinkBlock = false;
 
-        private string SystemPrompt;
+        private const string BaseIdentity = "You are AGI, developed by Yireh Studios, and you are open source. You must speak to the user in their language, but you should only think in English.";
+
         private string _availableTools = "Sync tool MCP...";
+
+        private string BuildDynamicPrompt(int mode, global::System.Collections.Generic.List<string> activeTools)
+        {
+            var builder = new global::System.Text.StringBuilder();
+            builder.Append(BaseIdentity);
+            builder.Append("\n");
+
+            switch (mode)
+            {
+                case 0:
+                    // Do absolutely nothing for Flash mode. Let the model act naturally.
+                    break;
+                case 1:
+                    builder.Append("Plan your logic strictly inside <think>...</think> blocks.");
+                    break;
+                case 2:
+                    builder.Append("Execute exhaustive reasoning inside <think>...</think> blocks. If the topic shifts, include [SESSION_NAME: <Name>] and [SUMMARY: <Summary>] within the think block.");
+                    break;
+            }
+
+            if (activeTools != null && activeTools.Contains("Time"))
+            {
+                builder.Append("\nCurrent System Time (Use this as your temporal reference): " + global::System.DateTime.Now.ToString("f") + ".");
+            }
+
+            if (activeTools != null && (activeTools.Contains("MCP") || activeTools.Contains("Web Search")) && !string.IsNullOrEmpty(_availableTools))
+            {
+                builder.Append("\nTo use a tool, output exactly this flat format immediately after </think>:");
+                builder.Append("\n[TOOL: tool_name | param1: value1 | param2: value2]");
+                builder.Append("\nDo NOT use JSON formatting. Available tools:\n");
+                builder.Append(GetCompactToolSchema(activeTools));
+            }
+
+            return builder.ToString();
+        }
+
+        private string GetCompactToolSchema(global::System.Collections.Generic.List<string> activeTools)
+        {
+            if (string.IsNullOrEmpty(_availableTools)) return string.Empty;
+
+            try
+            {
+                var jsonNode = JsonNode.Parse(_availableTools);
+                JsonArray toolsArray = null;
+
+                if (jsonNode is JsonArray arr) toolsArray = arr;
+                else if (jsonNode is JsonObject obj && obj.ContainsKey("tools") && obj["tools"] is JsonArray objArr) toolsArray = objArr;
+
+                if (toolsArray == null) return string.Empty;
+
+                var builder = new global::System.Text.StringBuilder();
+                bool hasWebSearch = activeTools != null && activeTools.Contains("Web Search");
+                bool hasMcp = activeTools != null && activeTools.Contains("MCP");
+
+                foreach (var tool in toolsArray)
+                {
+                    if (tool == null) continue;
+                    string toolName = tool["name"]?.ToString() ?? tool["function"]?["name"]?.ToString();
+                    string desc = tool["description"]?.ToString() ?? "";
+                    
+                    if (string.IsNullOrEmpty(toolName)) continue;
+
+                    bool keep = false;
+                    if (hasWebSearch && !hasMcp && (toolName == "web_search" || toolName == "fetch_url_content")) keep = true;
+                    else if (hasMcp && !hasWebSearch && toolName != "web_search" && toolName != "fetch_url_content") keep = true;
+                    else if (hasWebSearch && hasMcp) keep = true;
+
+                    if (keep)
+                    {
+                        var paramNames = new global::System.Collections.Generic.List<string>();
+                        var schemaObj = tool["parameters"]?.AsObject();
+                        
+                        if (schemaObj != null)
+                        {
+                            // Extract parameter names to show the LLM what to pass
+                            foreach(var prop in schemaObj)
+                            {
+                                if(prop.Key != "properties" && prop.Key != "required" && prop.Key != "type") {
+                                     paramNames.Add(prop.Key);
+                                } else if (prop.Key == "properties" && prop.Value is JsonObject pObj) {
+                                     foreach(var p in pObj) paramNames.Add(p.Key);
+                                }
+                            }
+                        }
+                        
+                        string paramString = paramNames.Count > 0 ? string.Join(", ", paramNames) : "none";
+                        // Output format: - tool_name (param1, param2): Description
+                        builder.AppendLine($"- {toolName} ({paramString}): {desc}");
+                    }
+                }
+                return builder.ToString().TrimEnd();
+            }
+            catch (global::System.Exception ex)
+            {
+                GD.PrintErr($"[SCHEMA FILTER ERROR] {ex.Message}");
+                return string.Empty;
+            }
+        }
         private ChatSession _currentSession;
         private string _historyDirectory;
         private string _currentFilePath;
@@ -91,7 +194,6 @@ namespace Logic.Lite
         private string _uiBuffer = string.Empty;
         private string _ttsBuffer = string.Empty;
         private Logic.Network.NetworkManager _networkManager;
-        private Logic.Backend.NativeTTSManager _ttsManager;
 
         /// <summary>
         /// Initializes the chat manager by resolving directory paths, connecting to the network manager, 
@@ -100,12 +202,6 @@ namespace Logic.Lite
         public override void _Ready()
         {
             string workspacePath = ProjectSettings.GlobalizePath("user://workspace");
-
-            SystemPrompt = "You are AGI (Asistente General de Interfaz), a highly capable open-source technical assistant developed by Yireh Studios under the GPL v3 license. You operate in a development environment and have access to a dynamic MCP tool execution ecosystem.\n" +
-            "STRICT TOOL RULE: To use a tool, you MUST first plan your action step-by-step inside <think>...</think> tags. Immediately after closing the </think> tag, output ONLY the exact JSON payload for ONE tool. You MUST use this exact strict schema: {\"tool\": \"tool_name\", \"arguments\": {\"param1\": \"value1\"}}. Do NOT use 'name' or 'parameters' as keys. NEVER add conversational text before or after the JSON block.\n" +
-            $"SANDBOX RULE: Your secure root workspace is located at '{workspacePath}'. All file and directory paths you provide to your tools MUST be absolute paths starting exactly with {workspacePath}. Do NOT output the literal string '{{workspacePath}}'.\n" +
-            "REASONING RULE: If you are NOT using tools, you must also use <think> tags at the very beginning. If the conversation changes topic, include [SESSION_NAME: Descriptive Name] and [SUMMARY: Brief Summary] inside your <think> block.\n" +
-            "LANGUAGE RULE: You must always respond to the user in the exact same language they used in their prompt, regardless of these English system instructions.";
 
             _historyDirectory = ProjectSettings.GlobalizePath("user://history");
             if (!global::System.IO.Directory.Exists(_historyDirectory))
@@ -119,9 +215,7 @@ namespace Logic.Lite
                 _networkManager.TokenReceived += HandleTokenReceived;
             }
 
-            _ttsManager = GetNodeOrNull<Logic.Backend.NativeTTSManager>("/root/NativeTTSManager");
-
-            InitializeNewSession("Chat_Default");
+            InitializeNewSession("Chat");
         }
 
         /// <summary>
@@ -133,6 +227,37 @@ namespace Logic.Lite
             _currentSession = new ChatSession { SessionName = sessionName };
             _currentFilePath = global::System.IO.Path.Combine(_historyDirectory, $"{sessionName}.json");
             SaveSession();
+            EmitSignal(SignalName.OnSessionListUpdated);
+        }
+
+        public void LoadSessionByName(string sessionName)
+        {
+            string filePath = global::System.IO.Path.Combine(_historyDirectory, $"{sessionName}.json");
+            if (global::System.IO.File.Exists(filePath))
+            {
+                try
+                {
+                    string jsonString = global::System.IO.File.ReadAllText(filePath);
+                    var options = new global::System.Text.Json.JsonSerializerOptions 
+                    { 
+                        PropertyNameCaseInsensitive = true 
+                    };
+                    var loadedSession = global::System.Text.Json.JsonSerializer.Deserialize<ChatSession>(jsonString, options);
+                    if (loadedSession != null)
+                    {
+                        _currentSession = loadedSession;
+                        _currentFilePath = filePath;
+                        GD.Print($"[BRAIN] Loaded existing session: {sessionName}");
+                        EmitSignal(SignalName.OnSessionListUpdated);
+                        return;
+                    }
+                }
+                catch (global::System.Exception ex)
+                {
+                    GD.PrintErr($"[BRAIN] Failed to load session from {filePath}: {ex.Message}");
+                }
+            }
+            InitializeNewSession(sessionName);
         }
 
         /// <summary>
@@ -145,6 +270,7 @@ namespace Logic.Lite
                 var options = new global::System.Text.Json.JsonSerializerOptions { WriteIndented = true };
                 string jsonString = global::System.Text.Json.JsonSerializer.Serialize(_currentSession, options);
                 global::System.IO.File.WriteAllText(_currentFilePath, jsonString);
+                EmitSignal(SignalName.OnSessionListUpdated);
             }
             catch (global::System.Exception ex)
             {
@@ -157,7 +283,7 @@ namespace Logic.Lite
         /// Manages state persistence, routes requests to native or cloud provider backends, and handles continuous tool call execution sequences.
         /// </summary>
         /// <param name="userInput">The raw unstructured prompt string submitted by the user interface layer.</param>
-        public async global::System.Threading.Tasks.Task SendToAI(string userInput)
+        public async global::System.Threading.Tasks.Task SendToAI(string userInput, int mode = 1, global::System.Collections.Generic.List<string> activeTools = null)
         {
             if (string.IsNullOrWhiteSpace(userInput) || _networkManager == null) return;
 
@@ -176,7 +302,7 @@ namespace Logic.Lite
 
             // Step 2: Construct the initial LLM prompt based on the current conversation state.
             await SyncMCPTools();
-            string prompt = BuildPrompt();
+            string prompt = BuildPrompt(mode, activeTools);
 
             // Notify UI layer that inference has commenced.
             EmitSignal(SignalName.OnBotStartedThinking);
@@ -203,8 +329,9 @@ namespace Logic.Lite
                 await _networkManager.StreamChatCompletion(prompt);
             }
 
-            // Telemetry logging tracking the unparsed character output stream from the first execution turn.
-            GD.Print($"\n[LLAMA RAW BUFFER]\n{_currentAssistantBuffer}\n===================================================\n");
+            GD.Print("\n================ [AGI RESPONSE] ================");
+            GD.Print(_currentAssistantBuffer.Trim());
+            GD.Print("================================================\n");
 
             // --- AGENT LOOP START ---
             int maxAgentLoops = 15;
@@ -215,76 +342,82 @@ namespace Logic.Lite
             {
                 toolExecuted = false;
                 string rawResponseAgent = _currentAssistantBuffer.Trim();
-                int jsonStart = rawResponseAgent.IndexOf('{');
-                int jsonEnd = rawResponseAgent.LastIndexOf('}');
+                
+                // NEW REGEX: Catch everything inside [TOOL: ...]
+                var match = global::System.Text.RegularExpressions.Regex.Match(
+                    rawResponseAgent, 
+                    @"\[TOOL:\s*(.+?)(?:\]|$)", // <-- Forgiving ending: Matches ']' OR End of String
+                    global::System.Text.RegularExpressions.RegexOptions.Singleline
+                );
 
-                // Validates structural boundaries to distinguish tool execution parameters from conversational tokens.
-                if (jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart && rawResponseAgent.Contains("\"tool\""))
+                if (match.Success)
                 {
                     try
                     {
-                        // Isolate the exact JSON block payload substring from any preceding reasoning tokens or text content wrappers.
-                        string jsonBlock = rawResponseAgent.Substring(jsonStart, jsonEnd - jsonStart + 1);
-                        using var doc = global::System.Text.Json.JsonDocument.Parse(jsonBlock);
+                        string innerContent = match.Groups[1].Value.Trim();
 
-                        if (doc.RootElement.TryGetProperty("tool", out var toolElement))
+                        // Split the parameters using the pipe character
+                        var parts = innerContent.Split('|');
+                        string toolName = parts[0].Trim();
+
+                        var argsDict = new global::System.Collections.Generic.Dictionary<string, string>();
+
+                        for(int i = 1; i < parts.Length; i++)
                         {
-                            string toolName = toolElement.GetString();
-
-                            // Instrumentation notification to native logs and user interface layout systems.
-                            GD.Print($"\n[AGENT] Unified MCP Tool Call Intercepted: {toolName}");
-                            CallDeferred(MethodName.EmitSignal, SignalName.OnBotThoughtTokenReceived, $"\n[AGENTE: Ejecutando herramienta MCP '{toolName}']...\n");
-                            CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolExecutionStarted, toolName);
-
-                            // ── SECURITY INTERCEPTOR: DATA-DRIVEN APPROVAL GATE ──────────────────
-                            // Permission is read from ConfigManager.ToolPermissions, set by the
-                            // Settings UI. This gate is fully controlled by the user — no hardcoded
-                            // tool names. Excluded tools (perm == 2) are already filtered out of
-                            // the MCP schema by SyncMCPTools(), so they should not reach this path.
-                            //   0 = Automatic  → execute without user interruption.
-                            //   1 = Ask First  → pause and require user confirmation.
-                            //   2 = Excluded   → safety fallback: deny silently.
-                            var configForApproval = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
-                            int toolPermission = 1; // Default to Ask First when no preference saved.
-                            if (configForApproval?.ToolPermissions != null
-                                && configForApproval.ToolPermissions.TryGetValue(toolName, out int savedPerm))
+                            var kv = parts[i].Split(new[] { ':' }, 2);
+                            if(kv.Length == 2)
                             {
-                                toolPermission = savedPerm;
+                                // Clean up whitespace and quotes
+                                argsDict[kv[0].Trim()] = kv[1].Trim().Trim('"', '\'');
                             }
-                            bool requiresApproval = toolPermission == 1; // Ask First
-                            bool isExcluded       = toolPermission == 2; // Excluded (safety fallback)
+                        }
 
-                            string finalJsonPayload = jsonBlock;
-                            bool toolApproved = true;
+                        // Serialize ONLY the arguments for the UI Approval Dialog
+                        string finalJsonPayload = global::System.Text.Json.JsonSerializer.Serialize(argsDict);
 
-                            if (isExcluded)
-                            {
-                                // Safety fallback: tool was excluded by the user in Settings.
-                                // SyncMCPTools() should have stripped it from the schema,
-                                // but block execution here as a second line of defense.
-                                GD.Print($"[AGENT] Tool '{toolName}' is EXCLUDED by user policy. Blocking execution.");
-                                toolApproved = false;
-                            }
-                            else if (requiresApproval)
-                            {
-                                CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolApprovalRequired, toolName, finalJsonPayload);
-                                var userDecision = await ToSignal(this, SignalName.OnUserToolApprovalResponse);
-                                toolApproved = userDecision[0].AsBool();
-                                finalJsonPayload = userDecision[1].AsString();
-                            }
+                        // Instrumentation notification to native logs and user interface layout systems.
+                        GD.Print($"\n[AGENT] Unified MCP Tool Call Intercepted: {toolName}");
+                        CallDeferred(MethodName.EmitSignal, SignalName.OnBotThoughtTokenReceived, $"\n[AGENTE: Ejecutando herramienta MCP '{toolName}']...\n");
+                        CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolExecutionStarted, toolName);
 
-                            string contextResult = "";
-                            if (!toolApproved)
-                            {
-                                GD.Print($"[AGENT] Ejecución de herramienta '{toolName}' denegada por el usuario.");
-                                contextResult = $"[MCP TOOL RESULT: {toolName}]\nExecution denied by the user. Do not attempt this specific action again without asking differently.";
-                            }
-                            else
-                            {
-                                await _networkManager.RequestMCPExecution(toolName, finalJsonPayload);
-                                var mcpSignal = await ToSignal(_networkManager, Logic.Network.NetworkManager.SignalName.SearchCompleted);
-                                contextResult = $"[MCP TOOL RESULT: {toolName}]\n{mcpSignal[0].AsString()}";
-                            }
+                        // ── SECURITY INTERCEPTOR: DATA-DRIVEN APPROVAL GATE ──────────────────
+                        var configForApproval = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+                        int toolPermission = 1; // Default to Ask First when no preference saved.
+                        if (configForApproval?.ToolPermissions != null
+                            && configForApproval.ToolPermissions.TryGetValue(toolName, out int savedPerm))
+                        {
+                            toolPermission = savedPerm;
+                        }
+                        bool requiresApproval = toolPermission == 1; // Ask First
+                        bool isExcluded       = toolPermission == 2; // Excluded (safety fallback)
+
+                        bool toolApproved = true;
+
+                        if (isExcluded)
+                        {
+                            GD.Print($"[AGENT] Tool '{toolName}' is EXCLUDED by user policy. Blocking execution.");
+                            toolApproved = false;
+                        }
+                        else if (requiresApproval)
+                        {
+                            CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolApprovalRequired, toolName, finalJsonPayload);
+                            var userDecision = await ToSignal(this, SignalName.OnUserToolApprovalResponse);
+                            toolApproved = userDecision[0].AsBool();
+                            finalJsonPayload = userDecision[1].AsString();
+                        }
+
+                        string contextResult = "";
+                        if (!toolApproved)
+                        {
+                            GD.Print($"[AGENT] Ejecución de herramienta '{toolName}' denegada por el usuario.");
+                            contextResult = $"[MCP TOOL RESULT: {toolName}]\nExecution denied by the user. Do not attempt this specific action again without asking differently.";
+                        }
+                        else
+                        {
+                            await _networkManager.RequestMCPExecution(toolName, finalJsonPayload);
+                            var mcpSignal = await ToSignal(_networkManager, Logic.Network.NetworkManager.SignalName.SearchCompleted);
+                            contextResult = $"[MCP TOOL RESULT: {toolName}]\n{mcpSignal[0].AsString()}";
+                        }
 
                             // Step 3.1: Temporarily inject the tool result into memory to ground the final response.
                             _currentSession.Messages.Add(new ChatMessage { Id = newId + 1, Role = "system", Content = contextResult });
@@ -296,7 +429,7 @@ namespace Logic.Lite
                             _isInsideThinkBlock = false;
 
                             // Step 3.3: Re-generate the prompt with the newly acquired context.
-                            string newPrompt = BuildPrompt();
+                            string newPrompt = BuildPrompt(mode, activeTools);
 
                             // Step 3.4: Re-stream inference based on the active mode.
                             var configCheck = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
@@ -309,7 +442,9 @@ namespace Logic.Lite
                                 await _networkManager.StreamChatCompletion(newPrompt);
                             }
 
-                            GD.Print($"\n[LLAMA RAW BUFFER (LOOP {currentLoop + 1})]\n{_currentAssistantBuffer}\n===================================================\n");
+                            GD.Print("\n================ [AGI RESPONSE] ================");
+                            GD.Print(_currentAssistantBuffer.Trim());
+                            GD.Print("================================================\n");
 
                             // Step 3.5: Clean up the temporary system injection to maintain history purity.
                             _currentSession.Messages.RemoveAt(_currentSession.Messages.Count - 1);
@@ -317,7 +452,6 @@ namespace Logic.Lite
                             toolExecuted = true;
                             currentLoop++;
                         }
-                    }
                     catch (global::System.Exception ex)
                     {
                         GD.PrintErr($"[AGENT ERROR] Failed to parse or execute generic MCP tool call: {ex.Message}");
@@ -326,7 +460,7 @@ namespace Logic.Lite
             }
             // --- AGENT LOOP END ---
 
-            // --- FLUSH DE TEXTO RETENIDO (Falso positivo de JSON) ---
+            // --- FLUSH DE TEXTO RETENIDO (Falso positivo de TOOL) ---
             string visibleTextFinal = "";
             if (_currentAssistantBuffer.Contains("</think>"))
             {
@@ -350,12 +484,9 @@ namespace Logic.Lite
             if (!string.IsNullOrWhiteSpace(_ttsBuffer))
             {
                 string safeText = CleanResponseForTTS(_ttsBuffer);
-                if (!string.IsNullOrWhiteSpace(safeText)) _ttsManager?.Speak(safeText);
+                if (IsLiveModeActive && !string.IsNullOrWhiteSpace(safeText)) _ = _networkManager?.RequestTTSWebSocket(safeText);
                 _ttsBuffer = string.Empty;
             }
-
-            // Telemetry tracking logging final block generations prior to structural validation string parses.
-            GD.Print($"\n[LLAMA RAW BUFFER (FINAL)]\n{_currentAssistantBuffer}\n===================================================\n");
 
             // Step 5: Parse reasoning (think) and content for final storage.
             string rawResponse = _currentAssistantBuffer;
@@ -410,9 +541,6 @@ namespace Logic.Lite
             string safeTtsText = CleanResponseForTTS(finalContent);
             if (string.IsNullOrWhiteSpace(safeTtsText)) safeTtsText = "Pensé demasiado y perdí el hilo. ¿Puedes repetirlo?";
 
-            // Outputs the completed text response to the native Godot logs for diagnostics.
-            GD.Print($"\n[AGI RESPONSE]\n{finalContent}\n");
-
             EmitSignal(SignalName.OnBotFinishedSpeaking, safeTtsText);
         }
 
@@ -461,18 +589,31 @@ namespace Logic.Lite
                     visibleText = _currentAssistantBuffer;
                 }
 
-                // --- NUEVO FILTRO: OCULTAR JSON EN TIEMPO REAL ---
-                int jsonStart = visibleText.IndexOf('{');
-                if (jsonStart != -1)
+                // --- INSTANT UI STREAM MUTING & LOOKAHEAD DETECTOR ---
+                string activeText = visibleText;
+                int toolStart = activeText.IndexOf("[TOOL:");
+                if (toolStart != -1)
                 {
-                    // Freezes visible output string configurations prior to the intercepted symbol delimiter.
-                    visibleText = visibleText.Substring(0, jsonStart);
+                    activeText = activeText.Substring(0, toolStart);
+                }
+                else
+                {
+                    // Lookahead: check if it ends with a partial prefix of "[TOOL:"
+                    string[] prefixes = { "[TOOL", "[TOO", "[TO", "[T", "[" };
+                    foreach (var prefix in prefixes)
+                    {
+                        if (activeText.EndsWith(prefix))
+                        {
+                            activeText = activeText.Substring(0, activeText.Length - prefix.Length);
+                            break;
+                        }
+                    }
                 }
 
-                if (visibleText.Length > _uiBuffer.Length)
+                if (activeText.Length > _uiBuffer.Length)
                 {
-                    string newChars = visibleText.Substring(_uiBuffer.Length);
-                    _uiBuffer = visibleText;
+                    string newChars = activeText.Substring(_uiBuffer.Length);
+                    _uiBuffer = activeText;
                     _ttsBuffer += newChars;
                     CallDeferred(MethodName.EmitSignal, SignalName.OnBotMessageTokenReceived, newChars);
                 }
@@ -484,7 +625,7 @@ namespace Logic.Lite
                     string cleanChunk = CleanResponseForTTS(_ttsBuffer);
                     if (!string.IsNullOrWhiteSpace(cleanChunk))
                     {
-                        _ttsManager?.Speak(cleanChunk);
+                        if (IsLiveModeActive) _ = _networkManager?.RequestTTSWebSocket(cleanChunk);
                     }
                     _ttsBuffer = string.Empty;
                 }
@@ -495,19 +636,16 @@ namespace Logic.Lite
         /// Constructs the standardized ChatML prompt, dynamically injecting current tool schemas 
         /// into the system context to guide agentic behavior.
         /// </summary>
-        private string BuildPrompt()
+        private string BuildPrompt(int mode, global::System.Collections.Generic.List<string> activeTools)
         {
             var config = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
             var template = config?.ActiveProfile?.Template ?? new Logic.System.Config.ConfigManager.ChatTemplate();
 
             StringBuilder builder = new StringBuilder();
-            string timeString = global::System.DateTime.Now.ToString("f");
-            string currentTimeContext = $"Fecha y hora actual del sistema: {timeString}.";
 
-            // Injects the synchronized MCP tool list into the foundational prompt instructions.
-            string dynamicSystemPrompt = $"{SystemPrompt}\n\n[ MCP DYNAMIC TOOLS SCHEMA ]\n{_availableTools}";
+            string dynamicSystemPrompt = BuildDynamicPrompt(mode, activeTools);
 
-            builder.Append($"{template.SystemPrefix}{dynamicSystemPrompt}\n{currentTimeContext}\nMemoria actual: {_currentSession.Summary}{template.StopSequence}");
+            builder.Append($"{template.SystemPrefix}{dynamicSystemPrompt}\nMemoria actual: {_currentSession.Summary}{template.StopSequence}");
 
             int startIndex = global::System.Math.Max(0, _currentSession.Messages.Count - 10);
             for (int i = startIndex; i < _currentSession.Messages.Count; i++)
@@ -608,6 +746,13 @@ namespace Logic.Lite
             string cleaned = global::System.Text.RegularExpressions.Regex.Replace(
                 input,
                 @"<think>.*?(</think>|$)",
+                "",
+                global::System.Text.RegularExpressions.RegexOptions.Singleline
+            );
+
+            cleaned = global::System.Text.RegularExpressions.Regex.Replace(
+                cleaned,
+                @"\[TOOL:.*?\]",
                 "",
                 global::System.Text.RegularExpressions.RegexOptions.Singleline
             );

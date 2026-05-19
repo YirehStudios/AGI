@@ -3,14 +3,6 @@
 [ext_resource type="Script" uid="uid://cqlqgupb2vwje" path="res://Script/Cs/LivemodeMain.cs" id="1_script"]
 [ext_resource type="Shader" uid="uid://u154mo58le6m" path="res://Resources/Components/LiveModeShader.gdshader" id="2_jrrha"]
 
-[sub_resource type="SystemFont" id="SystemFont_regular"]
-font_names = PackedStringArray("Sans-Serif")
-subpixel_positioning = 0
-
-[sub_resource type="Theme" id="Theme_global"]
-default_font = SubResource("SystemFont_regular")
-default_font_size = 15
-
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_chatgpt_blob"]
 shader = ExtResource("2_jrrha")
 shader_parameter/voice_level = 0.0
@@ -82,16 +74,16 @@ _data = {
 
 [sub_resource type="AudioStreamMicrophone" id="AudioStreamMicrophone_k6qk6"]
 
-[node name="LiveModeInterface" type="Panel" unique_id=140527907 node_paths=PackedStringArray("WaveVisualizer", "WaveAnimationPlayer", "MicroRecorderPlayer")]
+[node name="LiveModeInterface" type="Panel" unique_id=140527907 node_paths=PackedStringArray("WaveVisualizer", "WaveAnimationPlayer", "AIVoicePlayer", "MicroRecorderPlayer")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme = SubResource("Theme_global")
 script = ExtResource("1_script")
 WaveVisualizer = NodePath("MainContainer/LiveAreaContainer/CenterArea/WaveVisualizer")
 WaveAnimationPlayer = NodePath("WaveAnimationPlayer")
+AIVoicePlayer = NodePath("AIVoicePlayer")
 MicroRecorderPlayer = NodePath("Microphone")
 
 [node name="MainContainer" type="HBoxContainer" parent="." unique_id=1363021348]
@@ -171,3 +163,6 @@ autoplay = &"idle"
 stream = SubResource("AudioStreamMicrophone_k6qk6")
 autoplay = true
 bus = &"Record"
+
+[node name="AIVoicePlayer" type="AudioStreamPlayer" parent="." unique_id=1562404382]
+bus = &"Voice"

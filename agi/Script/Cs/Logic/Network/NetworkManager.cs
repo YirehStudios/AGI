@@ -226,11 +226,46 @@ namespace Logic.Network
         {
             try
             {
-                // Enforces direct compliance with the FastAPI ToolCallRequest model contract by passing raw input.
-                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+                // Deserialize the payload
+                using JsonDocument parsedDoc = JsonDocument.Parse(jsonPayload);
+                string finalMcpPayload;
+                
+                // If it's already wrapped, unwrap it recursively to be extremely bulletproof
+                if (parsedDoc.RootElement.ValueKind == JsonValueKind.Object &&
+                    parsedDoc.RootElement.TryGetProperty("name", out _) &&
+                    parsedDoc.RootElement.TryGetProperty("arguments", out JsonElement argsEl))
+                {
+                    JsonElement currentArgs = argsEl;
+                    string currentName = toolName;
+                    while (currentArgs.ValueKind == JsonValueKind.Object &&
+                           currentArgs.TryGetProperty("name", out JsonElement nameProp) &&
+                           currentArgs.TryGetProperty("arguments", out JsonElement innerArgs))
+                    {
+                        currentName = nameProp.GetString() ?? currentName;
+                        currentArgs = innerArgs;
+                    }
+                    
+                    var mcpRequest = new
+                    {
+                        name = currentName,
+                        arguments = currentArgs
+                    };
+                    finalMcpPayload = JsonSerializer.Serialize(mcpRequest);
+                }
+                else
+                {
+                    var mcpRequest = new
+                    {
+                        name = toolName,
+                        arguments = parsedDoc.RootElement
+                    };
+                    finalMcpPayload = JsonSerializer.Serialize(mcpRequest);
+                }
+                
+                var content = new StringContent(finalMcpPayload, Encoding.UTF8, "application/json");
 
                 // Outbox logging for continuous telemetry tracing of the dispatched request buffer.
-                GD.Print($"\n[NET -> MCP] Enviando payload:\n{jsonPayload}");
+                GD.Print($"\n[NET -> MCP] Enviando payload:\n{finalMcpPayload}");
 
                 HttpResponseMessage response = await _httpClient.PostAsync("http://127.0.0.1:8002/call_tool", content);
                 response.EnsureSuccessStatusCode();
@@ -303,21 +338,13 @@ namespace Logic.Network
         }
 
         /// <summary>
-        /// Opens a WebSocket connection to the Kokoro ONNX TTS server at <c>ws://127.0.0.1:8888</c>,
-        /// transmits the text as <c>{"text": "..."}</c>, and accumulates the full WAV response.
+        /// Establishes an ephemeral WebSocket connection to the TTS microservice to request audio synthesis.
+        /// Transmits the target text alongside a hardcoded voice profile identifier ('ef_dora') as strictly 
+        /// defined by the architectural constraints to ensure pipeline stability.
+        /// Accumulates the binary WAV chunks returned by the server to circumvent MTU fragmentation limits, 
+        /// emitting the complete contiguous byte array once the transmission naturally concludes.
         /// </summary>
-        /// <remarks>
-        /// PROTOCOL CONTRACT (tts_server.py):
-        ///   → Client sends: text frame JSON <c>{"text": "sentence"}</c>
-        ///   ← Server replies: one binary frame containing a complete WAV file (RIFF header + PCM)
-        ///   ← Server then closes the connection naturally.
-        ///
-        /// CRITICAL: The server sends the WAV as one logical message, but the .NET WebSocket
-        /// client receives it in network-MTU-sized chunks (result.EndOfMessage == false for
-        /// intermediate chunks). All chunks MUST be accumulated before emitting to NativeTTSManager,
-        /// otherwise only a 8KB fragment would be played, producing silent or corrupt audio.
-        /// </remarks>
-        /// <param name="textToSynthesize">Cleaned plain-text sentence to synthesize.</param>
+        /// <param name="textToSynthesize">The clean, plain-text string segment to be converted into speech.</param>
         public async Task RequestTTSWebSocket(string textToSynthesize)
         {
             if (string.IsNullOrWhiteSpace(textToSynthesize)) return;
@@ -327,12 +354,10 @@ namespace Logic.Network
                 using var ws = new ClientWebSocket();
                 await ws.ConnectAsync(new Uri("ws://127.0.0.1:8888"), global::System.Threading.CancellationToken.None);
 
-                // Exact payload schema consumed by tts_server.py: data.get("text", "")
-                // The server does NOT use any other field — keep the payload minimal.
-                string jsonPayload = $"{{\"text\":\"{EscapeJsonString(textToSynthesize)}\"}}";
+                string jsonPayload = $"{{\"text\":\"{EscapeJsonString(textToSynthesize)}\", \"voice\":\"ef_dora\"}}";
                 byte[] sendBytes = global::System.Text.Encoding.UTF8.GetBytes(jsonPayload);
 
-                GD.Print($"[TTS→WS] Dispatching: {jsonPayload}");
+                GD.Print($"[TTS->WS] Dispatching: {jsonPayload}");
 
                 await ws.SendAsync(
                     new ArraySegment<byte>(sendBytes),
@@ -340,11 +365,8 @@ namespace Logic.Network
                     true,
                     global::System.Threading.CancellationToken.None);
 
-                // Accumulate the complete WAV response before emitting.
-                // The server sends one complete WAV per synthesis request; .NET chunks it
-                // by MTU. We must reassemble all chunks into a single buffer.
                 using var wavAccumulator = new global::System.IO.MemoryStream();
-                byte[] recvBuffer = new byte[16384]; // 16 KB read window
+                byte[] recvBuffer = new byte[16384];
 
                 while (ws.State == WebSocketState.Open)
                 {
@@ -354,28 +376,24 @@ namespace Logic.Network
 
                     if (chunk.MessageType == WebSocketMessageType.Binary)
                     {
-                        // Write this network chunk into the accumulator.
                         wavAccumulator.Write(recvBuffer, 0, chunk.Count);
 
                         if (chunk.EndOfMessage)
                         {
-                            // Full WAV received — emit once to NativeTTSManager.
                             byte[] completeWav = wavAccumulator.ToArray();
-                            GD.Print($"[TTS←WS] WAV received: {completeWav.Length} bytes");
+                            GD.Print($"[TTS<-WS] WAV received: {completeWav.Length} bytes");
                             CallDeferred(MethodName.EmitSignal, SignalName.TTSAudioChunkReceived, completeWav);
-                            wavAccumulator.SetLength(0); // Reset for any subsequent messages.
+                            wavAccumulator.SetLength(0);
                         }
                     }
                     else if (chunk.MessageType == WebSocketMessageType.Close)
                     {
-                        // Server closed cleanly after sending the WAV.
                         break;
                     }
                     else if (chunk.MessageType == WebSocketMessageType.Text)
                     {
-                        // tts_server.py never sends text frames back; log if unexpected.
                         string msg = global::System.Text.Encoding.UTF8.GetString(recvBuffer, 0, chunk.Count);
-                        GD.PrintErr($"[TTS←WS] Unexpected text frame: {msg}");
+                        GD.PrintErr($"[TTS<-WS] Unexpected text frame: {msg}");
                     }
                 }
             }

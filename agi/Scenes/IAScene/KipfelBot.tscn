@@ -11,7 +11,8 @@ sky_material = SubResource("ProceduralSkyMaterial_wm535")
 background_mode = 1
 sky = SubResource("Sky_hbsub")
 
-[sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_2xoth"]
+[sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_wm535"]
+exposure_multiplier = 0.375
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_wm535"]
 size = Vector3(2.0029907, 0.48382568, 3.3256836)
@@ -22,7 +23,7 @@ size = Vector3(2.0029907, 0.48382568, 3.3256836)
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1876679796]
 environment = SubResource("Environment_rqcts")
-camera_attributes = SubResource("CameraAttributesPractical_2xoth")
+camera_attributes = SubResource("CameraAttributesPractical_wm535")
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=1788171917]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.012799695, 0.6458548, 0.45928842)
