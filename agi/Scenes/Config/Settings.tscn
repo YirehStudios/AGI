@@ -9,6 +9,7 @@
 [ext_resource type="Texture2D" uid="uid://ci5ddyqb55uuf" path="res://Resources/Images/Icons/Util/Privacy.svg" id="7_fm1s0"]
 [ext_resource type="Texture2D" uid="uid://c6h4dchoc2bf6" path="res://Resources/Images/Icons/Util/Info.svg" id="8_0jj0d"]
 [ext_resource type="Texture2D" uid="uid://bq4h3or8fle5f" path="res://Resources/Images/Icons/Util/Update.svg" id="9_jepcl"]
+[ext_resource type="Texture2D" uid="uid://ckm6vcebgm3he" path="res://Resources/Images/Icons/Util/DarkMode.svg" id="10_jepcl"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_GlassRoot"]
 shader = ExtResource("2_glass")
@@ -338,6 +339,7 @@ text = "Apariencia"
 unique_name_in_owner = true
 layout_mode = 2
 text = "Modo Oscuro"
+icon = ExtResource("10_jepcl")
 
 [node name="PrivacyViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin" unique_id=1587880699]
 unique_name_in_owner = true

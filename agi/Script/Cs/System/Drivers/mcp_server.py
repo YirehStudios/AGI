@@ -25,9 +25,12 @@ def is_safe_path(requested_path: str) -> bool:
     except Exception:
         return False
 
+from typing import Any, Dict, List, Optional
+
 class ToolCallRequest(BaseModel):
     """Data transfer object for executing tool logic via the MCP gateway."""
-    tool: str
+    tool: Optional[str] = None
+    name: Optional[str] = None
     arguments: Dict[str, Any]
 
 def execute_os_command(command: str) -> str:
@@ -365,7 +368,9 @@ async def call_tool(request: ToolCallRequest):
     Universal centralized dispatch entry point routing inbound parameter maps to corresponding 
     isolated backend workers while validating system security sandbox constraints.
     """
-    name = request.tool
+    name = request.tool or request.name
+    if not name:
+        raise HTTPException(status_code=422, detail="Missing required field: 'tool' or 'name'")
     args = request.arguments
 
     if name == "os_command":

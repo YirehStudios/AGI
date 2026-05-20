@@ -7,6 +7,7 @@ namespace Logic.UI
     {
         [Export] public PackedScene ChatbotScene;
         [Export] public PackedScene LivemodeScene;
+        [Export] public PackedScene AgiModeScene; // Nueva escena para el modelo 3D (Kipfel3D)
         [Export] public Panel SidebarWrapper;
         [Export] public Panel ContentContainer;
         [Export] public CenterContainer WelcomeOverlay;
@@ -64,7 +65,7 @@ namespace Logic.UI
                 LiveModeButton.Pressed += () => ChangeMode(LivemodeScene, "Modo Live");
 
             if (AgiModeButton != null)
-                AgiModeButton.Pressed += () => ChangeMode(null, "Modo AGI");
+                AgiModeButton.Pressed += () => ChangeMode(AgiModeScene, "Modo AGI");
 
             if (HistoryButton != null)
             {
@@ -119,13 +120,49 @@ namespace Logic.UI
             if (sceneToLoad == null) return;
 
             _currentView = sceneToLoad.Instantiate();
-            ContentContainer.AddChild(_currentView);
 
-            if (_currentView is Control controlView)
+            // Si la escena raíz NO es un Control 2D (es decir, es 3D), se envuelve en SubViewport
+            if (_currentView is not Control)
             {
-                controlView.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-                controlView.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-                controlView.SizeFlagsVertical = SizeFlags.ExpandFill;
+                SubViewportContainer viewportContainer = new SubViewportContainer();
+                viewportContainer.Name = "AgiViewportContainer";
+                viewportContainer.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+                viewportContainer.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+                viewportContainer.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+                viewportContainer.Stretch = true;
+
+                SubViewport viewport = new SubViewport();
+                viewport.Name = "AgiSubViewport";
+                viewport.TransparentBg = true;
+                viewport.RenderTargetClearMode = SubViewport.ClearMode.Always;
+                viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Always;
+                viewport.AudioListenerEnable3D = true;
+                viewport.AudioListenerEnable2D = true;
+
+                viewport.AddChild(_currentView);
+                viewportContainer.AddChild(viewport);
+                ContentContainer.AddChild(viewportContainer);
+
+                // Sync the viewport size once the container has been laid out
+                viewportContainer.Ready += () =>
+                {
+                    viewport.Size = (Vector2I)viewportContainer.Size;
+                };
+                viewportContainer.Resized += () =>
+                {
+                    viewport.Size = (Vector2I)viewportContainer.Size;
+                };
+            }
+            else
+            {
+                ContentContainer.AddChild(_currentView);
+
+                if (_currentView is Control controlView)
+                {
+                    controlView.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+                    controlView.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+                    controlView.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+                }
             }
 
             if (_currentView.HasMethod("UpdateTheme"))

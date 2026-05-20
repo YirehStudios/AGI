@@ -232,13 +232,13 @@ namespace Logic.Network
                 
                 // If it's already wrapped, unwrap it recursively to be extremely bulletproof
                 if (parsedDoc.RootElement.ValueKind == JsonValueKind.Object &&
-                    parsedDoc.RootElement.TryGetProperty("name", out _) &&
+                    (parsedDoc.RootElement.TryGetProperty("name", out _) || parsedDoc.RootElement.TryGetProperty("tool", out _)) &&
                     parsedDoc.RootElement.TryGetProperty("arguments", out JsonElement argsEl))
                 {
                     JsonElement currentArgs = argsEl;
                     string currentName = toolName;
                     while (currentArgs.ValueKind == JsonValueKind.Object &&
-                           currentArgs.TryGetProperty("name", out JsonElement nameProp) &&
+                           (currentArgs.TryGetProperty("name", out JsonElement nameProp) || currentArgs.TryGetProperty("tool", out nameProp)) &&
                            currentArgs.TryGetProperty("arguments", out JsonElement innerArgs))
                     {
                         currentName = nameProp.GetString() ?? currentName;
@@ -247,7 +247,7 @@ namespace Logic.Network
                     
                     var mcpRequest = new
                     {
-                        name = currentName,
+                        tool = currentName,
                         arguments = currentArgs
                     };
                     finalMcpPayload = JsonSerializer.Serialize(mcpRequest);
@@ -256,7 +256,7 @@ namespace Logic.Network
                 {
                     var mcpRequest = new
                     {
-                        name = toolName,
+                        tool = toolName,
                         arguments = parsedDoc.RootElement
                     };
                     finalMcpPayload = JsonSerializer.Serialize(mcpRequest);

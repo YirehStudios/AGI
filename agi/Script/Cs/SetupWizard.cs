@@ -1233,10 +1233,20 @@ namespace Logic.Utils
                 Logic.System.Config.ConfigManager.Instance.SaveConfiguration();
             }
 
-            string path = esOscuro ? "res://Resources/UI_Themes/minimal_theme.tres" : "res://Resources/UI_Themes/tema_claro.tres";
-            Theme temaCorrecto = ResourceLoader.Load<Theme>(path);
-            this.Theme = temaCorrecto;
+            // Sync with global ThemeManager autoload and apply globally to tree root
+            if (Logic.UI.ThemeManager.Instance != null)
+            {
+                GetTree().Root.Theme = Logic.UI.ThemeManager.Instance.ObtenerTemaGlobal(esOscuro);
+            }
+            else
+            {
+                string path = esOscuro ? "res://Resources/UI_Themes/minimal_theme.tres" : "res://Resources/UI_Themes/tema_claro.tres";
+                Theme temaCorrecto = ResourceLoader.Load<Theme>(path);
+                this.Theme = temaCorrecto;
+                GetTree().Root.Theme = temaCorrecto;
+            }
 
+            // Update local ColorRect/Panel background
             if (SetupBackground is ColorRect bgRect)
             {
                 bgRect.Color = esOscuro ? new Color("#131313") : new Color("#f5f5f7");
@@ -1246,6 +1256,90 @@ namespace Logic.Utils
                 var style = new StyleBoxFlat { BgColor = esOscuro ? new Color("#131313") : new Color("#f5f5f7") };
                 bgPanel.AddThemeStyleboxOverride("panel", style);
             }
+
+            // --- Real-time Local Overrides and Aesthetic Hardening ---
+
+            // Retrieve and update the Glass Panel StyleBox Flat properties
+            if (PanelWelcome != null && PanelWelcome.GetThemeStylebox("panel") is StyleBoxFlat glassStyle)
+            {
+                if (esOscuro)
+                {
+                    glassStyle.BgColor = new Color(0.12f, 0.12f, 0.14f, 0.85f);
+                    glassStyle.BorderColor = new Color(1f, 1f, 1f, 0.08f);
+                    glassStyle.ShadowColor = new Color(0f, 0f, 0f, 0.45f);
+                }
+                else
+                {
+                    glassStyle.BgColor = new Color(1f, 1f, 1f, 0.92f);
+                    glassStyle.BorderColor = new Color(0f, 0f, 0f, 0.08f);
+                    glassStyle.ShadowColor = new Color(0f, 0f, 0f, 0.08f);
+                }
+            }
+
+            // Retrieve and update the Card & Input Field StyleBox Flat properties
+            if (TxtLanIpInput != null && TxtLanIpInput.GetThemeStylebox("normal") is StyleBoxFlat inputStyle)
+            {
+                if (esOscuro)
+                {
+                    inputStyle.BgColor = new Color(0f, 0f, 0f, 0.2f);
+                    inputStyle.BorderColor = new Color(1f, 1f, 1f, 0.05f);
+                    inputStyle.BorderWidthLeft = 0;
+                    inputStyle.BorderWidthTop = 0;
+                    inputStyle.BorderWidthRight = 0;
+                    inputStyle.BorderWidthBottom = 0;
+                }
+                else
+                {
+                    inputStyle.BgColor = new Color(0.95f, 0.95f, 0.96f, 1f);
+                    inputStyle.BorderColor = new Color(0.89f, 0.89f, 0.91f, 1f);
+                    inputStyle.BorderWidthLeft = 1;
+                    inputStyle.BorderWidthTop = 1;
+                    inputStyle.BorderWidthRight = 1;
+                    inputStyle.BorderWidthBottom = 1;
+                }
+            }
+
+            // Retrieve and update the Button normal/hover stylebox properties
+            if (BtnTemaOscuro != null && BtnTemaOscuro.GetThemeStylebox("normal") is StyleBoxFlat btnNormalStyle)
+            {
+                if (esOscuro)
+                {
+                    btnNormalStyle.BgColor = new Color(0.5f, 0.5f, 0.5f, 0.15f);
+                }
+                else
+                {
+                    btnNormalStyle.BgColor = new Color(0.90f, 0.90f, 0.92f, 1f);
+                }
+            }
+
+            if (BtnTemaOscuro != null && BtnTemaOscuro.GetThemeStylebox("hover") is StyleBoxFlat btnHoverStyle)
+            {
+                if (esOscuro)
+                {
+                    btnHoverStyle.BgColor = new Color(0.5f, 0.5f, 0.5f, 0.25f);
+                }
+                else
+                {
+                    btnHoverStyle.BgColor = new Color(0.85f, 0.85f, 0.87f, 1f);
+                }
+            }
+
+            // High contrast text colors for toggle and primary buttons
+            var whiteColor = new Color(1f, 1f, 1f, 1f);
+            var darkColor = new Color(0.114f, 0.114f, 0.122f, 1f);
+
+            BtnTemaOscuro?.AddThemeColorOverride("font_pressed_color", whiteColor);
+            BtnTemaClaro?.AddThemeColorOverride("font_pressed_color", whiteColor);
+            BtnTemaOscuro?.AddThemeColorOverride("font_focus_color", esOscuro ? whiteColor : darkColor);
+            BtnTemaClaro?.AddThemeColorOverride("font_focus_color", esOscuro ? whiteColor : darkColor);
+
+            BtnLowPerf?.AddThemeColorOverride("font_pressed_color", whiteColor);
+            BtnMedPerf?.AddThemeColorOverride("font_pressed_color", whiteColor);
+            BtnHighPerf?.AddThemeColorOverride("font_pressed_color", whiteColor);
+            
+            BtnLowPerf?.AddThemeColorOverride("font_focus_color", esOscuro ? whiteColor : darkColor);
+            BtnMedPerf?.AddThemeColorOverride("font_focus_color", esOscuro ? whiteColor : darkColor);
+            BtnHighPerf?.AddThemeColorOverride("font_focus_color", esOscuro ? whiteColor : darkColor);
         }
     }
 }

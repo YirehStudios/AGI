@@ -12,6 +12,7 @@ namespace Logic.UI.Components
         private Timer _dotsTimer;
         private int _dotCount = 0;
         private string _baseActionText = "Pensando";
+        public global::System.Collections.Generic.List<Control> DynamicBlocks = new global::System.Collections.Generic.List<Control>();
 
         public override void _Ready()
         {

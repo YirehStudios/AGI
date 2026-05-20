@@ -382,6 +382,7 @@ namespace Logic.UI
         {
             if (_mensajeBotActual == null) return;
             _mensajeBotActual.AgregarToken(token);
+            RenderDynamicBlocks(_mensajeBotActual, _mensajeBotActual.ObtenerTextoCompleto());
             ScrollToBottom();
         }
 
@@ -397,7 +398,7 @@ namespace Logic.UI
             if (_mensajeBotActual != null)
             {
                 _mensajeBotActual.FinalizarRespuesta();
-                InjectCodeBlocks(_mensajeBotActual.ObtenerTextoCompleto());
+                RenderDynamicBlocks(_mensajeBotActual, _mensajeBotActual.ObtenerTextoCompleto());
             }
         }
 
@@ -909,65 +910,98 @@ namespace Logic.UI
         /// Integrates programmatic layout duplication, runtime syntax color rule initialization, 
         /// and secure window clipboard routing bindings.
         /// </summary>
-        private void InjectCodeBlocks(string rawText)
+        private void RenderDynamicBlocks(Logic.UI.Components.MensajeBotUI bubble, string rawText)
         {
-            if (string.IsNullOrWhiteSpace(rawText) || !rawText.Contains("```")) return;
-            if (_mensajeBotActual == null) return;
+            if (string.IsNullOrWhiteSpace(rawText)) return;
+            if (bubble == null) return;
+            if (CodeBlockTemplate == null) return;
 
-            if (CodeBlockTemplate == null)
+            Control messageLayout = bubble.FindChild("MessageLayout", true, false) as Control;
+            RichTextLabel originalMarkdownNode = bubble.FindChild("MessageBody", true, false) as RichTextLabel;
+            if (messageLayout == null || originalMarkdownNode == null) return;
+
+            if (!rawText.Contains("```"))
             {
-                GD.PrintErr("[UI ERROR] CodeBlockTemplate es nulo. ¡Asigna tu PanelContainer de plantilla de código en el Inspector de Godot (ChatbotMain) para que puedan dibujarse!");
+                originalMarkdownNode.Visible = true;
+                originalMarkdownNode.Text = rawText;
+                originalMarkdownNode.Set("markdown_text", rawText);
                 return;
             }
 
-            Control messageLayout = _mensajeBotActual.FindChild("MessageLayout", true, false) as Control;
-            RichTextLabel originalMarkdownNode = _mensajeBotActual.FindChild("MessageBody", true, false) as RichTextLabel;
-
-            if (messageLayout == null || originalMarkdownNode == null) return;
             originalMarkdownNode.Visible = false;
 
             string[] separator = { "```" };
             string[] blocks = rawText.Split(separator, StringSplitOptions.None);
 
-            for (int i = 0; i < blocks.Length; i++)
+            // 1. Ensure we have exactly the right number of dynamic controls instantiated
+            while (bubble.DynamicBlocks.Count < blocks.Length)
             {
-                if (string.IsNullOrWhiteSpace(blocks[i])) continue;
-
-                if (i % 2 == 0)
+                int blockIndex = bubble.DynamicBlocks.Count;
+                if (blockIndex % 2 == 0)
                 {
                     RichTextLabel textBlock = (RichTextLabel)originalMarkdownNode.Duplicate();
                     textBlock.Visible = true;
-                    textBlock.Set("markdown_text", blocks[i].Trim());
-                    textBlock.Text = blocks[i].Trim();
                     messageLayout.AddChild(textBlock);
+                    bubble.DynamicBlocks.Add(textBlock);
                 }
                 else
                 {
                     PanelContainer newCodeBlock = (PanelContainer)CodeBlockTemplate.Duplicate();
                     newCodeBlock.Visible = true;
+                    newCodeBlock.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
 
-                    string codeContent = blocks[i];
-                    string language = "code";
-                    int firstNewline = codeContent.IndexOf('\n');
+                    // Theme styling
+                    StyleBoxFlat codePanelStyle = new StyleBoxFlat();
+                    codePanelStyle.CornerRadiusTopLeft = 12;
+                    codePanelStyle.CornerRadiusTopRight = 12;
+                    codePanelStyle.CornerRadiusBottomLeft = 12;
+                    codePanelStyle.CornerRadiusBottomRight = 12;
+                    codePanelStyle.SetContentMarginAll(14);
+                    codePanelStyle.BgColor = new Color(0.09f, 0.09f, 0.11f);
+                    codePanelStyle.BorderWidthLeft = 1;
+                    codePanelStyle.BorderWidthTop = 1;
+                    codePanelStyle.BorderWidthRight = 1;
+                    codePanelStyle.BorderWidthBottom = 1;
+                    codePanelStyle.BorderColor = new Color(0.20f, 0.20f, 0.25f, 0.6f);
+                    codePanelStyle.ShadowColor = new Color(0, 0, 0, 0.25f);
+                    codePanelStyle.ShadowSize = 6;
+                    newCodeBlock.AddThemeStyleboxOverride("panel", codePanelStyle);
 
-                    if (firstNewline != -1 && firstNewline < 20)
-                    {
-                        language = codeContent.Substring(0, firstNewline).Trim();
-                        codeContent = codeContent.Substring(firstNewline + 1);
-                    }
-
-                    CodeEdit editNode = null;
                     var codeEdits = newCodeBlock.FindChildren("*", "CodeEdit", true, false);
-                    if (codeEdits.Count > 0 && codeEdits[0] is CodeEdit foundEdit)
+                    if (codeEdits.Count > 0 && codeEdits[0] is CodeEdit editNode)
                     {
-                        editNode = foundEdit;
-                        editNode.Text = codeContent.Trim();
+                        StyleBoxFlat editStyle = new StyleBoxFlat();
+                        editStyle.BgColor = new Color(0, 0, 0, 0);
+                        editStyle.BorderWidthLeft = 0;
+                        editStyle.BorderWidthTop = 0;
+                        editStyle.BorderWidthRight = 0;
+                        editStyle.BorderWidthBottom = 0;
+                        editStyle.SetContentMarginAll(8);
+                        
+                        editNode.AddThemeStyleboxOverride("normal", editStyle);
+                        editNode.AddThemeStyleboxOverride("focus", editStyle);
+                        editNode.AddThemeStyleboxOverride("read_only", editStyle);
+
+                        editNode.AddThemeColorOverride("font_color", new Color(0.92f, 0.92f, 0.95f));
+                        editNode.AddThemeColorOverride("font_readonly_color", new Color(0.92f, 0.92f, 0.95f));
+                        editNode.AddThemeColorOverride("background_color", new Color(0, 0, 0, 0));
+                        editNode.AddThemeFontSizeOverride("font_size", 14);
+                        editNode.WrapMode = TextEdit.LineWrappingMode.Boundary;
+
+                        if (editNode.GetHScrollBar() != null) editNode.GetHScrollBar().Visible = false;
+                        if (editNode.GetVScrollBar() != null) editNode.GetVScrollBar().Visible = false;
 
                         var highlighter = new CodeHighlighter();
                         highlighter.NumberColor = new Color(0.92f, 0.77f, 0.51f);
                         highlighter.SymbolColor = new Color(0.80f, 0.80f, 0.80f);
                         highlighter.FunctionColor = new Color(0.38f, 0.69f, 0.93f);
                         highlighter.MemberVariableColor = new Color(0.48f, 0.82f, 0.64f);
+
+                        highlighter.AddColorRegion("\"", "\"", new Color(0.48f, 0.75f, 0.48f), false);
+                        highlighter.AddColorRegion("'", "'", new Color(0.48f, 0.75f, 0.48f), false);
+                        highlighter.AddColorRegion("#", "", new Color(0.45f, 0.45f, 0.50f), true);
+                        highlighter.AddColorRegion("//", "", new Color(0.45f, 0.45f, 0.50f), true);
+                        highlighter.AddColorRegion("/*", "*/", new Color(0.45f, 0.45f, 0.50f), false);
 
                         var coreKeywords = new string[] {
                             "public", "private", "protected", "class", "void", "string", "int", "float", "bool",
@@ -987,17 +1021,22 @@ namespace Logic.UI
                     var labels = newCodeBlock.FindChildren("*", "Label", true, false);
                     if (labels.Count > 0 && labels[0] is Label langLabel)
                     {
-                        langLabel.Text = string.IsNullOrEmpty(language) ? "CODE" : language.ToUpper();
+                        langLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.65f));
+                        langLabel.AddThemeFontSizeOverride("font_size", 12);
                     }
 
                     var buttons = newCodeBlock.FindChildren("*", "Button", true, false);
-                    if (buttons.Count > 0 && buttons[0] is Button copyBtn && editNode != null)
+                    if (buttons.Count > 0 && buttons[0] is Button copyBtn && codeEdits.Count > 0)
                     {
+                        copyBtn.Text = "Copy";
+                        copyBtn.AddThemeColorOverride("font_color", new Color(0.75f, 0.75f, 0.8f));
+                        copyBtn.AddThemeColorOverride("font_hover_color", new Color(1.0f, 1.0f, 1.0f));
+                        
+                        var targetEdit = codeEdits[0] as CodeEdit;
                         copyBtn.Pressed += () =>
                         {
-                            DisplayServer.ClipboardSet(editNode.Text);
+                            DisplayServer.ClipboardSet(targetEdit.Text);
                             copyBtn.Text = "¡Copiado!";
-
                             GetTree().CreateTimer(1.5f).Timeout += () =>
                             {
                                 if (GodotObject.IsInstanceValid(copyBtn)) copyBtn.Text = "Copy";
@@ -1006,6 +1045,82 @@ namespace Logic.UI
                     }
 
                     messageLayout.AddChild(newCodeBlock);
+                    bubble.DynamicBlocks.Add(newCodeBlock);
+                }
+            }
+
+            // 2. Update the text/content of each block dynamically
+            for (int i = 0; i < blocks.Length; i++)
+            {
+                string content = blocks[i];
+                Control node = bubble.DynamicBlocks[i];
+
+                if (i % 2 == 0)
+                {
+                    RichTextLabel textBlock = (RichTextLabel)node;
+                    textBlock.Set("markdown_text", content.Trim());
+                    textBlock.Text = content.Trim();
+                }
+                else
+                {
+                    PanelContainer codeBlock = (PanelContainer)node;
+                    string language = "code";
+                    int firstNewline = content.IndexOf('\n');
+
+                    if (firstNewline != -1 && firstNewline < 20)
+                    {
+                        language = content.Substring(0, firstNewline).Trim();
+                        content = content.Substring(firstNewline + 1);
+                    }
+
+                    var labels = codeBlock.FindChildren("*", "Label", true, false);
+                    if (labels.Count > 0 && labels[0] is Label langLabel)
+                    {
+                        langLabel.Text = string.IsNullOrEmpty(language) ? "CODE" : language.ToUpper();
+                    }
+
+                    var codeEdits = codeBlock.FindChildren("*", "CodeEdit", true, false);
+                    if (codeEdits.Count > 0 && codeEdits[0] is CodeEdit editNode)
+                    {
+                        editNode.Text = content.Trim();
+
+                        int totalLines = 0;
+                        for (int lineIndex = 0; lineIndex < editNode.GetLineCount(); lineIndex++)
+                        {
+                            totalLines += 1 + editNode.GetLineWrapCount(lineIndex);
+                        }
+
+                        float fontHeight = editNode.GetLineHeight();
+                        if (fontHeight <= 0) fontHeight = 24f; // Fallback
+                        float contentHeight = (totalLines * fontHeight) + 30f;
+                        
+                        editNode.CustomMinimumSize = new Vector2(editNode.CustomMinimumSize.X, contentHeight);
+                        editNode.ScrollPastEndOfFile = false;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handles global input events to hide the ToolsMenuPanel when clicking outside of it.
+        /// </summary>
+        public override void _Input(InputEvent @event)
+        {
+            if (@event is InputEventMouseButton mouseButton && mouseButton.Pressed)
+            {
+                var toolsMenuPanel = GetNodeOrNull<Control>("ToolsMenuPanel");
+                var toolsMenuButton = GetNodeOrNull<Control>("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolsMenuButton");
+
+                if (toolsMenuPanel != null && toolsMenuPanel.Visible)
+                {
+                    Vector2 mousePos = GetViewport().GetMousePosition();
+                    bool isInsidePanel = toolsMenuPanel.GetGlobalRect().HasPoint(mousePos);
+                    bool isInsideButton = toolsMenuButton != null && toolsMenuButton.GetGlobalRect().HasPoint(mousePos);
+
+                    if (!isInsidePanel && !isInsideButton)
+                    {
+                        toolsMenuPanel.Visible = false;
+                    }
                 }
             }
         }

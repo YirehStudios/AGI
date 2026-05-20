@@ -1,35 +1,9 @@
 [gd_scene format=3 uid="uid://b0fthwog6txgs"]
 
+[ext_resource type="Script" uid="uid://coxaherbbbpsj" path="res://Script/Cs/Model3D/AgiModeMain.cs" id="1_hbsub"]
 [ext_resource type="PackedScene" uid="uid://dbu6gascba6pe" path="res://Scenes/Test/Scene/kipfel.tscn" id="1_wm535"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_wm535"]
-
-[sub_resource type="Sky" id="Sky_hbsub"]
-sky_material = SubResource("ProceduralSkyMaterial_wm535")
-
-[sub_resource type="Environment" id="Environment_rqcts"]
-background_mode = 1
-sky = SubResource("Sky_hbsub")
-
-[sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_wm535"]
-exposure_multiplier = 0.375
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_wm535"]
-size = Vector3(2.0029907, 0.48382568, 3.3256836)
-
-[node name="Node3D" type="Node3D" unique_id=1543143464]
+[node name="AgiModeMain" type="Node3D" unique_id=1543143464]
+script = ExtResource("1_hbsub")
 
 [node name="Kipfel" parent="." unique_id=1831635054 instance=ExtResource("1_wm535")]
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1876679796]
-environment = SubResource("Environment_rqcts")
-camera_attributes = SubResource("CameraAttributesPractical_wm535")
-
-[node name="Camera3D" type="Camera3D" parent="." unique_id=1788171917]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.012799695, 0.6458548, 0.45928842)
-
-[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=817808462]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=1747602914]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00039672852, -0.25808716, -0.0021972656)
-shape = SubResource("BoxShape3D_wm535")
