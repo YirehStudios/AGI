@@ -250,7 +250,8 @@ namespace Logic.Network
                         tool = currentName,
                         arguments = currentArgs
                     };
-                    finalMcpPayload = JsonSerializer.Serialize(mcpRequest);
+                    var options = new JsonSerializerOptions { Encoder = global::System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+                    finalMcpPayload = JsonSerializer.Serialize(mcpRequest, options);
                 }
                 else
                 {
@@ -259,7 +260,8 @@ namespace Logic.Network
                         tool = toolName,
                         arguments = parsedDoc.RootElement
                     };
-                    finalMcpPayload = JsonSerializer.Serialize(mcpRequest);
+                    var options = new JsonSerializerOptions { Encoder = global::System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+                    finalMcpPayload = JsonSerializer.Serialize(mcpRequest, options);
                 }
                 
                 var content = new StringContent(finalMcpPayload, Encoding.UTF8, "application/json");

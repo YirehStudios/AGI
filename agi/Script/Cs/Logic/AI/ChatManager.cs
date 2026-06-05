@@ -60,6 +60,7 @@ namespace Logic.Lite
     {
         public string SessionName { get; set; } = "Current_Session";
         public string Summary { get; set; } = "Nueva conversación iniciada.";
+        public string WorkspacePath { get; set; } = "";
         public ChatEmotions CurrentEmotion { get; set; } = new ChatEmotions();
         public global::System.Collections.Generic.List<ChatMessage> Messages { get; set; } = new global::System.Collections.Generic.List<ChatMessage>();
     }
@@ -85,7 +86,7 @@ namespace Logic.Lite
         public bool IsLiveModeActive { get; set; } = false;
         private bool _isInsideThinkBlock = false;
 
-        private const string BaseIdentity = "You are AGI, developed by Yireh Studios, and you are open source. You MUST detect the language of the user's input and reply STRICTLY in that same language (e.g., if the user greets you or speaks in Spanish, you must respond 100% in Spanish). Tu idioma de respuesta debe ser el mismo en el que te habla el usuario. You should perform all of your internal reasoning/thinking inside <think>...</think> blocks in English.";
+        private const string BaseIdentity = "You are AGI, developed by Yireh Studios, and you are open source. You MUST detect the language of the user's input and reply STRICTLY in that same language. Use rich emojis seamlessly in your responses to express emotions and tone. You should perform all of your internal reasoning/thinking inside <think>...</think> blocks in English.";
 
         private string _availableTools = "Sync tool MCP...";
 
@@ -117,7 +118,15 @@ namespace Logic.Lite
             {
                 builder.Append("\nTo use a tool, output exactly this flat format immediately after </think>:");
                 builder.Append("\n[TOOL: tool_name | param1: value1 | param2: value2]");
-                builder.Append("\nDo NOT use JSON formatting. Available tools:\n");
+                builder.Append("\nIMPORTANT TOOL RULES:");
+                builder.Append("\n- Do NOT use JSON formatting. Use the exact flat format above.");
+                string defaultWorkspace = ProjectSettings.GlobalizePath("user://workspace");
+                var configCheck = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+                string activeWorkspace = (configCheck != null && !string.IsNullOrEmpty(configCheck.PersistedWorkspacePath)) 
+                                       ? configCheck.PersistedWorkspacePath 
+                                       : (!string.IsNullOrEmpty(_currentSession.WorkspacePath) ? _currentSession.WorkspacePath : defaultWorkspace);
+                builder.Append($"\n- For all file operations (create, read, edit), you MUST use absolute paths starting with {activeWorkspace}/ otherwise the MCP server will BLOCK access for security reasons.");
+                builder.Append("\nAvailable tools:\n");
                 builder.Append(GetCompactToolSchema(activeTools));
             }
 
@@ -201,7 +210,10 @@ namespace Logic.Lite
         /// </summary>
         public override void _Ready()
         {
-            string workspacePath = ProjectSettings.GlobalizePath("user://workspace");
+            string defaultWorkspace = ProjectSettings.GlobalizePath("user://workspace");
+            var configCheck = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+            string workspacePath = (configCheck != null && !string.IsNullOrEmpty(configCheck.PersistedWorkspacePath)) 
+                                   ? configCheck.PersistedWorkspacePath : defaultWorkspace;
 
             _historyDirectory = ProjectSettings.GlobalizePath("user://history");
             if (!global::System.IO.Directory.Exists(_historyDirectory))

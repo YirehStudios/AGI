@@ -31,10 +31,10 @@ namespace Logic.System.Drivers
         public bool IsEngineReady(string enginePrefix)
         {
             // Se calcula la ruta de destino basándose en el sistema operativo y el motor para una búsqueda precisa.
-            string osFolder = _environmentManager.IsWindows ? "windows" : "linux";
+            string osFolder = _environmentManager.Bridge.OperatingSystemIdentifier == "Windows" ? "windows" : "linux";
             string engineTargetDir = Path.Combine(_environmentManager.BinPath, osFolder, enginePrefix);
 
-            string path = FileResolver.FindExecutable(engineTargetDir, _environmentManager.IsWindows, enginePrefix);
+            string path = FileResolver.FindExecutable(engineTargetDir, _environmentManager.Bridge.OperatingSystemIdentifier == "Windows", enginePrefix);
             return !string.IsNullOrEmpty(path);
         }
 
@@ -44,13 +44,13 @@ namespace Logic.System.Drivers
         public async Task<bool> DownloadAndPrepareEngineAsync(string url, string fileName, string folderName, string exactExecutableName)
         {
             // Valida si el entorno actual requiere la preparación de binarios nativos.
-            if (_environmentManager.IsUIOnlyMode || _environmentManager.IsAndroid)
+            if (_environmentManager.IsUIOnlyMode || _environmentManager.Bridge.OperatingSystemIdentifier == "Android")
             {
                 return true;
             }
 
             // Define la segmentación de directorios según el sistema operativo identificado.
-            string osFolder = _environmentManager.IsWindows ? "windows" : "linux";
+            string osFolder = _environmentManager.Bridge.OperatingSystemIdentifier == "Windows" ? "windows" : "linux";
 
             // Calcula la ruta absoluta de destino para el despliegue del motor.
             string engineTargetDir = Path.Combine(_environmentManager.BinPath, osFolder, folderName);
@@ -66,7 +66,7 @@ namespace Logic.System.Drivers
             }
 
             // Localiza la ubicación exacta del binario ejecutable dentro del directorio extraído.
-            string executablePath = FileResolver.FindExecutable(engineTargetDir, _environmentManager.IsWindows, exactExecutableName);
+            string executablePath = FileResolver.FindExecutable(engineTargetDir, _environmentManager.Bridge.OperatingSystemIdentifier == "Windows", exactExecutableName);
 
             GD.Print($"[PackageManager] Evaluating path for {exactExecutableName}: {executablePath}");
             if (string.IsNullOrEmpty(executablePath))
@@ -75,27 +75,45 @@ namespace Logic.System.Drivers
                 return false;
             }
 
+            string actualExecutionFolder = Path.GetDirectoryName(executablePath);
+
+            // Encapsulation Enforcement: Relocate all runtime libraries (.dll / .so) strictly into the local execution folder 
+            // corresponding to the target binary to guarantee localized search priority during process execution.
+            string libraryExtension = _environmentManager.Bridge.OperatingSystemIdentifier == "Windows" ? ".dll" : ".so";
+            string[] extractedLibraries = Directory.GetFiles(engineTargetDir, $"*{libraryExtension}*", SearchOption.AllDirectories);
+            
+            foreach (string lib in extractedLibraries)
+            {
+                string libName = Path.GetFileName(lib);
+                string destinationLibPath = Path.Combine(actualExecutionFolder, libName);
+                
+                // Avoid moving if it's already in the target folder
+                if (lib != destinationLibPath)
+                {
+                    try
+                    {
+                        if (File.Exists(destinationLibPath)) File.Delete(destinationLibPath);
+                        File.Move(lib, destinationLibPath);
+                        GD.Print($"[PackageManager] Relocated dependency '{libName}' into execution folder for localized scope.");
+                    }
+                    catch (global::System.Exception ex)
+                    {
+                        GD.PrintErr($"[PackageManager] Failed to relocate library '{libName}': {ex.Message}");
+                    }
+                }
+            }
+
             // Gestiona descriptores de seguridad y librerías vinculadas en sistemas POSIX.
-            if (_environmentManager.IsLinux)
+            if (_environmentManager.Bridge.OperatingSystemIdentifier == "Linux")
             {
                 // Concede privilegios de ejecución al binario identificado.
                 OS.Execute("chmod", new string[] { "+x", executablePath });
 
-                // Procesa dependencias de librerías compartidas si el motor es Sherpa.
-                if (folderName.Contains("sherpa"))
+                // Asegura que las librerías dinámicas sean accesibles para la carga en runtime.
+                string[] soFiles = Directory.GetFiles(actualExecutionFolder, "*.so*");
+                foreach (string soFile in soFiles)
                 {
-                    string libPath = Path.Combine(engineTargetDir, "lib");
-                    if (Directory.Exists(libPath))
-                    {
-                        string[] libFiles = Directory.GetFiles(libPath, "*.so*");
-                        GD.Print($"[PackageManager] Applying read permissions to libraries in {libPath}");
-                        foreach (string libFile in libFiles)
-                        {
-                            // Asegura que las librerías dinámicas sean accesibles para la carga en runtime.
-                            OS.Execute("chmod", new string[] { "a+r", libFile });
-                        }
-                        GD.Print($"[PackageManager] Library permissions applied successfully.");
-                    }
+                    OS.Execute("chmod", new string[] { "a+r", soFile });
                 }
             }
 
@@ -142,23 +160,43 @@ namespace Logic.System.Drivers
         public async Task<bool> EnsureMicroservicesEnvironmentAsync(string pythonUrl, string searchServerUrl, string mcpServerUrl)
         {
             // Validates operational support for the current hardware platform.
-            if (_environmentManager.IsUIOnlyMode || _environmentManager.IsAndroid) return true;
+            if (_environmentManager.IsUIOnlyMode || _environmentManager.Bridge.OperatingSystemIdentifier == "Android") return true;
 
             string envPath = Path.Combine(_environmentManager.EnvPath, "python_search");
             if (!Directory.Exists(envPath)) Directory.CreateDirectory(envPath);
 
             // Synchronizes the microservice logic from the repository to the local system.
-            // Uses resilient logic to tolerate empty URLs from the manifest.
+            // Offline-tolerant: if the file already exists on disk, skip the network download entirely.
+            string searchLocalPath = Path.Combine(_environmentManager.BinPath, "search_server.py");
+            string mcpLocalPath    = Path.Combine(_environmentManager.BinPath, "mcp_server.py");
+
             bool searchDownload = true;
-            if (!string.IsNullOrEmpty(searchServerUrl))
-                searchDownload = await _downloadManager.DownloadFileAsync(searchServerUrl, _environmentManager.BinPath, "search_server.py");
+            if (!File.Exists(searchLocalPath))
+            {
+                if (!string.IsNullOrEmpty(searchServerUrl))
+                    searchDownload = await _downloadManager.DownloadFileAsync(searchServerUrl, _environmentManager.BinPath, "search_server.py");
+                else
+                    searchDownload = false;
+            }
+            else
+            {
+                GD.Print("[PackageManager] search_server.py already present on disk. Skipping network sync.");
+            }
 
             bool mcpDownload = true;
-            if (!string.IsNullOrEmpty(mcpServerUrl))
-                mcpDownload = await _downloadManager.DownloadFileAsync(mcpServerUrl, _environmentManager.BinPath, "mcp_server.py");
+            if (!File.Exists(mcpLocalPath))
+            {
+                if (!string.IsNullOrEmpty(mcpServerUrl))
+                    mcpDownload = await _downloadManager.DownloadFileAsync(mcpServerUrl, _environmentManager.BinPath, "mcp_server.py");
+                else
+                    mcpDownload = false;
+            }
+            else
+            {
+                GD.Print("[PackageManager] mcp_server.py already present on disk. Skipping network sync.");
+            }
 
             // Strictly verifies physical file presence to prevent silent uv/pip execution failures.
-            string mcpLocalPath = Path.Combine(_environmentManager.BinPath, "mcp_server.py");
             if (!File.Exists(mcpLocalPath))
             {
                 GD.PrintErr($"[PackageManager] Fatal: mcp_server.py is missing from disk. URL was: '{mcpServerUrl}'. Check your manifest.");
@@ -172,7 +210,7 @@ namespace Logic.System.Drivers
             }
 
             // Linux Path: Leverages 'uv' for high-performance virtual environment provisioning.
-            if (_environmentManager.IsLinux)
+            if (_environmentManager.Bridge.OperatingSystemIdentifier == "Linux")
             {
                 string uvCommand = GetUvPath();
                 string pythonBin = Path.Combine(envPath, "bin", "python");
@@ -180,14 +218,43 @@ namespace Logic.System.Drivers
 
                 if (!File.Exists(pythonBin))
                 {
-                    GD.Print($"[PackageManager] Search Env: Installing Python 3.13 via uv...");
-                    if (OS.Execute(uvCommand, new string[] { "python", "install", "3.13" }, output, true) != 0) return false;
+                    GD.Print("[PackageManager] Search Env: Creating Python virtual environment...");
+
+                    // Tier 1: try uv with pinned Python 3.13 (requires network on first run).
+                    bool uvPythonOk = OS.Execute(uvCommand, new string[] { "python", "install", "3.13" }, output, true) == 0;
                     output.Clear();
-                    if (OS.Execute(uvCommand, new string[] { "venv", "--python", "3.13", envPath }, output, true) != 0) return false;
+
+                    if (uvPythonOk)
+                    {
+                        if (OS.Execute(uvCommand, new string[] { "venv", "--python", "3.13", envPath }, output, true) != 0)
+                        {
+                            GD.PrintErr("[PackageManager] uv venv (3.13) creation failed.");
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        // Tier 2: uv venv without version pin (uses any cached Python).
+                        GD.Print("[PackageManager] Search Env: uv Python 3.13 unavailable (offline?). Trying uv venv without version pin...");
+                        output.Clear();
+                        bool tier2Ok = OS.Execute(uvCommand, new string[] { "venv", envPath }, output, true) == 0;
+
+                        if (!tier2Ok)
+                        {
+                            // Tier 3: fall back to system python3 -m venv.
+                            GD.Print("[PackageManager] Search Env: Falling back to system python3 -m venv...");
+                            output.Clear();
+                            if (OS.Execute("python3", new string[] { "-m", "venv", envPath }, output, true) != 0)
+                            {
+                                GD.PrintErr("[PackageManager] All venv creation methods failed for python_search. Ensure Python 3 is installed.");
+                                return false;
+                            }
+                        }
+                    }
                 }
 
                 output.Clear();
-                GD.Print($"[PackageManager] Search Env: Installing pip dependencies via uv...");
+                GD.Print("[PackageManager] Search Env: Installing pip dependencies via uv...");
 
                 // Includes mcp and httpx as core dependencies for the tool gateway.
                 string[] dependencies = { "pip", "install", "--python", envPath, "fastapi", "uvicorn", "ddgs", "trafilatura", "mcp", "httpx" };
@@ -199,12 +266,12 @@ namespace Logic.System.Drivers
                     return false;
                 }
 
-                GD.Print($"[PackageManager] -> Search/MCP Environment provisioned successfully on Linux.");
+                GD.Print("[PackageManager] -> Search/MCP Environment provisioned successfully on Linux.");
                 return true;
             }
 
             // Windows Path: Implements a portable environment for the microservice stack.
-            if (_environmentManager.IsWindows)
+            if (_environmentManager.Bridge.OperatingSystemIdentifier == "Windows")
             {
                 string pythonExe = Path.Combine(envPath, "python.exe");
 
@@ -253,13 +320,13 @@ namespace Logic.System.Drivers
         /// <returns>True if the environment and audio dependencies are successfully prepared.</returns>
         public async Task<bool> EnsurePythonEnvironmentAsync(string pythonUrl)
         {
-            if (_environmentManager.IsUIOnlyMode || _environmentManager.IsAndroid) return true;
+            if (_environmentManager.IsUIOnlyMode || _environmentManager.Bridge.OperatingSystemIdentifier == "Android") return true;
 
             string envPath = Path.Combine(_environmentManager.EnvPath, "python");
             if (!Directory.Exists(envPath)) Directory.CreateDirectory(envPath);
 
             // Linux logic: Uses 'uv' for environment orchestration.
-            if (_environmentManager.IsLinux)
+            if (_environmentManager.Bridge.OperatingSystemIdentifier == "Linux")
             {
                 string uvCommand = GetUvPath();
                 string pythonBin = Path.Combine(envPath, "bin", "python");
@@ -267,18 +334,48 @@ namespace Logic.System.Drivers
 
                 if (!File.Exists(pythonBin))
                 {
-                    if (OS.Execute(uvCommand, new string[] { "python", "install", "3.10" }, output, true) != 0) return false;
+                    GD.Print("[PackageManager] TTS Env: Creating Python virtual environment...");
+
+                    // Tier 1: uv with pinned Python 3.10.
+                    bool uvPythonOk = OS.Execute(uvCommand, new string[] { "python", "install", "3.10" }, output, true) == 0;
                     output.Clear();
-                    if (OS.Execute(uvCommand, new string[] { "venv", "--python", "3.10", envPath }, output, true) != 0) return false;
+
+                    if (uvPythonOk)
+                    {
+                        if (OS.Execute(uvCommand, new string[] { "venv", "--python", "3.10", envPath }, output, true) != 0)
+                        {
+                            GD.PrintErr("[PackageManager] uv venv (3.10) creation failed.");
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        // Tier 2: uv venv without version pin.
+                        GD.Print("[PackageManager] TTS Env: uv Python 3.10 unavailable (offline?). Trying uv venv without version pin...");
+                        output.Clear();
+                        bool tier2Ok = OS.Execute(uvCommand, new string[] { "venv", envPath }, output, true) == 0;
+
+                        if (!tier2Ok)
+                        {
+                            // Tier 3: system python3.
+                            GD.Print("[PackageManager] TTS Env: Falling back to system python3 -m venv...");
+                            output.Clear();
+                            if (OS.Execute("python3", new string[] { "-m", "venv", envPath }, output, true) != 0)
+                            {
+                                GD.PrintErr("[PackageManager] All venv creation methods failed for TTS python env.");
+                                return false;
+                            }
+                        }
+                    }
                 }
 
                 output.Clear();
-                string[] dependencies = { "pip", "install", "--python", envPath, "websockets", "soundfile", "numpy", "kokoro-onnx" };
+                string[] dependencies = { "pip", "install", "--python", envPath, "websockets", "soundfile", "numpy", "kokoro-onnx", "onnxruntime-gpu" };
                 return OS.Execute(uvCommand, dependencies, output, true) == 0;
             }
 
             // Windows logic: Deploys portable Python for the TTS stack.
-            if (_environmentManager.IsWindows)
+            if (_environmentManager.Bridge.OperatingSystemIdentifier == "Windows")
             {
                 string pythonExe = Path.Combine(envPath, "python.exe");
 
@@ -298,7 +395,7 @@ namespace Logic.System.Drivers
                 }
 
                 var output = new Godot.Collections.Array();
-                int pipExit = OS.Execute(pythonExe, new string[] { "-m", "pip", "install", "websockets", "soundfile", "numpy", "kokoro-onnx" }, output, true);
+                int pipExit = OS.Execute(pythonExe, new string[] { "-m", "pip", "install", "websockets", "soundfile", "numpy", "kokoro-onnx", "onnxruntime-gpu" }, output, true);
                 return pipExit == 0;
             }
 

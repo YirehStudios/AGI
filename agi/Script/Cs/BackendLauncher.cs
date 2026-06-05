@@ -76,7 +76,7 @@ namespace Logic.Backend
             if (string.IsNullOrEmpty(data)) return;
 
             string formattedLog = $"[{serviceName}] {data}";
-            string[] errorPatterns = { "ERR", "Error", "Exception", "Fault", "Critical", "Failure", "Unprocessable", "422", "500", "404" };
+            string[] errorPatterns = { "ERR", "Error", "Exception", "Fault", "Critical", "Failure", "Unprocessable", "422", "500", "404", "Traceback" };
             bool containsErrorPattern = false;
 
             foreach (string pattern in errorPatterns)
@@ -88,7 +88,10 @@ namespace Logic.Backend
                 }
             }
 
-            if (isErrorStream || containsErrorPattern)
+            bool isInfoLog = data.Contains("INFO:", StringComparison.OrdinalIgnoreCase) || 
+                             data.Contains("WARNING:", StringComparison.OrdinalIgnoreCase);
+
+            if ((isErrorStream && !isInfoLog) || (containsErrorPattern && !isInfoLog))
             {
                 GD.PrintErr($"[DIAGNOSTIC-ERR] {formattedLog}");
             }
@@ -104,62 +107,20 @@ namespace Logic.Backend
         /// </summary>
         public void TerminateOrphanedResources()
         {
-            string[] targetResources = { "llama-server", "whisper-server", "sherpa-onnx-tts-server" };
-
             GD.Print("ResourceMonitor: Initiating resource reconciliation routine for native engines...");
 
             try
             {
-                foreach (string resourceName in targetResources)
+                if (_environmentManager != null && _environmentManager.Bridge != null)
                 {
-                    Process[] orphanedProcesses = Process.GetProcessesByName(resourceName);
-                    GD.Print($"ResourceMonitor: Found {orphanedProcesses.Length} instances matching tracking template '{resourceName}'.");
-
-                    foreach (Process process in orphanedProcesses)
-                    {
-                        try
-                        {
-                            if (!process.HasExited)
-                            {
-                                GD.Print($"ResourceMonitor: Active orphan detected (PID: {process.Id}). Executing conditional teardown...");
-                                process.Kill(true);
-                                process.WaitForExit(1000);
-                                GD.Print($"ResourceMonitor: Orphaned C++ native resource '{resourceName}' (PID: {process.Id}) terminated successfully.");
-                            }
-                            else
-                            {
-                                GD.Print($"ResourceMonitor: Orphan target (PID: {process.Id}) has already transitioned to an exited state.");
-                            }
-                        }
-                        catch (Exception innerEx)
-                        {
-                            GD.PushWarning($"ResourceMonitor: Failed to release PID {process.Id}: {innerEx.Message}");
-                        }
-                        finally
-                        {
-                            process.Dispose();
-                        }
-                    }
+                    GD.Print("ResourceMonitor: Delegating resource reconciliation routine to operating system bridge...");
+                    _environmentManager.Bridge.TerminateOrphanedResources();
                 }
-
-                // Enforces port release by eliminating any zombie instances of the Python microservices.
-                if (_environmentManager != null)
+                else
                 {
-                    GD.Print("ResourceMonitor: Dispatched active port clearing routines to operating system subsystems.");
-                    if (_environmentManager.IsWindows)
-                    {
-                        // Barrido de puertos en Windows para evitar que scripts bloqueen la reinstalación
-                        string portsToClear = $"{LlamaPort}, {WhisperPort}, {SherpaPort}, {SearchPort}, {SearchPort + 2}";
-                        string psCommand = $"foreach ($port in @({portsToClear})) {{ Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | ForEach-Object {{ Stop-Process -Id $_.OwningProcess -Force }} }}";
-                        OS.Execute("powershell", new string[] { "-NoProfile", "-Command", psCommand }, new Godot.Collections.Array(), true);
-                    }
-                    else
-                    {
-                        OS.Execute("pkill", new string[] { "-f", "search_server.py" }, new Godot.Collections.Array(), true);
-                        OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
-                        OS.Execute("pkill", new string[] { "-f", "mcp_server.py" }, new Godot.Collections.Array(), true);
-                    }
+                    GD.PrintErr("ResourceMonitor: Unable to delegate cleanup. Platform Bridge is uninitialized.");
                 }
+                
                 GD.Print("ResourceMonitor: Infrastructure cleanup completed. System ready for C++ engine initialization.");
             }
             catch (Exception ex)
@@ -215,108 +176,90 @@ namespace Logic.Backend
                 string sttModel = _configManager?.ActiveSTTModel ?? "Whisper_Base.bin";
                 string modelWhisperPath = global::System.IO.Path.Combine(modelsDir, sttModel);
 
-                string osFolder = _environmentManager.IsWindows ? "windows" : "linux";
+                string osFolder = _environmentManager.Bridge.OperatingSystemIdentifier.ToLower();
                 string llamaDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "llama");
                 string whisperDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "whisper");
 
-                string llamaBinPath = Logic.Utils.FileResolver.FindExecutable(llamaDir, _environmentManager.IsWindows, "llama-server");
-                string whisperBinPath = Logic.Utils.FileResolver.FindExecutable(whisperDir, _environmentManager.IsWindows, "whisper-server");
+                string llamaArgs = $"--model \"{modelLlamaPath}\" --host {bindAddress} --port {LlamaPort} --ctx-size {ctxSize} --threads {threadCount} -ngl {(_configManager?.PerformanceProfile?.GpuLayers ?? 99)}{extraLlamaArgs}";
+                string whisperArgs = $"-m \"{modelWhisperPath}\" --host {bindAddress} --port {WhisperPort} --threads {threadCount}";
 
-                if (!global::System.IO.File.Exists(llamaBinPath) || !global::System.IO.File.Exists(whisperBinPath))
+                ProcessStartInfo llamaInfo;
+                ProcessStartInfo whisperInfo;
+                try
+                {
+                    llamaInfo = _environmentManager.Bridge.ConfigureEngineExecution("llama-server", llamaArgs, llamaDir);
+                    whisperInfo = _environmentManager.Bridge.ConfigureEngineExecution("whisper-server", whisperArgs, whisperDir);
+                }
+                catch (global::System.IO.FileNotFoundException)
                 {
                     GD.PrintErr("BackendLauncher: Fatal - Essential binaries (Llama/Whisper) are missing.");
                     CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
                     return;
                 }
 
-                string pythonExe = _environmentManager.IsWindows ?
-                    global::System.IO.Path.Combine(_environmentManager.EnvPath, "python", "python.exe") :
-                    global::System.IO.Path.Combine(_environmentManager.EnvPath, "python", "bin", "python3");
-
-                string searchPythonExe = _environmentManager.IsWindows ?
-                    global::System.IO.Path.Combine(_environmentManager.EnvPath, "python_search", "python.exe") :
-                    global::System.IO.Path.Combine(_environmentManager.EnvPath, "python_search", "bin", "python3");
-
                 string ttsScriptPath = global::System.IO.Path.Combine(_environmentManager.BinPath, "tts_server.py");
                 string searchScriptPath = global::System.IO.Path.Combine(_environmentManager.BinPath, "search_server.py");
                 string mcpScriptPath = global::System.IO.Path.Combine(_environmentManager.BinPath, "mcp_server.py");
+                string projRoot = ProjectSettings.GlobalizePath("res://");
 
-                ProcessStartInfo whisperInfo = new ProcessStartInfo
-                {
-                    FileName = whisperBinPath,
-                    Arguments = $"-m \"{modelWhisperPath}\" --host {bindAddress} --port {WhisperPort} --threads {threadCount}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-                ProcessStartInfo llamaInfo = new ProcessStartInfo
-                {
-                    FileName = llamaBinPath,
-                    Arguments = $"--model \"{modelLlamaPath}\" --host {bindAddress} --port {LlamaPort} --ctx-size {ctxSize} --threads {threadCount} -ngl 99{extraLlamaArgs}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-                ProcessStartInfo searchInfo = new ProcessStartInfo
-                {
-                    FileName = searchPythonExe,
-                    Arguments = $"-u \"{searchScriptPath}\" --port {SearchPort}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-                ProcessStartInfo mcpInfo = new ProcessStartInfo
-                {
-                    FileName = searchPythonExe,
-                    Arguments = $"-u \"{mcpScriptPath}\" --port {SearchPort + 2}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
+                ProcessStartInfo searchInfo = _environmentManager.Bridge.ConfigurePythonMicroservice(searchScriptPath, $"--port {SearchPort}", projRoot, "python_search");
+                ProcessStartInfo mcpInfo = _environmentManager.Bridge.ConfigurePythonMicroservice(mcpScriptPath, $"--port {SearchPort + 2}", projRoot, "python_search");
+                
+                string defaultWorkspace = ProjectSettings.GlobalizePath("user://workspace");
+                string activeWorkspace = !string.IsNullOrEmpty(_configManager?.PersistedWorkspacePath) 
+                                         ? _configManager.PersistedWorkspacePath : defaultWorkspace;
+                mcpInfo.EnvironmentVariables["AGI_WORKSPACE"] = activeWorkspace;
 
                 ProcessStartInfo sherpaInfo = null;
-                if (global::System.IO.File.Exists(pythonExe))
+                try 
                 {
                     string ttsModelFolder = _configManager?.ActiveTTSModel ?? "";
                     string ttsModelsDir = global::System.IO.Path.Combine(modelsDir, ttsModelFolder);
+                    sherpaInfo = _environmentManager.Bridge.ConfigurePythonMicroservice(ttsScriptPath, $"--port {SherpaPort} --models-dir \"{ttsModelsDir}\"", projRoot);
+                } 
+                catch (global::System.IO.FileNotFoundException) { /* Optional dependency */ }
 
-                    sherpaInfo = new ProcessStartInfo
-                    {
-                        FileName = pythonExe,
-                        Arguments = $"-u \"{ttsScriptPath}\" --port {SherpaPort} --models-dir \"{ttsModelsDir}\"",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-                }
-
-                whisperInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = whisperDir;
-                llamaInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = llamaDir;
+                // ── Vulkan-exclusive GPU routing for llama-server ─────────────────────
+                // llama-server is compiled against libggml-vulkan.so — NOT libggml-cuda.so.
+                // Passing a real CUDA device index causes driver initialization conflicts.
+                // CUDA_VISIBLE_DEVICES is ALWAYS set to "-1" to suppress the CUDA backend.
+                // GGML_VK_VISIBLE_DEVICES selects the correct Vulkan physical device.
+                llamaInfo.EnvironmentVariables["CUDA_VISIBLE_DEVICES"] = "-1";
 
                 int gpuIndex = _configManager?.SelectedGpuIndex ?? -1;
                 if (gpuIndex >= 0)
                 {
-                    string gpuStr = gpuIndex.ToString();
-                    whisperInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = gpuStr;
-                    llamaInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = gpuStr;
+                    // Translate the CUDA device index to its matching Vulkan device index.
+                    string vulkanGpuStr = GetVulkanIndexForGpu(gpuIndex);
+                    llamaInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = vulkanGpuStr;
+                    GD.Print($"[BackendLauncher] Vulkan GPU routing: CUDA index {gpuIndex} → Vulkan device {vulkanGpuStr}. CUDA suppressed.");
+                }
+                else
+                {
+                    // No discrete GPU selected — use Vulkan device 0 (integrated GPU / first available).
+                    llamaInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = "0";
+                    GD.Print("[BackendLauncher] Vulkan GPU routing: No GPU selected. Defaulting to Vulkan device 0 (integrated/first available).");
+                }
+
+                _whisperProcess = new Process { StartInfo = whisperInfo, EnableRaisingEvents = true };
+                _whisperProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Whisper] {e.Data}"); };
+                _whisperProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Whisper ERR] {e.Data}"); };
+                _whisperProcess.Exited += OnProcessExited;
+
+                if (!deferSpeechServices)
+                {
+                    _whisperProcess.Start();
+                    _whisperProcess.BeginOutputReadLine();
+                    _whisperProcess.BeginErrorReadLine();
+                }
+                else
+                {
+                    CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, "[Performance-Tier] Low allocation configuration detected. Whisper STT engine deployment deferred.");
                 }
 
                 if (!isCloudMode)
                 {
-                    _whisperProcess = new Process { StartInfo = whisperInfo, EnableRaisingEvents = true };
                     _llamaProcess = new Process { StartInfo = llamaInfo, EnableRaisingEvents = true };
-
-                    _whisperProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Whisper] {e.Data}"); };
-                    _whisperProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Whisper ERR] {e.Data}"); };
-                    _whisperProcess.Exited += OnProcessExited;
 
                     _llamaProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, $"[Llama] {e.Data}"); };
                     _llamaProcess.ErrorDataReceived += (s, e) =>
@@ -328,17 +271,6 @@ namespace Logic.Backend
                         }
                     };
                     _llamaProcess.Exited += OnProcessExited;
-
-                    if (!deferSpeechServices)
-                    {
-                        _whisperProcess.Start();
-                        _whisperProcess.BeginOutputReadLine();
-                        _whisperProcess.BeginErrorReadLine();
-                    }
-                    else
-                    {
-                        CallDeferred(MethodName.EmitSignal, SignalName.BuildLogReceived, "[Performance-Tier] Low allocation configuration detected. Whisper STT engine deployment deferred.");
-                    }
 
                     _llamaProcess.Start();
                     _llamaProcess.BeginOutputReadLine();
@@ -592,19 +524,10 @@ namespace Logic.Backend
                 GD.PrintErr($"BackendLauncher: Secondary fault executing process purge (Kill): {ex.Message}");
             }
 
-            if (_environmentManager != null && _environmentManager.IsWindows)
+            if (_environmentManager != null && _environmentManager.Bridge != null)
             {
-                GD.Print("BackendLauncher: Executing secondary OS-level CIM pipeline purge on Windows hosts.");
-                OS.Execute("powershell", new string[] { "-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='python.exe' AND CommandLine LIKE '%tts_server.py%'\" | Invoke-CimMethod -MethodName Terminate" }, new Godot.Collections.Array(), true);
-                OS.Execute("powershell", new string[] { "-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='python.exe' AND CommandLine LIKE '%search_server.py%'\" | Invoke-CimMethod -MethodName Terminate" }, new Godot.Collections.Array(), true);
-                OS.Execute("powershell", new string[] { "-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='python.exe' AND CommandLine LIKE '%mcp_server.py%'\" | Invoke-CimMethod -MethodName Terminate" }, new Godot.Collections.Array(), true);
-            }
-            else
-            {
-                GD.Print("BackendLauncher: Executing secondary Linux pkill process tree sweep.");
-                OS.Execute("pkill", new string[] { "-f", "tts_server.py" }, new Godot.Collections.Array(), true);
-                OS.Execute("pkill", new string[] { "-f", "search_server.py" }, new Godot.Collections.Array(), true);
-                OS.Execute("pkill", new string[] { "-f", "mcp_server.py" }, new Godot.Collections.Array(), true);
+                GD.Print("BackendLauncher: Executing secondary native process tree sweep via Platform Bridge.");
+                _environmentManager.Bridge.TerminateOrphanedResources();
             }
 
             _retryCount = MaxRetries;
@@ -695,6 +618,80 @@ namespace Logic.Backend
         {
             GD.Print("BackendLauncher: Purging native C++ and Python processes (Preventing Zombies).");
             StopBackend();
+        }
+
+        private string GetVulkanIndexForGpu(int cudaIndex)
+        {
+            try
+            {
+                // 1. Get UUID for cudaIndex
+                string uuid = "";
+                using (Process p1 = new Process())
+                {
+                    p1.StartInfo.FileName = "nvidia-smi";
+                    p1.StartInfo.Arguments = "--query-gpu=index,uuid --format=csv,noheader";
+                    p1.StartInfo.UseShellExecute = false;
+                    p1.StartInfo.RedirectStandardOutput = true;
+                    p1.StartInfo.CreateNoWindow = true;
+                    p1.Start();
+                    
+                    string output1 = p1.StandardOutput.ReadToEnd();
+                    p1.WaitForExit();
+
+                    string[] lines = output1.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var line in lines)
+                    {
+                        var parts = line.Split(',');
+                        if (parts.Length >= 2 && parts[0].Trim() == cudaIndex.ToString())
+                        {
+                            uuid = parts[1].Trim();
+                            if (uuid.StartsWith("GPU-", StringComparison.OrdinalIgnoreCase)) 
+                                uuid = uuid.Substring(4);
+                            break;
+                        }
+                    }
+                }
+
+                if (string.IsNullOrEmpty(uuid)) return cudaIndex.ToString();
+
+                // 2. Find Vulkan index for UUID
+                using (Process p2 = new Process())
+                {
+                    p2.StartInfo.FileName = "vulkaninfo";
+                    p2.StartInfo.Arguments = "--summary";
+                    p2.StartInfo.UseShellExecute = false;
+                    p2.StartInfo.RedirectStandardOutput = true;
+                    p2.StartInfo.CreateNoWindow = true;
+                    p2.Start();
+
+                    string output2 = p2.StandardOutput.ReadToEnd();
+                    p2.WaitForExit();
+
+                    string currentGpu = "";
+                    string[] lines2 = output2.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var line in lines2)
+                    {
+                        if (line.StartsWith("GPU"))
+                        {
+                            currentGpu = line.Split(':')[0].Replace("GPU", "").Trim();
+                        }
+                        else if (line.Contains("deviceUUID") && !string.IsNullOrEmpty(currentGpu))
+                        {
+                            string vUuid = line.Split('=')[1].Trim();
+                            if (vUuid.Equals(uuid, StringComparison.OrdinalIgnoreCase))
+                            {
+                                return currentGpu;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"[BackendLauncher] Error matching Vulkan ID: {ex.Message}");
+            }
+            
+            return cudaIndex.ToString();
         }
     }
 }

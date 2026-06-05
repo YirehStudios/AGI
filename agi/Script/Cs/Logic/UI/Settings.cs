@@ -131,6 +131,9 @@ namespace Logic.UI
         /// <summary>Number of neural network layers offloaded to the GPU via CUDA/Vulkan.</summary>
         [Export] public SpinBox GpuLayersSpinBox { get; set; }
 
+        /// <summary>Selector for the hardware accelerator to use for Llama, Whisper and ONNX.</summary>
+        [Export] public OptionButton GpuSelector { get; set; }
+
         /// <summary>Hard RAM saturation ceiling in megabytes before the engine triggers memory relief.</summary>
         [Export] public SpinBox RamSaturationSpinBox { get; set; }
 
@@ -155,6 +158,15 @@ namespace Logic.UI
         /// Triggers immediate global theme re-evaluation via <see cref="ThemeManager"/>.
         /// </summary>
         [Export] public CheckButton DarkModeToggle { get; set; }
+
+        /// <summary>Editable path controlling the AI workspace.</summary>
+        [Export] public LineEdit WorkspacePathLineEdit { get; set; }
+
+        /// <summary>Trigger button that initiates the workspace directory selection dialog.</summary>
+        [Export] public Button WorkspaceBrowseBtn { get; set; }
+
+        /// <summary>Native FileDialog for selecting the workspace.</summary>
+        [Export] public FileDialog WorkspaceFileDialog { get; set; }
 
         // ─────────────────────────────────────────────────────────────
         //  PRIVACY CONTROLS
@@ -230,6 +242,13 @@ namespace Logic.UI
                 GD.PrintErr("[SETTINGS] ConfigManager dependency missing.");
             if (_backendLauncher == null)
                 GD.PrintErr("[SETTINGS] BackendLauncher dependency missing.");
+
+            if (GpuSelector == null)
+            {
+                GpuSelector = GetNodeOrNull<OptionButton>("%GpuSelector");
+                if (GpuSelector == null)
+                    GD.PrintErr("[SETTINGS] Fallback: No se pudo enlazar %GpuSelector dinámicamente.");
+            }
         }
 
         /// <summary>
@@ -390,9 +409,15 @@ namespace Logic.UI
             if (CpuThreadsSpinBox   != null) CpuThreadsSpinBox.ValueChanged   += v => UpdateCpuThreads((int)v);
             if (GpuLayersSpinBox    != null) GpuLayersSpinBox.ValueChanged    += v => UpdateGpuLayers((int)v);
             if (RamSaturationSpinBox!= null) RamSaturationSpinBox.ValueChanged += v => UpdateRamSaturation((int)v);
+            if (GpuSelector         != null) GpuSelector.ItemSelected         += OnGpuSelected;
 
             // ── Preferences ─────────────────────────────────────────
             if (DarkModeToggle != null) DarkModeToggle.Toggled += OnDarkModeToggled;
+            if (WorkspaceBrowseBtn != null && WorkspaceFileDialog != null)
+            {
+                WorkspaceBrowseBtn.Pressed += () => WorkspaceFileDialog.PopupCentered(new Vector2I(800, 600));
+                WorkspaceFileDialog.DirSelected += OnWorkspaceDirSelected;
+            }
 
             // ── Privacy ─────────────────────────────────────────────
             if (PurgeDataBtn != null) PurgeDataBtn.Pressed += PurgeLocalData;
@@ -419,6 +444,11 @@ namespace Logic.UI
             bool isDark = _configManager.DarkMode;
             DarkModeToggle?.SetPressedNoSignal(_configManager.DarkMode);
             
+            if (WorkspacePathLineEdit != null && _configManager.PersistedWorkspacePath != null)
+            {
+                WorkspacePathLineEdit.Text = _configManager.PersistedWorkspacePath;
+            }
+            
             if (Material is ShaderMaterial glassMat)
             {
                 Color blendColor = isDark ? new Color(0.06f, 0.06f, 0.09f, 0.45f) : new Color(0.95f, 0.95f, 0.98f, 0.30f);
@@ -426,6 +456,9 @@ namespace Logic.UI
                 glassMat.SetShaderParameter("blur_amount", isDark ? 2.0f : 1.5f);
             }
             UpdateThemeCornerRadius(isDark ? 16 : 8);
+
+            // ── Performance (Dynamic Population) ────────────────────
+            PopulateGpuSelector();
 
             // ── Models ──────────────────────────────────────────────
             CargarModelosEnMenu();
@@ -771,6 +804,69 @@ namespace Logic.UI
             SaveAndRestartBackend();
         }
 
+        private void OnGpuSelected(long index)
+        {
+            if (_configManager == null) return;
+            
+            // Item 0 is usually CPU (-1). Real GPUs start at item 1 (index 0).
+            int gpuId = (int)index - 1;
+            _configManager.SelectedGpuIndex = gpuId;
+            _configManager.SaveConfiguration();
+            SaveAndRestartBackend();
+        }
+
+        private void PopulateGpuSelector()
+        {
+            if (GpuSelector == null) return;
+
+            GpuSelector.Clear();
+            GpuSelector.AddItem("Procesador Central (CPU) - Seguro");
+
+            try
+            {
+                var output = new Godot.Collections.Array();
+                int result = OS.Execute("nvidia-smi", new string[] { "--query-gpu=index,name", "--format=csv,noheader" }, output, true);
+                
+                if (result == 0 && output.Count > 0)
+                {
+                    string stdout = output[0].ToString();
+                    string[] lines = stdout.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (string line in lines)
+                    {
+                        var parts = line.Split(',');
+                        if (parts.Length >= 2)
+                        {
+                            string gpuName = parts[1].Trim();
+                            GpuSelector.AddItem($"GPU: {gpuName}");
+                        }
+                    }
+                }
+                else
+                {
+                    // Fallback to Vulkan query or generic names
+                    // This could be expanded if non-NVIDIA GPUs are targeted
+                    GD.Print("[SETTINGS] No se detectó nvidia-smi o falló. Mostrando opciones genéricas.");
+                    GpuSelector.AddItem("Acelerador Primario (GPU 0)");
+                }
+            }
+            catch (Exception ex)
+            {
+                GD.PrintErr($"[SETTINGS] Error listando GPUs: {ex.Message}");
+                GpuSelector.AddItem("Acelerador Primario (GPU 0)");
+            }
+
+            int selectedIndex = 0;
+            if (_configManager != null && _configManager.SelectedGpuIndex >= 0)
+            {
+                selectedIndex = _configManager.SelectedGpuIndex + 1;
+            }
+
+            if (selectedIndex < GpuSelector.ItemCount)
+            {
+                GpuSelector.Select(selectedIndex);
+            }
+        }
+
         /// <summary>
         /// Updates the context ceiling field in the active profile's <see cref="ConfigManager.ChatTemplate"/>
         /// and immediately serializes the change to disk — no backend restart needed for this parameter.
@@ -809,6 +905,14 @@ namespace Logic.UI
         /// real-time glass shader uniform parameters, and transitions the frame corner radius configuration.
         /// </summary>
         /// <param name="isPressed">Indicates whether dark mode is currently active.</param>
+        private void OnWorkspaceDirSelected(string dirPath)
+        {
+            if (_configManager == null || WorkspacePathLineEdit == null) return;
+            _configManager.PersistedWorkspacePath = dirPath;
+            WorkspacePathLineEdit.Text = dirPath;
+            _configManager.SaveConfiguration();
+        }
+
         private void OnDarkModeToggled(bool isPressed)
         {
             if (_configManager != null)

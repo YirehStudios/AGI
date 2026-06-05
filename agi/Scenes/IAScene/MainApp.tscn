@@ -4,7 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://bolcjtvklqbax" path="res://Scenes/IAScene/Chatbot.tscn" id="2_dpcee"]
 [ext_resource type="Texture2D" uid="uid://dxui8em8fu8w3" path="res://Resources/logo.png" id="2_logo"]
 [ext_resource type="PackedScene" uid="uid://bx5yq2jklxap" path="res://Scenes/IAScene/Livemode.tscn" id="3_l7jlp"]
-[ext_resource type="PackedScene" uid="uid://7yo838i41i43" path="res://Scenes/IAScene/AgiModeMain.tscn" id="4_4nqfe"]
+[ext_resource type="PackedScene" uid="uid://drirk6datosna" path="res://Scenes/IAScene/Nora.tscn" id="4_4nqfe"]
 [ext_resource type="Texture2D" uid="uid://c4uj1r172utru" path="res://Resources/Images/Icons/Util/ChatMode.svg" id="5_ide7w"]
 [ext_resource type="Texture2D" uid="uid://dxcnkms337jlm" path="res://Resources/Images/Icons/Util/LiveMode.svg" id="6_8bqqk"]
 [ext_resource type="Texture2D" uid="uid://b1vmdijvvtehk" path="res://Resources/Images/Icons/Util/Modo3D.svg" id="7_ide7w"]
@@ -383,7 +383,6 @@ offset_left = -20.0
 offset_top = 120.0
 offset_bottom = 220.0
 grow_vertical = 2
-theme_type_variation = &"Confi"
 icon = ExtResource("icon_settings")
 icon_alignment = 1
 expand_icon = true

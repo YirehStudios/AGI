@@ -204,8 +204,6 @@ vertical_alignment = 1
 
 [node name="ToggleToolMCP" type="Button" parent="ToolsMenuPanel/MenuMargin/MenuLayout" unique_id=1805582121]
 layout_mode = 2
-theme_override_colors/font_pressed_color = Color(0.2739657, 0.6233799, 0.9242838, 1)
-theme_override_colors/font_hover_pressed_color = Color(0.4, 0.7, 1, 1)
 toggle_mode = true
 text = "MCP Tools"
 icon = ExtResource("12_u6rn7")
@@ -214,8 +212,6 @@ alignment = 0
 
 [node name="ToggleToolWebSearch" type="Button" parent="ToolsMenuPanel/MenuMargin/MenuLayout" unique_id=1941441846]
 layout_mode = 2
-theme_override_colors/font_pressed_color = Color(0.2739657, 0.6233799, 0.9242838, 1)
-theme_override_colors/font_hover_pressed_color = Color(0.4, 0.7, 1, 1)
 toggle_mode = true
 text = "Web Search"
 icon = ExtResource("19_cae2h")
@@ -224,8 +220,6 @@ alignment = 0
 
 [node name="ToggleToolTime" type="Button" parent="ToolsMenuPanel/MenuMargin/MenuLayout" unique_id=14509716]
 layout_mode = 2
-theme_override_colors/font_pressed_color = Color(0.2739657, 0.6233799, 0.9242838, 1)
-theme_override_colors/font_hover_pressed_color = Color(0.4, 0.7, 1, 1)
 toggle_mode = true
 text = "Real Time"
 icon = ExtResource("20_js05h")

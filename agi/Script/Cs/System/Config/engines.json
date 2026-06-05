@@ -1,18 +1,28 @@
 {
-  "Python": {
-    "WindowsUrl": "https://www.python.org/ftp/python/3.13.13/python-3.13.13-embed-amd64.zip"
-  },
-  "Llama": {
-    "LinuxUrl": "https://github.com/ggml-org/llama.cpp/releases/download/b8966/llama-b8966-bin-ubuntu-vulkan-x64.tar.gz",
-    "WindowsUrl": "https://github.com/ggml-org/llama.cpp/releases/download/b8941/llama-b8941-bin-win-vulkan-x64.zip"
-  },
-  "Whisper": {
-    "LinuxUrl": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/whisper-server-vulkan/dist/whisper-server-vulkan-linux.tar.gz",
-    "WindowsUrl": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/whisper-server-vulkan/dist/whisper-server-vulkan-windows.zip"
+  "engines": {
+    "vulkan_baseline": {
+      "llama_binary": "llama-server-vulkan",
+      "llama_LinuxUrl": "https://github.com/ggml-org/llama.cpp/releases/download/b8966/llama-b8966-bin-ubuntu-vulkan-x64.tar.gz",
+      "llama_WindowsUrl": "https://github.com/ggml-org/llama.cpp/releases/download/b8941/llama-b8941-bin-win-vulkan-x64.zip",
+      "whisper_binary": "whisper-server-vulkan",
+      "whisper_LinuxUrl": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/whisper-server-vulkan/dist/whisper-server-vulkan-linux.tar.gz",
+      "whisper_windowsUrl": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/whisper-server-vulkan/dist/whisper-server-vulkan-windows.zip"
+    },
+    "cuda_turbo": {
+      "llama_binary": "llama-server-cuda",
+      "llama_LinuxUrl": "https://github.com/YirehStudios/AGI/releases/download/v1.0.0/llama-cuda-linux-x64.tar.gz",
+      "llama_WindowsUrl": "https://github.com/ggml-org/llama.cpp/releases/download/b8941/llama-b8941-bin-win-cuda-cu12.4-x64.zip",
+      "whisper_binary": "whisper-server-cuda",
+      "whisper_LinuxUrl": "https://github.com/YirehStudios/AGI/releases/download/v1.0.0/whisper-cuda-linux-x64.tar.gz",
+      "whisper_windowsUrl": "https://github.com/YirehStudios/AGI/releases/download/v1.0.0/whisper-cuda-win-x64.zip"
+    }
   },
   "Sherpa": {
     "LinuxUrl": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.0/sherpa-onnx-v1.13.0-linux-x64-shared.tar.bz2",
     "WindowsUrl": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.0/sherpa-onnx-v1.13.0-win-x64-shared-MD-Release.tar.bz2"
+  },
+  "Python": {
+    "WindowsUrl": "https://www.python.org/ftp/python/3.13.13/python-3.13.13-embed-amd64.zip"
   },
   "tts_server": {
     "Url": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/agi/Script/Cs/System/Drivers/tts_server.py"
@@ -23,4 +33,4 @@
   "mcp_server": {
     "Url": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/agi/Script/Cs/System/Drivers/mcp_server.py"
   }
-}
+} 

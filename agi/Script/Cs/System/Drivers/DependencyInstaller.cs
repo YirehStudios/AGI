@@ -34,7 +34,7 @@ namespace Logic.System.Drivers
             return await Task.Run(() =>
             {
                 // Validation of current execution environment to prevent package management on incompatible OS or modes.
-                if (_environmentManager.IsWindows || _environmentManager.IsAndroid || _environmentManager.IsUIOnlyMode)
+                if (_environmentManager.Bridge.OperatingSystemIdentifier == "Windows" || _environmentManager.Bridge.OperatingSystemIdentifier == "Android" || _environmentManager.IsUIOnlyMode)
                 {
                     return (true, string.Empty, string.Empty);
                 }
@@ -45,15 +45,17 @@ namespace Logic.System.Drivers
                 bool hasVulkan = CheckCommandExists("vulkaninfo");
                 bool hasEspeak = CheckCommandExists("espeak-ng");
                 bool hasUv = CheckCommandExists("uv");
+                bool hasCargo = CheckCommandExists("cargo");
 
                 // Evaluation of necessity states for missing components on the host system.
                 bool needsAria2 = !hasAria2;
                 bool needsVulkan = !hasVulkan;
                 bool needsEspeak = !hasEspeak;
                 bool needsUv = !hasUv;
+                bool needsCargo = !hasCargo;
 
                 // Early exit if all native infrastructure and package manager requirements are satisfied.
-                if (!needsAria2 && !needsVulkan && !needsEspeak && !needsUv)
+                if (!needsAria2 && !needsVulkan && !needsEspeak && !needsUv && !needsCargo)
                 {
                     return (true, string.Empty, "> Todos los subsistemas operativos C++ y nativos están en línea y funcionales.");
                 }
@@ -64,6 +66,7 @@ namespace Logic.System.Drivers
                 if (needsVulkan) missingLog += "- Aceleración gráfica (Vulkan Tools)\n";
                 if (needsEspeak) missingLog += "- Diccionarios fonéticos para síntesis (espeak-ng)\n";
                 if (needsUv) missingLog += "- Ultra-fast Python package manager (uv)\n";
+                if (needsCargo) missingLog += "- Entorno de Rust y compilador (cargo/rustc)\n";
                 missingLog += "\n> Generando script ligero de resolución automática...";
 
                 // Definition of parameters for automation script persistence in user storage.
@@ -73,12 +76,20 @@ namespace Logic.System.Drivers
                 scriptContent += "echo '  Instalador Ligero de AGI (Fedora/Linux)'\n";
                 scriptContent += "echo '============================================'\n\n";
 
+                // Rust installation (required for compiling certain python packages via uv)
+                if (needsCargo)
+                {
+                    scriptContent += "echo '-> Installing Rust and Cargo...'\n";
+                    scriptContent += "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y\n";
+                    scriptContent += "source $HOME/.cargo/env\n\n";
+                }
+
                 // Universal installation for the uv package manager using the Astral bootstrap script.
                 if (needsUv)
                 {
                     scriptContent += "echo '-> Installing uv package manager...'\n";
                     scriptContent += "curl -LsSf https://astral.sh/uv/install.sh | sh\n";
-                    scriptContent += "source $HOME/.cargo/env\n\n";
+                    scriptContent += "source $HOME/.cargo/env || true\n\n";
                 }
 
                 // Native package manager detection for OS-specific dependency resolution.
@@ -140,7 +151,18 @@ namespace Logic.System.Drivers
         {
             var output = new Godot.Collections.Array();
             int exitCode = OS.Execute("which", new string[] { command }, output, true);
-            return exitCode == 0;
+            if (exitCode == 0) return true;
+
+            // Check common local user installation paths (like ~/.cargo/bin where Astral uv is installed)
+            string homeDir = global::System.Environment.GetFolderPath(global::System.Environment.SpecialFolder.UserProfile);
+            
+            string cargoPath = global::System.IO.Path.Combine(homeDir, ".cargo", "bin", command);
+            if (global::System.IO.File.Exists(cargoPath)) return true;
+
+            string localBinPath = global::System.IO.Path.Combine(homeDir, ".local", "bin", command);
+            if (global::System.IO.File.Exists(localBinPath)) return true;
+
+            return false;
         }
     }
 }

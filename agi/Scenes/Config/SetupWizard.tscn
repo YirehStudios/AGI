@@ -555,11 +555,11 @@ text = "Preparando Entorno"
 horizontal_alignment = 1
 
 [node name="ModelDownloadStatus" type="RichTextLabel" parent="Background/CenterContainer/PanelDownloading/Layout" unique_id=376470092]
-visible = false
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 bbcode_enabled = true
 text = "[center]Descargando componentes críticos...[/center]"
+horizontal_alignment = 1
 
 [node name="ModelDownloadProgress" type="ProgressBar" parent="Background/CenterContainer/PanelDownloading/Layout" unique_id=1265028820]
 custom_minimum_size = Vector2(500, 25)

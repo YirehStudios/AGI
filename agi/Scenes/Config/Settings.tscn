@@ -293,6 +293,15 @@ layout_mode = 2
 size_flags_horizontal = 3
 max_value = 120.0
 
+[node name="LblGpuSelector" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer" unique_id=1986170321]
+layout_mode = 2
+text = "Acelerador Gráfico (GPU)"
+
+[node name="GpuSelector" type="OptionButton" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer" unique_id=2066381499]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
 [node name="LblRam" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer" unique_id=1160913349]
 layout_mode = 2
 text = "Techo de Saturación RAM (MB)"
@@ -340,6 +349,33 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Modo Oscuro"
 icon = ExtResource("10_jepcl")
+
+[node name="LblWorkspace" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=2938471628]
+layout_mode = 2
+text = "Espacio de Trabajo (Workspace)"
+
+[node name="WorkspaceHBox" type="HBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=198273645]
+layout_mode = 2
+
+[node name="WorkspacePathLineEdit" type="LineEdit" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/WorkspaceHBox" unique_id=982736452]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Selecciona la ruta de tu Workspace..."
+editable = false
+
+[node name="WorkspaceBrowseBtn" type="Button" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/WorkspaceHBox" unique_id=45729384]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Explorar"
+
+[node name="WorkspaceFileDialog" type="FileDialog" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=89237465]
+unique_name_in_owner = true
+title = "Open a Directory"
+ok_button_text = "Select Current Folder"
+file_mode = 2
+access = 2
+use_native_dialog = true
 
 [node name="PrivacyViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin" unique_id=1587880699]
 unique_name_in_owner = true

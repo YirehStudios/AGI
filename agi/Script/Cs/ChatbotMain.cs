@@ -22,6 +22,8 @@ namespace Logic.UI
         [Export] public Button ToggleToolWebSearch;
         [Export] public Button ToggleToolMCP; // For Filesystem/OS operations
 
+        [Export] public FileDialog WorkspacePromptDialog;
+
         [Export] public PanelContainer CodeBlockTemplate;
         [Export] public Texture2D RandomImage1;
         [Export] public Texture2D RandomImage2;
@@ -263,6 +265,44 @@ namespace Logic.UI
         {
             if (string.IsNullOrWhiteSpace(text) || _isWaitingForResponse) return;
 
+            var configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+
+            if (ToggleToolMCP != null && ToggleToolMCP.ButtonPressed && configManager != null && chatManager != null)
+            {
+                if (string.IsNullOrEmpty(configManager.PersistedWorkspacePath) && string.IsNullOrEmpty(chatManager.CurrentSession.WorkspacePath))
+                {
+                    if (WorkspacePromptDialog != null)
+                    {
+                        var tcs = new TaskCompletionSource<bool>();
+                        WorkspacePromptDialog.DirSelected += OnWorkspaceSelected;
+                        WorkspacePromptDialog.Canceled += OnWorkspaceCanceled;
+
+                        void OnWorkspaceSelected(string dir)
+                        {
+                            chatManager.CurrentSession.WorkspacePath = dir;
+                            Cleanup();
+                            tcs.SetResult(true);
+                        }
+
+                        void OnWorkspaceCanceled()
+                        {
+                            Cleanup();
+                            tcs.SetResult(true);
+                        }
+
+                        void Cleanup()
+                        {
+                            WorkspacePromptDialog.DirSelected -= OnWorkspaceSelected;
+                            WorkspacePromptDialog.Canceled -= OnWorkspaceCanceled;
+                        }
+
+                        WorkspacePromptDialog.PopupCentered(new Vector2I(800, 600));
+                        await tcs.Task;
+                    }
+                }
+            }
+
             _isWaitingForResponse = true;
 
             if (WelcomeOverlay != null)
@@ -293,7 +333,7 @@ namespace Logic.UI
             if (ToggleToolWebSearch != null && ToggleToolWebSearch.ButtonPressed) activeTools.Add("Web Search");
             if (ToggleToolMCP != null && ToggleToolMCP.ButtonPressed) activeTools.Add("MCP");
 
-            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+            chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
             if (chatManager != null)
             {
                 await chatManager.SendToAI(text, selectedMode, activeTools);

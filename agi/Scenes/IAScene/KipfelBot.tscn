@@ -1,9 +1,0 @@
-[gd_scene format=3 uid="uid://b0fthwog6txgs"]
-
-[ext_resource type="Script" uid="uid://coxaherbbbpsj" path="res://Script/Cs/Model3D/AgiModeMain.cs" id="1_hbsub"]
-[ext_resource type="PackedScene" uid="uid://dbu6gascba6pe" path="res://Scenes/Test/Scene/kipfel.tscn" id="1_wm535"]
-
-[node name="AgiModeMain" type="Node3D" unique_id=1543143464]
-script = ExtResource("1_hbsub")
-
-[node name="Kipfel" parent="." unique_id=1831635054 instance=ExtResource("1_wm535")]

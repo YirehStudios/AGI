@@ -470,7 +470,7 @@ namespace Logic.Utils
                 return;
             }
 
-            bool isWindows = _environmentManager.IsWindows;
+            bool isWindows = _environmentManager.Bridge.OperatingSystemIdentifier == "Windows";
             string shareBinPath = "user://bin/";
             string globalSharePath = ProjectSettings.GlobalizePath(shareBinPath);
 
@@ -491,7 +491,7 @@ namespace Logic.Utils
 
             if (engineConfigs.TtsServer != null && !string.IsNullOrEmpty(engineConfigs.TtsServer.Url))
             {
-                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando puente de comunicación TTS...[/center]";
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando archivos necesarios...[/center]";
                 await _downloadManager.DownloadFileAsync(engineConfigs.TtsServer.Url, shareBinPath, "tts_server.py");
             }
 
@@ -502,18 +502,18 @@ namespace Logic.Utils
             bool ttsOk = await _packageManager.EnsurePythonEnvironmentAsync(currentPythonUrl);
             bool pythonOk = searchOk && ttsOk;
 
-            if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Llama Server...[/center]";
+            if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando motor principal...[/center]";
             bool llamaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentLlamaUrl, llamaArchive, "llama", "llama-server");
 
-            if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Whisper Server...[/center]";
+            if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando motor de voz...[/center]";
             bool whisperOk = await _packageManager.DownloadAndPrepareEngineAsync(currentWhisperUrl, whisperArchive, "whisper", "whisper-server");
 
-            if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando/Verificando Sherpa-ONNX Server...[/center]";
+            if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando motor de audio...[/center]";
             bool sherpaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentSherpaUrl, sherpaArchive, "sherpa", "sherpa-onnx");
 
             if (!llamaOk || !whisperOk || !sherpaOk || !pythonOk)
             {
-                string errorMessage = !pythonOk ? "Error configuring Python environments." : "Base execution engine preparation failed.";
+                string errorMessage = !pythonOk ? "Error al configurar el entorno base." : "Fallo en la preparación del motor.";
                 GD.PrintErr($"SetupWizard: {errorMessage}");
                 if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center][color=red]{errorMessage}[/color][/center]";
                 return;
@@ -583,21 +583,21 @@ namespace Logic.Utils
 
                 if (global::System.IO.File.Exists(globalPath) || isAlreadyExtracted)
                 {
-                    GD.Print($"SetupWizard: Local cache validated for {safeFileName}");
-                    if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]{preset.Name} ya está presente. Omitiendo...[/center]";
+                    GD.Print($"SetupWizard: Ya se tiene {safeFileName}");
+                    if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]{preset.Name} ya está descargado. Omitiendo...[/center]";
                     await ToSignal(GetTree().CreateTimer(1.0), SceneTreeTimer.SignalName.Timeout);
                     continue;
                 }
 
-                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]Descargando tensores: {preset.Name}...[/center]";
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]Descargando modelo: {preset.Name}...[/center]";
 
                 bool success = await _downloadManager.DownloadFileAsync(preset.DownloadLinks[0], modelsDir, safeFileName);
 
                 if (!success)
                 {
-                    GD.PrintErr($"SetupWizard: Network failure during {preset.Name} download");
+                    GD.PrintErr($"SetupWizard: Fallo en la descarga de {preset.Name}");
                     if (ModelDownloadStatus != null)
-                        ModelDownloadStatus.Text = $"[center][color=red]Error downloading {preset.Name}.[/color][/center]";
+                        ModelDownloadStatus.Text = $"[center][color=red]Error al descargar {preset.Name}.[/color][/center]";
                     return;
                 }
 
@@ -608,7 +608,7 @@ namespace Logic.Utils
 
                     if (!global::System.IO.File.Exists(voicesPyPath))
                     {
-                        if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]Descargando voces Python para {preset.Name}...[/center]";
+                        if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]Descargando voces para {preset.Name}...[/center]";
                         await _downloadManager.DownloadFileAsync("https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin", kokoroDir, "voices_python.bin");
                     }
                 }
@@ -629,7 +629,7 @@ namespace Logic.Utils
             }
             else
             {
-                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"Divergencia de red o de sistema de archivos procesando {fileName}.";
+                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"Problema de conexión al procesar {fileName}.";
                 if (ModelDownloadProgress != null) ModelDownloadProgress.Value = 0;
             }
         }
@@ -642,7 +642,7 @@ namespace Logic.Utils
             SwitchState(WizardState.StartingServer);
 
             if (ModelDownloadStatus != null)
-                ModelDownloadStatus.Text = "Iniciando Preparativos de IA...";
+                ModelDownloadStatus.Text = "Iniciando sistema...";
 
             if (ModelDownloadProgress != null)
                 ModelDownloadProgress.Value = 0;
@@ -1340,6 +1340,14 @@ namespace Logic.Utils
             BtnLowPerf?.AddThemeColorOverride("font_focus_color", esOscuro ? whiteColor : darkColor);
             BtnMedPerf?.AddThemeColorOverride("font_focus_color", esOscuro ? whiteColor : darkColor);
             BtnHighPerf?.AddThemeColorOverride("font_focus_color", esOscuro ? whiteColor : darkColor);
+
+            // Setup Text Label Colors for Day/Night Legibility
+            var textColor = esOscuro ? new Color(0.9f, 0.9f, 0.9f, 1f) : new Color(0.15f, 0.15f, 0.15f, 1f);
+            TerminalLog?.AddThemeColorOverride("default_color", textColor);
+            TxtCommandDisplay?.AddThemeColorOverride("font_color", textColor);
+            TxtCommandDisplay?.AddThemeColorOverride("font_readonly_color", textColor);
+            LblRestartWarning?.AddThemeColorOverride("default_color", textColor);
+            ModelDownloadStatus?.AddThemeColorOverride("default_color", textColor);
         }
     }
 }

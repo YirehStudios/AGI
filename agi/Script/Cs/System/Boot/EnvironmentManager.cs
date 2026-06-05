@@ -1,20 +1,18 @@
 using Godot;
 using System.IO;
+using Logic.System.Platform;
 
 /// <summary>
 /// Clase encargada de la gestión del entorno de ejecución, detección de plataforma y persistencia de directorios.
 /// </summary>
 public partial class EnvironmentManager : Node
 {
-    // Propiedades de estado para la identificación de la plataforma de ejecución
-    public bool IsWindows => OS.GetName() == "Windows";
-    public bool IsLinux => OS.GetName() == "Linux" || OS.GetName() == "FreeBSD" || OS.GetName() == "X11";
-    public bool IsAndroid => OS.GetName() == "Android";
+    public IPlatformBridge Bridge { get; private set; }
 
     // Banderas de control para capacidades del sistema y lógica de negocio
-    public bool IsUIOnlyMode => IsAndroid;
-    public bool CanRunLocalModels => !IsAndroid;
-    public bool CanRunLocalTTS => !IsAndroid;
+    public bool IsUIOnlyMode => !Bridge.CanRunLocalEngines;
+    public bool CanRunLocalModels => Bridge.CanRunLocalEngines;
+    public bool CanRunLocalTTS => Bridge.CanRunLocalEngines;
 
     // Definición de rutas de acceso global para recursos del sistema
     public string BinPath => ProjectSettings.GlobalizePath("user://bin");
@@ -27,6 +25,8 @@ public partial class EnvironmentManager : Node
     /// </summary>
     public override void _Ready()
     {
+        Bridge = PlatformFactory.ResolveBridge();
+        Bridge.InitializeEnvironment();
         EnsureDirectoriesExist();
     }
 

@@ -79,6 +79,7 @@ namespace Logic.System.Config
         public string CustomPort { get; set; } = "8080";
 
         public int SelectedGpuIndex { get; set; } = -1;
+        public bool UseCudaTurbo { get; set; } = false;
 
         public string ActiveSTTEngine { get; set; } = "whisper.cpp";
         public string ActiveSTTModel { get; set; } = "base.bin";
@@ -87,8 +88,9 @@ namespace Logic.System.Config
 
         public int PersistedSelectedAiMode { get; set; } = 1; // Default to Focus (1)
         public int PersistedToolTimeActive { get; set; } = 1; // Default to Active (1)
-        public int PersistedToolWebSearchActive { get; set; } = 0; // Default to Inactive (0)
+        public int PersistedToolWebSearchActive { get; set; } = 1; // Default to Active (1)
         public int PersistedToolMcpActive { get; set; } = 1; // Default to Active (1)
+        public string PersistedWorkspacePath { get; set; } = ""; // User's custom workspace
         public List<string> PinnedChats { get; set; } = new List<string>();
 
         /// <summary>
@@ -116,6 +118,15 @@ namespace Logic.System.Config
         public class TtsServerConfig
         {
             public string Url { get; set; }
+        }
+
+        public class EngineManifest
+        {
+            [global::System.Text.Json.Serialization.JsonPropertyName("vulkan_baseline")]
+            public EngineConfig VulkanBaseline { get; set; }
+
+            [global::System.Text.Json.Serialization.JsonPropertyName("cuda_turbo")]
+            public EngineConfig CudaTurbo { get; set; }
         }
 
         /// <summary>
@@ -222,7 +233,10 @@ namespace Logic.System.Config
             public int? PersistedToolTimeActive { get; set; }
             public int? PersistedToolWebSearchActive { get; set; }
             public int? PersistedToolMcpActive { get; set; }
+            public string PersistedWorkspacePath { get; set; }
             public List<string> PinnedChats { get; set; }
+            public int? SelectedGpuIndex { get; set; }
+            public bool? UseCudaTurbo { get; set; }
         }
 
         /// <summary>
@@ -269,6 +283,24 @@ namespace Logic.System.Config
             {
                 string jsonString = File.ReadAllText(enginesPath);
                 JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                
+                // Attempt to deserialize as the dual-track manifest architecture first.
+                var manifest = JsonSerializer.Deserialize<EngineManifest>(jsonString, options);
+                
+                if (manifest?.VulkanBaseline != null)
+                {
+                    if (UseCudaTurbo && manifest.CudaTurbo != null)
+                    {
+                        GD.Print("ConfigManager: Operating on CUDA Turbo download manifest track.");
+                        return manifest.CudaTurbo;
+                    }
+                    
+                    GD.Print("ConfigManager: Operating on Vulkan Baseline download manifest track.");
+                    return manifest.VulkanBaseline;
+                }
+
+                // Fallback for legacy flat JSON engines format
+                GD.Print("ConfigManager: Operating on legacy single-track download manifest.");
                 return JsonSerializer.Deserialize<EngineConfig>(jsonString, options);
             }
             catch (Exception ex)
@@ -364,7 +396,10 @@ namespace Logic.System.Config
                     PersistedToolTimeActive = this.PersistedToolTimeActive,
                     PersistedToolWebSearchActive = this.PersistedToolWebSearchActive,
                     PersistedToolMcpActive = this.PersistedToolMcpActive,
-                    PinnedChats = this.PinnedChats
+                    PersistedWorkspacePath = this.PersistedWorkspacePath,
+                    PinnedChats = this.PinnedChats,
+                    SelectedGpuIndex = this.SelectedGpuIndex,
+                    UseCudaTurbo = this.UseCudaTurbo
                 };
 
                 JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
@@ -421,7 +456,10 @@ namespace Logic.System.Config
                     if (state.PersistedToolTimeActive.HasValue) PersistedToolTimeActive = state.PersistedToolTimeActive.Value;
                     if (state.PersistedToolWebSearchActive.HasValue) PersistedToolWebSearchActive = state.PersistedToolWebSearchActive.Value;
                     if (state.PersistedToolMcpActive.HasValue) PersistedToolMcpActive = state.PersistedToolMcpActive.Value;
+                    if (state.PersistedWorkspacePath != null) PersistedWorkspacePath = state.PersistedWorkspacePath;
                     if (state.PinnedChats != null) PinnedChats = state.PinnedChats;
+                    if (state.SelectedGpuIndex.HasValue) SelectedGpuIndex = state.SelectedGpuIndex.Value;
+                    if (state.UseCudaTurbo.HasValue) UseCudaTurbo = state.UseCudaTurbo.Value;
                 }
             }
             catch (Exception ex)
