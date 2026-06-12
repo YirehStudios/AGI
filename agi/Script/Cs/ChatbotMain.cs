@@ -1,6 +1,8 @@
 using Godot;
 using System;
-using System.Threading.Tasks;
+using System.IO;
+using System.Collections.Generic;
+using global::System.Threading.Tasks;
 
 namespace Logic.UI
 {
@@ -8,21 +10,35 @@ namespace Logic.UI
     {
         [Export] public ScrollContainer ChatScrollContainer;
         [Export] public VBoxContainer MessagesContainer;
-        [Export] public TextEdit TextInputField;
+        [Export] public TextContainer TextInputField;
         [Export] public float MinInputHeight = 45f;
         [Export] public float MaxInputHeight = 150f;
         [Export] public Button SendButton;
 
+        private List<string> _attachedFiles = new List<string>();
+
         [Export] public PackedScene EscenaMensajeUsuario;
         [Export] public PackedScene EscenaMensajeBot;
 
+        [ExportCategory("Attachments UI")]
+        [Export] public Button AttachmentMenuBtn;
+        [Export] public FileDialog AttachmentFileDialog;
+
+        [ExportCategory("Nodes Cheados Dinamicamente")]
+        [Export] public Button ToolsMenuButton;
+        [Export] public Control ToolsMenuPanel;
+        [Export] public Panel panel;
+        [Export] public VBoxContainer MenuLayout;
+        [Export] public Label Label;
+        [Export] public PanelContainer InputPanel;
+
+
+        
         [ExportCategory("AI Execution State")]
         [Export] public OptionButton ModeSelector; // 0 = Flash, 1 = Focus, 2 = Deep
         [Export] public Button ToggleToolTime;
         [Export] public Button ToggleToolWebSearch;
         [Export] public Button ToggleToolMCP; // For Filesystem/OS operations
-
-        [Export] public FileDialog WorkspacePromptDialog;
 
         [Export] public PanelContainer CodeBlockTemplate;
         [Export] public Texture2D RandomImage1;
@@ -34,9 +50,6 @@ namespace Logic.UI
         [Export] public VideoStream RandomVideo2;
         [Export] public VideoStream RandomVideo3;
         [Export] public VideoStream RandomVideo4;
-
-        [ExportCategory("Hot-Swap UI")]
-        [Export] public Control WelcomeOverlay;
 
         private AudioEffectRecord _recorder;
         private float _silenceTimer = 0.0f;
@@ -64,9 +77,15 @@ namespace Logic.UI
             if (TextInputField != null)
             {
                 TextInputField.GuiInput += OnTextInputGuiInput;
-                TextInputField.TextChanged += OnInputTextChanged;
+                TextInputField.Connect("TextChanged", Callable.From(OnInputTextChanged));
             }
 
+            var canDropCall = Callable.From<Vector2, Variant, bool>(_CanDropDataForward);
+            var dropCall = Callable.From<Vector2, Variant>(_DropDataForward);
+            
+            if (TextInputField != null) TextInputField.Call("SetInputDragForwarding", new Callable(), canDropCall, dropCall);
+            if (ChatScrollContainer != null) ChatScrollContainer.SetDragForwarding(new Callable(), canDropCall, dropCall);
+            if (MessagesContainer != null) MessagesContainer.SetDragForwarding(new Callable(), canDropCall, dropCall);
             if (CodeBlockTemplate != null) CodeBlockTemplate.Visible = false;
 
             var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
@@ -86,20 +105,20 @@ namespace Logic.UI
             }
 
             // Wire up the ToolsMenuPanel toggle logic
-            var toolsMenuButton = GetNodeOrNull<Button>("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolsMenuButton");
-            var toolsMenuPanel = GetNodeOrNull<Control>("ToolsMenuPanel");
+            var toolsMenuButton = ToolsMenuButton;
+            var toolsMenuPanel = ToolsMenuPanel;
 
-            if (toolsMenuPanel != null)
+
+            if (ToolsMenuPanel != null && ToolsMenuButton != null)
             {
-                toolsMenuPanel.Visible = false; // Start hidden
-                if (toolsMenuButton != null)
+                ToolsMenuPanel.Visible = false;
+                ToolsMenuButton.Pressed += () =>
                 {
-                    toolsMenuButton.Pressed += () =>
-                    {
-                        toolsMenuPanel.Visible = !toolsMenuPanel.Visible;
-                    };
-                }
+                    GD.Print("ToolsMenuButton clicked! Toggling panel visibility.");
+                    ToolsMenuPanel.Visible = !ToolsMenuPanel.Visible;
+                };
             }
+
 
             // Set default tool active states on start from persisted settings
             var configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
@@ -163,9 +182,209 @@ namespace Logic.UI
                 if (ToggleToolMCP != null) ToggleToolMCP.ButtonPressed = true;
             }
 
+            SetupAttachmentMenu();
             // Dynamically load active messages from global ChatManager memory on startup
             LoadActiveMessagesIntoUI();
         }
+
+        private void SetupAttachmentMenu()
+        {
+
+            if (AttachmentMenuBtn != null && AttachmentFileDialog != null)
+            {
+                var fd = AttachmentFileDialog;
+                
+                fd.FileMode = FileDialog.FileModeEnum.OpenFiles;
+                fd.Access = FileDialog.AccessEnum.Filesystem;
+                fd.UseNativeDialog = true;
+                
+                fd.ClearFilters();
+                fd.AddFilter("*.txt, *.md, *.json, *.xml, *.cs, *.py, *.js, *.html, *.css, *.gd, *.cpp, *.h", "Archivos de Texto y Código");
+                fd.AddFilter("*.pdf", "Documentos PDF");
+                fd.AddFilter("*.xlsx, *.xls, *.csv", "Hojas de Cálculo");
+                fd.AddFilter("*.doc, *.docx, *.odt", "Documentos de Texto");
+                
+                // Disconnect to avoid multiple triggers if Setup is called again
+                var callable = new Callable(this, MethodName.HandleFilesDropped);
+                if (fd.IsConnected(FileDialog.SignalName.FilesSelected, callable))
+                {
+                    fd.Disconnect(FileDialog.SignalName.FilesSelected, callable);
+                }
+                fd.Connect(FileDialog.SignalName.FilesSelected, callable);
+                
+                AttachmentMenuBtn.Pressed += () => {
+                    fd.PopupCentered(new Vector2I(800, 600));
+                };
+            }
+
+        }
+
+        private void AttachFileToMessage(string filePath)
+        {
+            if (_attachedFiles.Contains(filePath)) return;
+            _attachedFiles.Add(filePath);
+            
+            if (TextInputField != null)
+            {
+                string fName = Path.GetFileName(filePath);
+                string bbcode = $"[file]{fName}[/file]    "; // Agregamos 4 espacios para padding del chip visual
+                TextInputField.InsertTextAtCaret(bbcode);
+            }
+            else
+            {
+                string fName = Path.GetFileName(filePath);
+                TextInputField.MarkdownText += $"[file]{fName}[/file]    ";
+            }
+        }
+
+                private async void HandleFilesDropped(string[] files)
+        {
+            var mainApp = GetNodeOrNull<Node>("/root/MainApp");
+            if (mainApp == null) mainApp = GetParent().GetParent().GetParent().GetParent(); // Fallback to relative path if not root
+            
+            var filesPanel = mainApp?.GetNodeOrNull<Control>("FilesOverlay/FilesPanel");
+            bool droppedInFilesPanel = false;
+            if (filesPanel != null && filesPanel.Visible)
+            {
+                var mousePos = GetViewport().GetMousePosition();
+                if (filesPanel.GetGlobalRect().HasPoint(mousePos))
+                {
+                    droppedInFilesPanel = true;
+                }
+            }
+
+            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+            string chatId = chatManager?.CurrentSession?.SessionName ?? "default_chat";
+            string historyDir = Path.Combine(
+                global::System.Environment.GetFolderPath(global::System.Environment.SpecialFolder.LocalApplicationData),
+                "agi", "history", chatId
+            );
+
+            if (!global::System.IO.Directory.Exists(historyDir))
+            {
+                global::System.IO.Directory.CreateDirectory(historyDir);
+            }
+
+            foreach (var file in files)
+            {
+                string targetPath = Path.Combine(historyDir, Path.GetFileName(file));
+                try
+                {
+                    if (file != targetPath)
+                    {
+                        global::System.IO.File.Copy(file, targetPath, true);
+                    }
+                    _ = RunExtractor(targetPath);
+                    AttachFileToMessage(targetPath);
+                }
+                catch (global::System.Exception ex)
+                {
+                    GD.PrintErr($"Failed to copy dropped file: {ex.Message}");
+                }
+            }
+            
+            if (droppedInFilesPanel && mainApp != null && mainApp.HasMethod("OpenFilesPanelIfNotOpen"))
+            {
+                mainApp.Call("OpenFilesPanelIfNotOpen");
+            }
+        }
+
+        private async global::System.Threading.Tasks.Task RunExtractor(string targetPath)
+        {
+            string ext = Path.GetExtension(targetPath).ToLower();
+            string[] supportedExts = { ".pdf", ".xlsx", ".xls", ".csv", ".mp4", ".avi", ".mkv", ".mov", ".mp3", ".wav", ".m4a" };
+            
+            if (global::System.Array.IndexOf(supportedExts, ext) >= 0)
+            {
+                var envManager = GetNodeOrNull<global::EnvironmentManager>("/root/EnvironmentManager");
+                if (envManager?.Bridge != null)
+                {
+                    string scriptPath = Path.Combine(envManager.BinPath, "file_extractor.py");
+                    if (!global::System.IO.File.Exists(scriptPath))
+                    {
+                        string resPath = ProjectSettings.GlobalizePath("res://Script/Cs/System/Drivers/file_extractor.py");
+                        if (global::System.IO.File.Exists(resPath)) scriptPath = resPath;
+                    }
+                    
+                    string outPath = targetPath + ".extracted.txt";
+                    if (ext == ".mp4" || ext == ".avi" || ext == ".mkv" || ext == ".mov" || ext == ".mp3" || ext == ".wav" || ext == ".m4a")
+                    {
+                        outPath = targetPath + "_meta.json";
+                    }
+
+                    string args = $"\"{targetPath}\" \"{outPath}\"";
+                    var startInfo = envManager.Bridge.ConfigurePythonMicroservice(scriptPath, args, ProjectSettings.GlobalizePath("res://"));
+                    startInfo.CreateNoWindow = true;
+                    startInfo.UseShellExecute = false;
+                    
+                    try
+                    {
+                        using (var process = new global::System.Diagnostics.Process { StartInfo = startInfo })
+                        {
+                            process.Start();
+                            await global::System.Threading.Tasks.Task.Run(() => process.WaitForExit(15000));
+                        }
+                        
+                        // Refrescar panel de archivos si se requiere para que detecte el cambio en el historial
+                        var filesPanel = GetNodeOrNull<Node>("/root/MainApp/FilesOverlay/FilesPanel/Files");
+                        if (filesPanel != null && filesPanel.HasMethod("LoadWorkspace"))
+                        {
+                            filesPanel.CallDeferred("LoadWorkspace");
+                        }
+                    }
+                    catch (global::System.Exception ex)
+                    {
+                        GD.PrintErr($"Failed to run Python file extractor from Chatbot: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        private bool IsAllowedExtension(string path)
+        {
+            string ext = global::System.IO.Path.GetExtension(path).ToLower();
+            string[] allowed = { ".txt", ".md", ".json", ".xml", ".cs", ".py", ".js", ".html", ".css", ".gd", ".cpp", ".h", ".pdf", ".xlsx", ".xls", ".csv", ".doc", ".docx", ".odt" };
+            return global::System.Array.IndexOf(allowed, ext) >= 0;
+        }
+
+        public override bool _CanDropData(Vector2 atPosition, Variant data)
+        {
+            if (data.VariantType == Variant.Type.Dictionary)
+            {
+                var dict = data.AsGodotDictionary();
+                if (dict.ContainsKey("files"))
+                {
+                    var filePaths = dict["files"].AsStringArray();
+                    foreach (var path in filePaths)
+                    {
+                        if (IsAllowedExtension(path)) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        public override void _DropData(Vector2 atPosition, Variant data)
+        {
+            if (data.VariantType == Variant.Type.Dictionary)
+            {
+                var dict = data.AsGodotDictionary();
+                if (dict.ContainsKey("files"))
+                {
+                    var filePaths = dict["files"].AsStringArray();
+                    foreach (var path in filePaths)
+                    {
+                        if (IsAllowedExtension(path))
+                        {
+                            AttachFileToMessage(path);
+                        }
+                    }
+                }
+            }
+        }
+
+        private bool _CanDropDataForward(Vector2 atPos, Variant data) => _CanDropData(atPos, data);
+        private void _DropDataForward(Vector2 atPos, Variant data) => _DropData(atPos, data);
 
         /// <summary>
         /// Evaluates microphone input frame-by-frame by querying the peak volume.
@@ -227,9 +446,34 @@ namespace Logic.UI
 
         private void OnSendPressed()
         {
+            if (_isWaitingForResponse)
+            {
+                var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+                if (chatManager != null)
+                {
+                    chatManager.CancelGeneration();
+                    
+                    // Forcefully terminate UI waiting state so user can type again
+                    _isWaitingForResponse = false;
+                    if (SendButton != null)
+                    {
+                        SendButton.Disabled = false;
+                        SendButton.Modulate = new Color(1, 1, 1, 1);
+                    }
+                    if (TextInputField != null) TextInputField.SetEditable(true);
+                    
+                    var cancelMsg = EscenaMensajeBot.Instantiate<Logic.UI.Components.MensajeBotUI>();
+                    if (MessagesContainer.Theme != null) cancelMsg.Theme = MessagesContainer.Theme;
+                    MessagesContainer.AddChild(cancelMsg);
+                    cancelMsg.ConfigurarMensaje("\n[color=red][i]Generación detenida por el usuario.[/i][/color]\n");
+                    ScrollToBottom();
+                }
+                return;
+            }
+
             if (TextInputField != null)
             {
-                _ = ProcessMessage(TextInputField.Text);
+                _ = ProcessMessage(TextInputField.MarkdownText);
             }
         }
 
@@ -238,13 +482,32 @@ namespace Logic.UI
             if (@event is InputEventKey keyEvent && keyEvent.Pressed && keyEvent.Keycode == Key.Enter && !keyEvent.ShiftPressed)
             {
                 GetViewport().SetInputAsHandled();
-                _ = ProcessMessage(TextInputField.Text);
+                _ = ProcessMessage(TextInputField.MarkdownText);
             }
         }
+
+        private PopupMenu _autocompletePopup;
+        private int _atSymbolIndex = -1;
 
         private void OnInputTextChanged()
         {
             if (TextInputField == null) return;
+
+            // Sync attached files with text content
+            string text = TextInputField.MarkdownText;
+            var toRemove = new List<string>();
+            foreach (var path in _attachedFiles)
+            {
+                string tag = $"[file]{Path.GetFileName(path)}[/file]";
+                if (!text.Contains(tag))
+                {
+                    toRemove.Add(path);
+                }
+            }
+            foreach (var path in toRemove)
+            {
+                _attachedFiles.Remove(path);
+            }
 
             int totalLines = 0;
             for (int i = 0; i < TextInputField.GetLineCount(); i++)
@@ -256,6 +519,125 @@ namespace Logic.UI
             contentHeight = Mathf.Clamp(contentHeight, MinInputHeight, MaxInputHeight);
 
             TextInputField.CustomMinimumSize = new Vector2(TextInputField.CustomMinimumSize.X, contentHeight);
+
+            HandleAutocomplete();
+        }
+
+        private void HandleAutocomplete()
+        {
+            if (TextInputField == null) return;
+            string text = TextInputField.MarkdownText;
+            int caretCol = TextInputField.GetCaretColumn();
+            
+            // Find if we are typing a word starting with @
+            int lastAt = text.LastIndexOf('@', Math.Max(0, caretCol - 1));
+            
+            if (lastAt != -1 && (lastAt == 0 || char.IsWhiteSpace(text[lastAt - 1])))
+            {
+                string searchStr = text.Substring(lastAt + 1, caretCol - lastAt - 1).ToLower();
+                // Avoid matching if there's a space after @
+                if (searchStr.Contains(" "))
+                {
+                    HideAutocomplete();
+                    return;
+                }
+                
+                ShowAutocomplete(searchStr, lastAt);
+            }
+            else
+            {
+                HideAutocomplete();
+            }
+        }
+
+        private void ShowAutocomplete(string searchStr, int atIndex)
+        {
+            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+            string chatId = chatManager?.CurrentSession?.SessionName ?? "default_chat";
+            string historyDir = Path.Combine(
+                global::System.Environment.GetFolderPath(global::System.Environment.SpecialFolder.LocalApplicationData),
+                "agi", "history", chatId
+            );
+
+            if (!Directory.Exists(historyDir))
+            {
+                HideAutocomplete();
+                return;
+            }
+
+            var files = Directory.GetFiles(historyDir);
+            var matches = new List<string>();
+            foreach (var f in files)
+            {
+                string fName = Path.GetFileName(f);
+                if (fName == "id.txt") continue;
+                if (fName.ToLower().Contains(searchStr))
+                {
+                    matches.Add(fName);
+                }
+            }
+
+            if (matches.Count == 0)
+            {
+                HideAutocomplete();
+                return;
+            }
+
+            if (_autocompletePopup == null)
+            {
+                _autocompletePopup = new PopupMenu();
+                _autocompletePopup.IndexPressed += OnAutocompleteSelected;
+                AddChild(_autocompletePopup);
+            }
+
+            _autocompletePopup.Clear();
+            foreach (var match in matches)
+            {
+                _autocompletePopup.AddItem(match);
+            }
+
+            _atSymbolIndex = atIndex;
+
+            // Position popup near the caret roughly
+            var rect = TextInputField.GetGlobalRect();
+            Vector2 popupPos = new Vector2(rect.Position.X + 20, rect.Position.Y - _autocompletePopup.Size.Y);
+            _autocompletePopup.Position = new Vector2I((int)popupPos.X, (int)popupPos.Y);
+            _autocompletePopup.Popup();
+            _autocompletePopup.SetFocusedItem(0);
+        }
+
+        private void HideAutocomplete()
+        {
+            if (_autocompletePopup != null && _autocompletePopup.Visible)
+            {
+                _autocompletePopup.Hide();
+            }
+            _atSymbolIndex = -1;
+        }
+
+        private void OnAutocompleteSelected(long index)
+        {
+            if (_autocompletePopup == null || TextInputField == null || _atSymbolIndex == -1) return;
+            string selectedFile = _autocompletePopup.GetItemText((int)index);
+            
+            string currentText = TextInputField.MarkdownText;
+            int caretCol = TextInputField.GetCaretColumn();
+            
+            string beforeAt = currentText.Substring(0, _atSymbolIndex);
+            
+            string afterCaret = currentText.Substring(caretCol);
+            TextInputField.MarkdownText = beforeAt + afterCaret;
+            TextInputField.SetCaretColumn(beforeAt.Length);
+            TextInputField.GrabFocus();
+
+            var chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
+            string chatId = chatManager?.CurrentSession?.SessionName ?? "default_chat";
+            string historyDir = Path.Combine(
+                global::System.Environment.GetFolderPath(global::System.Environment.SpecialFolder.LocalApplicationData),
+                "agi", "history", chatId
+            );
+            string targetPath = Path.Combine(historyDir, selectedFile);
+            AttachFileToMessage(targetPath);
         }
 
         /// <summary>
@@ -263,6 +645,11 @@ namespace Logic.UI
         /// </summary>
         private async Task ProcessMessage(string text)
         {
+            if (_attachedFiles.Count > 0)
+            {
+                _attachedFiles.Clear();
+            }
+
             if (string.IsNullOrWhiteSpace(text) || _isWaitingForResponse) return;
 
             var configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
@@ -272,48 +659,19 @@ namespace Logic.UI
             {
                 if (string.IsNullOrEmpty(configManager.PersistedWorkspacePath) && string.IsNullOrEmpty(chatManager.CurrentSession.WorkspacePath))
                 {
-                    if (WorkspacePromptDialog != null)
-                    {
-                        var tcs = new TaskCompletionSource<bool>();
-                        WorkspacePromptDialog.DirSelected += OnWorkspaceSelected;
-                        WorkspacePromptDialog.Canceled += OnWorkspaceCanceled;
-
-                        void OnWorkspaceSelected(string dir)
-                        {
-                            chatManager.CurrentSession.WorkspacePath = dir;
-                            Cleanup();
-                            tcs.SetResult(true);
-                        }
-
-                        void OnWorkspaceCanceled()
-                        {
-                            Cleanup();
-                            tcs.SetResult(true);
-                        }
-
-                        void Cleanup()
-                        {
-                            WorkspacePromptDialog.DirSelected -= OnWorkspaceSelected;
-                            WorkspacePromptDialog.Canceled -= OnWorkspaceCanceled;
-                        }
-
-                        WorkspacePromptDialog.PopupCentered(new Vector2I(800, 600));
-                        await tcs.Task;
-                    }
                 }
             }
 
             _isWaitingForResponse = true;
 
-            if (WelcomeOverlay != null)
-            {
-                WelcomeOverlay.Visible = false;
-            }
-
-            TextInputField.Text = string.Empty;
+            TextInputField.MarkdownText = string.Empty;
             TextInputField.CustomMinimumSize = new Vector2(TextInputField.CustomMinimumSize.X, MinInputHeight);
 
-            if (SendButton != null) SendButton.Disabled = true;
+            if (SendButton != null) 
+            {
+                SendButton.Disabled = false; // Mantenemos habilitado para poder usarlo como STOP
+                SendButton.Modulate = new Color(0.8f, 0.2f, 0.2f, 1.0f); // Color rojo para indicar "Stop"
+            }
 
             var nuevoMsgUsuario = EscenaMensajeUsuario.Instantiate<Logic.UI.Components.MensajeUsuarioUI>();
 
@@ -328,7 +686,7 @@ namespace Logic.UI
             int selectedMode = ModeSelector != null ? ModeSelector.Selected : 1;
 
             // Build Active Tools List
-            var activeTools = new global::System.Collections.Generic.List<string>();
+            var activeTools = new List<string>();
             if (ToggleToolTime != null && ToggleToolTime.ButtonPressed) activeTools.Add("Time");
             if (ToggleToolWebSearch != null && ToggleToolWebSearch.ButtonPressed) activeTools.Add("Web Search");
             if (ToggleToolMCP != null && ToggleToolMCP.ButtonPressed) activeTools.Add("MCP");
@@ -341,7 +699,11 @@ namespace Logic.UI
             else
             {
                 _isWaitingForResponse = false;
-                if (SendButton != null) SendButton.Disabled = false;
+                if (SendButton != null) 
+                {
+                    SendButton.Disabled = false;
+                    SendButton.Modulate = new Color(1, 1, 1, 1);
+                }
             }
         }
 
@@ -411,7 +773,11 @@ namespace Logic.UI
             }
 
             _isWaitingForResponse = false;
-            if (SendButton != null) SendButton.Disabled = false;
+            if (SendButton != null)
+            {
+                SendButton.Disabled = false;
+                SendButton.Modulate = new Color(1, 1, 1, 1);
+            }
             if (TextInputField != null) TextInputField.GrabFocus();
         }
 
@@ -432,8 +798,12 @@ namespace Logic.UI
         private void OnBotFinishedSpeaking(string fullResponse)
         {
             _isWaitingForResponse = false;
-            if (TextInputField != null) TextInputField.Editable = true;
-            if (SendButton != null) SendButton.Disabled = false;
+            if (TextInputField != null) TextInputField.SetEditable(true);
+            if (SendButton != null)
+            {
+                SendButton.Disabled = false;
+                SendButton.Modulate = new Color(1, 1, 1, 1);
+            }
 
             if (_mensajeBotActual != null)
             {
@@ -475,8 +845,8 @@ namespace Logic.UI
             // ─────────────────────────────────────────────────────────────
 
             // 1. ToolsMenuPanel Style (Characterized by HSL Charcoal in Dark and soft White in Light)
-            var toolsMenuPanel = GetNodeOrNull<PanelContainer>("ToolsMenuPanel");
-            var toolsPanelChild = GetNodeOrNull<Panel>("ToolsMenuPanel/panel");
+            var toolsMenuPanel = ToolsMenuPanel;
+            var toolsPanelChild = panel;
 
             StyleBoxFlat toolsPanelStyle = new StyleBoxFlat();
             toolsPanelStyle.CornerRadiusTopLeft = 12;
@@ -518,13 +888,13 @@ namespace Logic.UI
             }
 
             // 2. Tools Menu Typography & Flat Button Overrides
-            var toolsLabel = GetNodeOrNull<Label>("ToolsMenuPanel/MenuMargin/MenuLayout/Label");
+            var toolsLabel = Label;
             if (toolsLabel != null)
             {
                 toolsLabel.AddThemeColorOverride("font_color", isDark ? new Color(0.9f, 0.9f, 0.95f) : new Color(0.15f, 0.15f, 0.2f));
             }
 
-            var menuLayout = GetNodeOrNull<VBoxContainer>("ToolsMenuPanel/MenuMargin/MenuLayout");
+            var menuLayout = MenuLayout;
             if (menuLayout != null)
             {
                 foreach (Node child in menuLayout.GetChildren())
@@ -591,113 +961,21 @@ namespace Logic.UI
                 TextInputField.AddThemeStyleboxOverride("focus", textInputStyle);
             }
 
-            // 4. OptionButton (ModeSelector) Premium Styling
             if (ModeSelector != null)
             {
-                StyleBoxFlat modeSelectStyleNormal = new StyleBoxFlat();
-                modeSelectStyleNormal.CornerRadiusTopLeft = 8;
-                modeSelectStyleNormal.CornerRadiusTopRight = 8;
-                modeSelectStyleNormal.CornerRadiusBottomLeft = 8;
-                modeSelectStyleNormal.CornerRadiusBottomRight = 8;
-                modeSelectStyleNormal.SetContentMarginAll(8);
-
-                StyleBoxFlat modeSelectStyleHover = modeSelectStyleNormal.Duplicate() as StyleBoxFlat;
-
-                if (isDark)
-                {
-                    modeSelectStyleNormal.BgColor = new Color(0.16f, 0.16f, 0.2f);
-                    modeSelectStyleNormal.BorderWidthLeft = 1;
-                    modeSelectStyleNormal.BorderWidthTop = 1;
-                    modeSelectStyleNormal.BorderWidthRight = 1;
-                    modeSelectStyleNormal.BorderWidthBottom = 1;
-                    modeSelectStyleNormal.BorderColor = new Color(0.26f, 0.26f, 0.32f);
-
-                    modeSelectStyleHover.BgColor = new Color(0.2f, 0.2f, 0.25f);
-                    modeSelectStyleHover.BorderWidthLeft = 1;
-                    modeSelectStyleHover.BorderWidthTop = 1;
-                    modeSelectStyleHover.BorderWidthRight = 1;
-                    modeSelectStyleHover.BorderWidthBottom = 1;
-                    modeSelectStyleHover.BorderColor = new Color(0.35f, 0.35f, 0.42f);
-
-                    Color textColor = new Color(0.9f, 0.9f, 0.95f);
-                    ModeSelector.AddThemeColorOverride("font_color", textColor);
-                    ModeSelector.AddThemeColorOverride("font_hover_color", new Color(1.0f, 1.0f, 1.0f));
-                    ModeSelector.AddThemeColorOverride("font_pressed_color", textColor);
-                    ModeSelector.AddThemeColorOverride("font_focus_color", textColor);
-                    ModeSelector.AddThemeColorOverride("icon_normal_color", textColor);
-                    ModeSelector.AddThemeColorOverride("icon_hover_color", new Color(1.0f, 1.0f, 1.0f));
-                }
-                else
-                {
-                    modeSelectStyleNormal.BgColor = new Color(0.92f, 0.92f, 0.95f);
-                    modeSelectStyleNormal.BorderWidthLeft = 1;
-                    modeSelectStyleNormal.BorderWidthTop = 1;
-                    modeSelectStyleNormal.BorderWidthRight = 1;
-                    modeSelectStyleNormal.BorderWidthBottom = 1;
-                    modeSelectStyleNormal.BorderColor = new Color(0.8f, 0.8f, 0.85f);
-
-                    modeSelectStyleHover.BgColor = new Color(0.86f, 0.86f, 0.9f);
-                    modeSelectStyleHover.BorderWidthLeft = 1;
-                    modeSelectStyleHover.BorderWidthTop = 1;
-                    modeSelectStyleHover.BorderWidthRight = 1;
-                    modeSelectStyleHover.BorderWidthBottom = 1;
-                    modeSelectStyleHover.BorderColor = new Color(0.7f, 0.7f, 0.75f);
-
-                    Color textColor = new Color(0.15f, 0.15f, 0.2f);
-                    ModeSelector.AddThemeColorOverride("font_color", textColor);
-                    ModeSelector.AddThemeColorOverride("font_hover_color", new Color(0.05f, 0.05f, 0.1f));
-                    ModeSelector.AddThemeColorOverride("font_pressed_color", textColor);
-                    ModeSelector.AddThemeColorOverride("font_focus_color", textColor);
-                    ModeSelector.AddThemeColorOverride("icon_normal_color", textColor);
-                    ModeSelector.AddThemeColorOverride("icon_hover_color", new Color(0.05f, 0.05f, 0.1f));
-                }
-
-                ModeSelector.AddThemeStyleboxOverride("normal", modeSelectStyleNormal);
-                ModeSelector.AddThemeStyleboxOverride("hover", modeSelectStyleHover);
-                ModeSelector.AddThemeStyleboxOverride("pressed", modeSelectStyleNormal);
-                ModeSelector.AddThemeStyleboxOverride("focus", modeSelectStyleNormal);
-
                 var popup = ModeSelector.GetPopup();
                 if (popup != null)
                 {
-                    StyleBoxFlat popupStyle = new StyleBoxFlat();
-                    popupStyle.CornerRadiusTopLeft = 10;
-                    popupStyle.CornerRadiusTopRight = 10;
-                    popupStyle.CornerRadiusBottomLeft = 10;
-                    popupStyle.CornerRadiusBottomRight = 10;
-                    popupStyle.SetContentMarginAll(8);
-
-                    if (isDark)
+                    Color popupIconColor = isDark ? new Color(0.85f, 0.85f, 0.9f) : new Color(0.15f, 0.15f, 0.2f);
+                    for (int i = 0; i < popup.ItemCount; i++)
                     {
-                        popupStyle.BgColor = new Color(0.12f, 0.12f, 0.15f);
-                        popupStyle.BorderWidthLeft = 1;
-                        popupStyle.BorderWidthTop = 1;
-                        popupStyle.BorderWidthRight = 1;
-                        popupStyle.BorderWidthBottom = 1;
-                        popupStyle.BorderColor = new Color(0.22f, 0.22f, 0.28f);
-
-                        popup.AddThemeColorOverride("font_color", new Color(0.85f, 0.85f, 0.9f));
-                        popup.AddThemeColorOverride("font_hover_color", new Color(1.0f, 1.0f, 1.0f));
+                        popup.SetItemIconModulate(i, popupIconColor);
                     }
-                    else
-                    {
-                        popupStyle.BgColor = new Color(0.98f, 0.98f, 1.0f);
-                        popupStyle.BorderWidthLeft = 1;
-                        popupStyle.BorderWidthTop = 1;
-                        popupStyle.BorderWidthRight = 1;
-                        popupStyle.BorderWidthBottom = 1;
-                        popupStyle.BorderColor = new Color(0.8f, 0.8f, 0.85f);
-
-                        popup.AddThemeColorOverride("font_color", new Color(0.15f, 0.15f, 0.2f));
-                        popup.AddThemeColorOverride("font_hover_color", new Color(0.05f, 0.05f, 0.1f));
-                    }
-
-                    popup.AddThemeStyleboxOverride("panel", popupStyle);
                 }
             }
 
             // 5. InputPanel Container Style (Outer background of input area)
-            var inputPanel = GetNodeOrNull<PanelContainer>("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel");
+            var inputPanel = InputPanel;
             if (inputPanel != null)
             {
                 StyleBoxFlat inputPanelStyle = new StyleBoxFlat();
@@ -732,7 +1010,7 @@ namespace Logic.UI
             }
 
             // 6. ToolsMenuButton Style (Briefcase icon toggle)
-            var toolsMenuButton = GetNodeOrNull<Button>("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolsMenuButton");
+            var toolsMenuButton = ToolsMenuButton;
             if (toolsMenuButton != null)
             {
                 Color btnColor = isDark ? new Color(0.85f, 0.85f, 0.9f) : new Color(0.2f, 0.2f, 0.25f);
@@ -742,6 +1020,38 @@ namespace Logic.UI
                 toolsMenuButton.AddThemeColorOverride("icon_hover_color", btnHoverColor);
                 toolsMenuButton.AddThemeColorOverride("icon_pressed_color", new Color(0.274f, 0.623f, 0.924f));
                 toolsMenuButton.AddThemeColorOverride("icon_focus_color", btnHoverColor);
+            }
+            
+            if (AttachmentMenuBtn != null)
+            {
+                Color btnColor = isDark ? new Color(0.85f, 0.85f, 0.9f) : new Color(0.2f, 0.2f, 0.25f);
+                Color btnHoverColor = isDark ? new Color(1.0f, 1.0f, 1.0f) : new Color(0.05f, 0.05f, 0.1f);
+
+                AttachmentMenuBtn.AddThemeColorOverride("font_color", btnColor);
+                AttachmentMenuBtn.AddThemeColorOverride("font_hover_color", btnHoverColor);
+                AttachmentMenuBtn.AddThemeColorOverride("font_pressed_color", new Color(0.274f, 0.623f, 0.924f));
+                AttachmentMenuBtn.AddThemeColorOverride("font_focus_color", btnHoverColor);
+                AttachmentMenuBtn.AddThemeColorOverride("icon_normal_color", btnColor);
+                AttachmentMenuBtn.AddThemeColorOverride("icon_hover_color", btnHoverColor);
+                AttachmentMenuBtn.AddThemeColorOverride("icon_pressed_color", new Color(0.274f, 0.623f, 0.924f));
+                AttachmentMenuBtn.AddThemeColorOverride("icon_focus_color", btnHoverColor);
+            }
+
+            if (ModeSelector != null)
+            {
+                Color fontColor = isDark ? new Color(0.85f, 0.85f, 0.9f) : new Color(0.2f, 0.2f, 0.25f);
+                Color fontHoverColor = isDark ? new Color(1.0f, 1.0f, 1.0f) : new Color(0.05f, 0.05f, 0.1f);
+
+                ModeSelector.AddThemeColorOverride("font_color", fontColor);
+                ModeSelector.AddThemeColorOverride("font_hover_color", fontHoverColor);
+                ModeSelector.AddThemeColorOverride("font_pressed_color", new Color(0.274f, 0.623f, 0.924f));
+                ModeSelector.AddThemeColorOverride("font_focus_color", fontHoverColor);
+                
+                // Icon styling for the OptionButton
+                ModeSelector.AddThemeColorOverride("icon_normal_color", fontColor);
+                ModeSelector.AddThemeColorOverride("icon_hover_color", fontHoverColor);
+                ModeSelector.AddThemeColorOverride("icon_pressed_color", new Color(0.274f, 0.623f, 0.924f));
+                ModeSelector.AddThemeColorOverride("icon_focus_color", fontHoverColor);
             }
 
             // 7. SendButton Style
@@ -1148,8 +1458,8 @@ namespace Logic.UI
         {
             if (@event is InputEventMouseButton mouseButton && mouseButton.Pressed)
             {
-                var toolsMenuPanel = GetNodeOrNull<Control>("ToolsMenuPanel");
-                var toolsMenuButton = GetNodeOrNull<Control>("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolsMenuButton");
+                var toolsMenuPanel = ToolsMenuPanel;
+                var toolsMenuButton = ToolsMenuButton;
 
                 if (toolsMenuPanel != null && toolsMenuPanel.Visible)
                 {

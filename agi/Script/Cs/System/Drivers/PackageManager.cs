@@ -157,7 +157,7 @@ namespace Logic.System.Drivers
         /// <param name="searchServerUrl">The remote URL for the search_server.py script from manifest.</param>
         /// <param name="mcpServerUrl">The remote URL for the mcp_server.py script from manifest.</param>
         /// <returns>True if the environment and all microservice dependencies are ready; otherwise, false.</returns>
-        public async Task<bool> EnsureMicroservicesEnvironmentAsync(string pythonUrl, string searchServerUrl, string mcpServerUrl)
+        public async Task<bool> EnsureMicroservicesEnvironmentAsync(string pythonUrl, string searchServerUrl, string mcpServerUrl, string fileExtractorUrl)
         {
             // Validates operational support for the current hardware platform.
             if (_environmentManager.IsUIOnlyMode || _environmentManager.Bridge.OperatingSystemIdentifier == "Android") return true;
@@ -169,6 +169,7 @@ namespace Logic.System.Drivers
             // Offline-tolerant: if the file already exists on disk, skip the network download entirely.
             string searchLocalPath = Path.Combine(_environmentManager.BinPath, "search_server.py");
             string mcpLocalPath    = Path.Combine(_environmentManager.BinPath, "mcp_server.py");
+            string extractorLocalPath = Path.Combine(_environmentManager.BinPath, "file_extractor.py");
 
             bool searchDownload = true;
             if (!File.Exists(searchLocalPath))
@@ -196,6 +197,19 @@ namespace Logic.System.Drivers
                 GD.Print("[PackageManager] mcp_server.py already present on disk. Skipping network sync.");
             }
 
+            bool extractorDownload = true;
+            if (!File.Exists(extractorLocalPath))
+            {
+                if (!string.IsNullOrEmpty(fileExtractorUrl))
+                    extractorDownload = await _downloadManager.DownloadFileAsync(fileExtractorUrl, _environmentManager.BinPath, "file_extractor.py");
+                else
+                    extractorDownload = false;
+            }
+            else
+            {
+                GD.Print("[PackageManager] file_extractor.py already present on disk. Skipping network sync.");
+            }
+
             // Strictly verifies physical file presence to prevent silent uv/pip execution failures.
             if (!File.Exists(mcpLocalPath))
             {
@@ -203,7 +217,7 @@ namespace Logic.System.Drivers
                 return false;
             }
 
-            if (!searchDownload || !mcpDownload)
+            if (!searchDownload || !mcpDownload || !extractorDownload)
             {
                 GD.PrintErr("[PackageManager] Error: Failed to synchronize microservice scripts.");
                 return false;
@@ -257,7 +271,7 @@ namespace Logic.System.Drivers
                 GD.Print("[PackageManager] Search Env: Installing pip dependencies via uv...");
 
                 // Includes mcp and httpx as core dependencies for the tool gateway.
-                string[] dependencies = { "pip", "install", "--python", envPath, "fastapi", "uvicorn", "ddgs", "trafilatura", "mcp", "httpx" };
+                string[] dependencies = { "pip", "install", "--python", envPath, "fastapi", "uvicorn", "ddgs", "trafilatura", "mcp", "httpx", "pypdf", "openpyxl" };
                 int exitCode = OS.Execute(uvCommand, dependencies, output, true);
 
                 if (exitCode != 0)
@@ -296,7 +310,7 @@ namespace Logic.System.Drivers
                 GD.Print($"[PackageManager] Search Env: Installing pip dependencies on Windows...");
 
                 // Added mcp and httpx to the Windows pip installation command.
-                string[] winDeps = { "-m", "pip", "install", "fastapi", "uvicorn", "ddgs", "trafilatura", "mcp", "httpx" };
+                string[] winDeps = { "-m", "pip", "install", "fastapi", "uvicorn", "ddgs", "trafilatura", "mcp", "httpx", "pypdf", "openpyxl" };
                 int pipExit = OS.Execute(pythonExe, winDeps, output, true);
 
                 if (pipExit != 0)

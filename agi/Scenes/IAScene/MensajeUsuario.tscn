@@ -2,60 +2,43 @@
 
 [ext_resource type="Script" uid="uid://df7257uom7ur8" path="res://Script/Cs/Logic/Theme/MensajeUsuarioUI.cs" id="1_frmkv"]
 [ext_resource type="FontFile" uid="uid://ogy7poywqv0f" path="res://Resources/Fonts/Inter/Inter-VariableFont_opsz,wght.ttf" id="1_u4w6o"]
+[ext_resource type="Texture2D" uid="uid://bm4yy3xsabxce" path="res://Resources/Images/Icons/Util/Copy.svg" id="2_ktxb1"]
 [ext_resource type="FontFile" uid="uid://dh2m6i0ene4mw" path="res://Resources/Fonts/Inter/static/Inter_18pt-Bold.ttf" id="2_xr5qu"]
+[ext_resource type="Texture2D" uid="uid://c5fjpqc85hmuo" path="res://Resources/Images/Icons/Util/collapse.svg" id="3_eh6jd"]
 [ext_resource type="FontFile" uid="uid://cnn7lrla24g7y" path="res://Resources/Fonts/Inter/static/Inter_18pt-BoldItalic.ttf" id="3_n85ua"]
 [ext_resource type="FontFile" uid="uid://c2w5e8cbsm7yt" path="res://Resources/Fonts/Inter/Inter-Italic-VariableFont_opsz,wght.ttf" id="4_536sc"]
 [ext_resource type="FontFile" uid="uid://c88eronmj27o0" path="res://Resources/Fonts/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf" id="5_e1h77"]
-[ext_resource type="Script" uid="uid://dbap0gqox0ty1" path="res://addons/markdownlabel/markdownlabel.gd" id="6_4mv37"]
-[ext_resource type="Script" uid="uid://dcx7crs23nf4" path="res://addons/markdownlabel/header_formats/h1_format.gd" id="7_uc6w0"]
-[ext_resource type="Script" uid="uid://d0sin64i4v3op" path="res://addons/markdownlabel/header_formats/h2_format.gd" id="8_5hh2h"]
-[ext_resource type="Script" uid="uid://dlok0dv1tq2bf" path="res://addons/markdownlabel/header_formats/h3_format.gd" id="9_v8ecj"]
-[ext_resource type="Script" uid="uid://bayuh2vafablg" path="res://addons/markdownlabel/header_formats/h4_format.gd" id="10_4554d"]
-[ext_resource type="Script" uid="uid://dfr1w7u3jgni3" path="res://addons/markdownlabel/header_formats/h5_format.gd" id="11_dqivh"]
-[ext_resource type="Script" uid="uid://bsi6dexoofpe6" path="res://addons/markdownlabel/header_formats/h6_format.gd" id="12_rvpnq"]
+[ext_resource type="Script" uid="uid://dtgs23bk5eo65" path="res://addons/TextContainer/TextContainer.cs" id="6_4mv37"]
+[ext_resource type="Script" uid="uid://eax72vomdw1v" path="res://addons/TextContainer/HeaderFormat.cs" id="12_rvpnq"]
 [ext_resource type="Texture2D" uid="uid://debnuc10m0as" path="res://Resources/Images/Icons/JirehStudiosIcon.png" id="13_jrq12"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_spacer"]
 content_margin_left = 0.0
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_line_edit"]
-content_margin_left = 0.0
-
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_xr5qu"]
 
-[sub_resource type="Resource" id="Resource_js05h"]
-resource_local_to_scene = true
-script = ExtResource("7_uc6w0")
-font_size = 2.25
-is_bold = true
-is_underlined = true
-
-[sub_resource type="Resource" id="Resource_rp26x"]
-resource_local_to_scene = true
-script = ExtResource("8_5hh2h")
-font_size = 1.75
-is_bold = true
-is_underlined = true
-
-[sub_resource type="Resource" id="Resource_2c06c"]
-resource_local_to_scene = true
-script = ExtResource("9_v8ecj")
-font_size = 1.5
-is_bold = true
-
-[sub_resource type="Resource" id="Resource_wyifx"]
-resource_local_to_scene = true
-script = ExtResource("10_4554d")
-font_size = 1.25
-is_bold = true
-
-[sub_resource type="Resource" id="Resource_cdhtr"]
-resource_local_to_scene = true
-script = ExtResource("11_dqivh")
-
-[sub_resource type="Resource" id="Resource_8f5ok"]
-resource_local_to_scene = true
+[sub_resource type="Resource" id="Resource_f4hs5"]
 script = ExtResource("12_rvpnq")
+
+[sub_resource type="Resource" id="Resource_ktxb1"]
+script = ExtResource("12_rvpnq")
+FontSize = 1.714
+
+[sub_resource type="Resource" id="Resource_eh6jd"]
+script = ExtResource("12_rvpnq")
+FontSize = 1.428
+
+[sub_resource type="Resource" id="Resource_run30"]
+script = ExtResource("12_rvpnq")
+FontSize = 1.142
+
+[sub_resource type="Resource" id="Resource_pmqpg"]
+script = ExtResource("12_rvpnq")
+FontSize = 1.0
+
+[sub_resource type="Resource" id="Resource_frmkv"]
+script = ExtResource("12_rvpnq")
+FontSize = 0.857
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_avatar_container"]
 bg_color = Color(1, 1, 1, 1)
@@ -90,17 +73,15 @@ alignment = 1
 layout_mode = 2
 size_flags_vertical = 0
 theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
-theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-text = "Copiar"
+icon = ExtResource("2_ktxb1")
+flat = true
 
 [node name="MinimizeUserBtn" type="Button" parent="." unique_id=796861987]
 layout_mode = 2
 size_flags_vertical = 0
 theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
-theme_override_styles/normal = SubResource("StyleBoxEmpty_line_edit")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_line_edit")
-text = "Minimizar"
+icon = ExtResource("3_eh6jd")
+flat = true
 
 [node name="MessageBubble" type="PanelContainer" parent="." unique_id=1605861971]
 layout_mode = 2
@@ -131,12 +112,12 @@ autowrap_mode = 2
 context_menu_enabled = true
 selection_enabled = true
 script = ExtResource("6_4mv37")
-h1 = SubResource("Resource_js05h")
-h2 = SubResource("Resource_rp26x")
-h3 = SubResource("Resource_2c06c")
-h4 = SubResource("Resource_wyifx")
-h5 = SubResource("Resource_cdhtr")
-h6 = SubResource("Resource_8f5ok")
+H1 = SubResource("Resource_f4hs5")
+H2 = SubResource("Resource_ktxb1")
+H3 = SubResource("Resource_eh6jd")
+H4 = SubResource("Resource_run30")
+H5 = SubResource("Resource_pmqpg")
+H6 = SubResource("Resource_frmkv")
 
 [node name="AvatarPanel" type="PanelContainer" parent="." unique_id=435576645]
 clip_children = 1

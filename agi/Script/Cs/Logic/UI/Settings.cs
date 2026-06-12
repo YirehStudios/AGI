@@ -2,6 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using Logic.System.Config;
 using Logic.Backend;
@@ -35,6 +36,8 @@ namespace Logic.UI
         [Export] public Button PreferencesBtn { get; set; }
 
         /// <summary>Primary navigation button that activates the Privacy and Data view.</summary>
+        [Export] public Button WorkspacesBtn { get; set; }
+        /// <summary>Navigation button for the Privacy view.</summary>
         [Export] public Button PrivacyBtn { get; set; }
 
         /// <summary>System-info button pinned at the bottom of the sidebar below the spacer.</summary>
@@ -60,6 +63,8 @@ namespace Logic.UI
         [Export] public Texture2D PreferencesIcon { get; set; }
 
         /// <summary>Icon for the Privacy navigation category.</summary>
+        [Export] public Texture2D WorkspacesIcon { get; set; }
+        /// <summary>Icon for the Privacy category.</summary>
         [Export] public Texture2D PrivacyIcon { get; set; }
 
         /// <summary>Icon for the Info button.</summary>
@@ -86,6 +91,8 @@ namespace Logic.UI
         [Export] public Container PreferencesViewContainer { get; set; }
 
         /// <summary>Container rendered when the Privacy navigation category is active.</summary>
+        [Export] public Container WorkspacesViewContainer { get; set; }
+        /// <summary>Container rendered when the Privacy category is active.</summary>
         [Export] public Container PrivacyViewContainer { get; set; }
 
         // ─────────────────────────────────────────────────────────────
@@ -158,9 +165,8 @@ namespace Logic.UI
         /// Triggers immediate global theme re-evaluation via <see cref="ThemeManager"/>.
         /// </summary>
         [Export] public CheckButton DarkModeToggle { get; set; }
-
-        /// <summary>Editable path controlling the AI workspace.</summary>
-        [Export] public LineEdit WorkspacePathLineEdit { get; set; }
+        [Export] public Container WorkspaceListContainer { get; set; }
+        [Export] public Container WorkspaceItemTemplate { get; set; }
 
         /// <summary>Trigger button that initiates the workspace directory selection dialog.</summary>
         [Export] public Button WorkspaceBrowseBtn { get; set; }
@@ -188,6 +194,7 @@ namespace Logic.UI
 
         private ConfigManager _configManager;
         private BackendLauncher _backendLauncher;
+        private Logic.Lite.ChatManager _chatManager;
         private NetworkManager _networkManager;
 
         /// <summary>
@@ -237,6 +244,7 @@ namespace Logic.UI
             _configManager   = GetNodeOrNull<ConfigManager>("/root/ConfigManager");
             _backendLauncher = GetNodeOrNull<BackendLauncher>("/root/BackendLauncher");
             _networkManager  = GetNodeOrNull<NetworkManager>("/root/NetworkManager");
+            _chatManager     = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
 
             if (_configManager == null)
                 GD.PrintErr("[SETTINGS] ConfigManager dependency missing.");
@@ -261,6 +269,7 @@ namespace Logic.UI
             if (PerformanceIcon != null && PerformanceBtn != null) PerformanceBtn.Icon = PerformanceIcon;
             if (ToolsIcon != null && ToolsBtn != null) ToolsBtn.Icon = ToolsIcon;
             if (PreferencesIcon != null && PreferencesBtn != null) PreferencesBtn.Icon = PreferencesIcon;
+            if (WorkspacesIcon != null && WorkspacesBtn != null) WorkspacesBtn.Icon = WorkspacesIcon;
             if (PrivacyIcon != null && PrivacyBtn != null) PrivacyBtn.Icon = PrivacyIcon;
             if (InfoIcon != null && InfoBtn != null) InfoBtn.Icon = InfoIcon;
             if (UpdateIcon != null && UpdateBtn != null) UpdateBtn.Icon = UpdateIcon;
@@ -307,11 +316,13 @@ namespace Logic.UI
             if (PerformanceBtn        == null) GD.PrintErr("[SETTINGS] Export not wired: PerformanceBtn");
             if (ToolsBtn              == null) GD.PrintErr("[SETTINGS] Export not wired: ToolsBtn");
             if (PreferencesBtn        == null) GD.PrintErr("[SETTINGS] Export not wired: PreferencesBtn");
+            if (WorkspacesBtn         == null) GD.PrintErr("[SETTINGS] Export not wired: WorkspacesBtn");
             if (PrivacyBtn            == null) GD.PrintErr("[SETTINGS] Export not wired: PrivacyBtn");
             if (ModelsViewContainer      == null) GD.PrintErr("[SETTINGS] Export not wired: ModelsViewContainer");
             if (PerformanceViewContainer == null) GD.PrintErr("[SETTINGS] Export not wired: PerformanceViewContainer");
             if (ToolsViewContainer       == null) GD.PrintErr("[SETTINGS] Export not wired: ToolsViewContainer");
             if (PreferencesViewContainer == null) GD.PrintErr("[SETTINGS] Export not wired: PreferencesViewContainer");
+            if (WorkspacesViewContainer  == null) GD.PrintErr("[SETTINGS] Export not wired: WorkspacesViewContainer");
             if (PrivacyViewContainer     == null) GD.PrintErr("[SETTINGS] Export not wired: PrivacyViewContainer");
         }
 
@@ -330,7 +341,8 @@ namespace Logic.UI
             if (PerformanceBtn != null) PerformanceBtn.Pressed += () => SwitchActiveView(1);
             if (ToolsBtn       != null) ToolsBtn.Pressed       += () => SwitchActiveView(2);
             if (PreferencesBtn != null) PreferencesBtn.Pressed += () => SwitchActiveView(3);
-            if (PrivacyBtn     != null) PrivacyBtn.Pressed     += () => SwitchActiveView(4);
+            if (WorkspacesBtn  != null) WorkspacesBtn.Pressed  += () => SwitchActiveView(4);
+            if (PrivacyBtn     != null) PrivacyBtn.Pressed     += () => SwitchActiveView(5);
 
             // System buttons.
             if (InfoBtn   != null) InfoBtn.Pressed   += ShowInfoPanel;
@@ -365,6 +377,7 @@ namespace Logic.UI
                 PerformanceViewContainer,
                 ToolsViewContainer,
                 PreferencesViewContainer,
+                WorkspacesViewContainer,
                 PrivacyViewContainer,
             ];
 
@@ -403,8 +416,23 @@ namespace Logic.UI
             if (TxtIaDisplayNameInput != null) TxtIaDisplayNameInput.TextChanged  += OnDisplayNameChanged;
             if (NumInputTokensLimit   != null) NumInputTokensLimit.ValueChanged   += v => UpdateInputTokenLimit((int)v);
             if (NumOutputTokensLimit  != null) NumOutputTokensLimit.ValueChanged  += v => UpdateOutputTokenLimit((int)v);
-            if (NumContextWindowSize  != null) NumContextWindowSize.ValueChanged  += v => UpdateContextWindow((int)v);
+            if (NumContextWindowSize != null) NumContextWindowSize.ValueChanged += (val) =>
+            {
+                // We only mark unsaved if it differs
+            };
 
+            if (WeightImportBtn != null)
+            {
+                var modelsDialog = GetNodeOrNull<FileDialog>("%ModelsFileDialog");
+                if (modelsDialog != null)
+                {
+                    WeightImportBtn.Pressed += () => modelsDialog.PopupCentered(new Vector2I(800, 600));
+                    modelsDialog.FileSelected += (path) =>
+                    {
+                        if (WeightImportLineEdit != null) WeightImportLineEdit.Text = path;
+                    };
+                }
+            }
             // ── Performance ─────────────────────────────────────────
             if (CpuThreadsSpinBox   != null) CpuThreadsSpinBox.ValueChanged   += v => UpdateCpuThreads((int)v);
             if (GpuLayersSpinBox    != null) GpuLayersSpinBox.ValueChanged    += v => UpdateGpuLayers((int)v);
@@ -413,6 +441,7 @@ namespace Logic.UI
 
             // ── Preferences ─────────────────────────────────────────
             if (DarkModeToggle != null) DarkModeToggle.Toggled += OnDarkModeToggled;
+
             if (WorkspaceBrowseBtn != null && WorkspaceFileDialog != null)
             {
                 WorkspaceBrowseBtn.Pressed += () => WorkspaceFileDialog.PopupCentered(new Vector2I(800, 600));
@@ -444,10 +473,7 @@ namespace Logic.UI
             bool isDark = _configManager.DarkMode;
             DarkModeToggle?.SetPressedNoSignal(_configManager.DarkMode);
             
-            if (WorkspacePathLineEdit != null && _configManager.PersistedWorkspacePath != null)
-            {
-                WorkspacePathLineEdit.Text = _configManager.PersistedWorkspacePath;
-            }
+            RefreshWorkspaceUI();
             
             if (Material is ShaderMaterial glassMat)
             {
@@ -472,6 +498,61 @@ namespace Logic.UI
         /// Pushes values from the currently-loaded <see cref="ConfigManager.ActiveProfile"/>
         /// into the Models view controls without triggering reactive writes back to disk.
         /// </summary>
+        public void RefreshWorkspaceUI()
+        {
+            if (_chatManager == null || _chatManager.CurrentSession == null || WorkspaceListContainer == null || WorkspaceItemTemplate == null) return;
+
+            foreach (Node child in WorkspaceListContainer.GetChildren())
+            {
+                if (child != WorkspaceItemTemplate)
+                {
+                    child.QueueFree();
+                }
+            }
+
+            foreach (var ws in _chatManager.CurrentSession.Workspaces.ToList())
+            {
+                var row = WorkspaceItemTemplate.Duplicate() as Container;
+                row.Visible = true;
+                
+                var lineEdit = row.GetNode<LineEdit>("PathEdit");
+                bool isActive = !ws.StartsWith("!");
+                string cleanPath = isActive ? ws : ws.Substring(1);
+
+                if (lineEdit != null)
+                {
+                    lineEdit.Text = cleanPath;
+                }
+
+                var deactivateToggle = row.GetNode<CheckBox>("DeactivateToggle");
+                if (deactivateToggle != null)
+                {
+                    deactivateToggle.SetPressedNoSignal(isActive);
+                    deactivateToggle.Toggled += (isPressed) => {
+                        int index = _chatManager.CurrentSession.Workspaces.IndexOf(ws);
+                        if (index != -1)
+                        {
+                            _chatManager.CurrentSession.Workspaces[index] = isPressed ? cleanPath : "!" + cleanPath;
+                            _chatManager.SaveSession();
+                            RefreshWorkspaceUI();
+                        }
+                    };
+                }
+                
+                var delBtn = row.GetNode<Button>("DeleteBtn");
+                if (delBtn != null)
+                {
+                    delBtn.Pressed += () => {
+                        _chatManager.CurrentSession.Workspaces.Remove(ws);
+                        _chatManager.SaveSession();
+                        RefreshWorkspaceUI();
+                    };
+                }
+                
+                WorkspaceListContainer.AddChild(row);
+            }
+        }
+
         private void SyncModelFieldsFromActiveProfile()
         {
             var profile = _configManager?.ActiveProfile;
@@ -907,10 +988,15 @@ namespace Logic.UI
         /// <param name="isPressed">Indicates whether dark mode is currently active.</param>
         private void OnWorkspaceDirSelected(string dirPath)
         {
-            if (_configManager == null || WorkspacePathLineEdit == null) return;
-            _configManager.PersistedWorkspacePath = dirPath;
-            WorkspacePathLineEdit.Text = dirPath;
-            _configManager.SaveConfiguration();
+            if (_chatManager == null || _chatManager.CurrentSession == null) return;
+            
+            if (!_chatManager.CurrentSession.Workspaces.Contains(dirPath))
+            {
+                _chatManager.CurrentSession.Workspaces.Add(dirPath);
+            }
+            
+            _chatManager.SaveSession();
+            RefreshWorkspaceUI();
         }
 
         private void OnDarkModeToggled(bool isPressed)

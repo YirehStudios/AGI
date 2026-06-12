@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Linq;
 
 namespace Logic.Lite
 {
@@ -61,6 +62,7 @@ namespace Logic.Lite
         public string SessionName { get; set; } = "Current_Session";
         public string Summary { get; set; } = "Nueva conversación iniciada.";
         public string WorkspacePath { get; set; } = "";
+        public global::System.Collections.Generic.List<string> Workspaces { get; set; } = new global::System.Collections.Generic.List<string>();
         public ChatEmotions CurrentEmotion { get; set; } = new ChatEmotions();
         public global::System.Collections.Generic.List<ChatMessage> Messages { get; set; } = new global::System.Collections.Generic.List<ChatMessage>();
     }
@@ -121,11 +123,18 @@ namespace Logic.Lite
                 builder.Append("\nIMPORTANT TOOL RULES:");
                 builder.Append("\n- Do NOT use JSON formatting. Use the exact flat format above.");
                 string defaultWorkspace = ProjectSettings.GlobalizePath("user://workspace");
-                var configCheck = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
-                string activeWorkspace = (configCheck != null && !string.IsNullOrEmpty(configCheck.PersistedWorkspacePath)) 
-                                       ? configCheck.PersistedWorkspacePath 
-                                       : (!string.IsNullOrEmpty(_currentSession.WorkspacePath) ? _currentSession.WorkspacePath : defaultWorkspace);
-                builder.Append($"\n- For all file operations (create, read, edit), you MUST use absolute paths starting with {activeWorkspace}/ otherwise the MCP server will BLOCK access for security reasons.");
+                
+                var activeWorkspaces = _currentSession.Workspaces != null ? 
+                    _currentSession.Workspaces.Where(w => !w.StartsWith("!")).ToList() : 
+                    new global::System.Collections.Generic.List<string>();
+
+                var workspacesStr = activeWorkspaces.Count > 0 
+                                  ? string.Join(", ", activeWorkspaces) 
+                                  : defaultWorkspace;
+                
+                builder.Append($"\n- For operations within your workspace, use absolute paths starting with one of these: {workspacesStr}.");
+                builder.Append("\n- You ARE ALLOWED to access external paths (like /home/Yahir_js/Descargas), but it will prompt the user for permission natively. You don't need a special tool to do this, just use the normal file tools (e.g., create_new_file) with the absolute path.");
+                builder.Append("\n- IMPORTANT: If a user attaches a file, its text content will be directly injected into the prompt for you. You don't need to read it manually. To modify a file, you can output the corrected version using your file writing tools.");
                 builder.Append("\nAvailable tools:\n");
                 builder.Append(GetCompactToolSchema(activeTools));
             }
@@ -195,6 +204,15 @@ namespace Logic.Lite
                 return string.Empty;
             }
         }
+
+        public void CancelGeneration()
+        {
+            if (_networkManager != null)
+            {
+                _networkManager.CancelCurrentRequest();
+            }
+        }
+
         private ChatSession _currentSession;
         private string _historyDirectory;
         private string _currentFilePath;
@@ -275,7 +293,7 @@ namespace Logic.Lite
         /// <summary>
         /// Serializes the current active session object and overrides the persistent JSON log.
         /// </summary>
-        private void SaveSession()
+        public void SaveSession()
         {
             try
             {
@@ -312,12 +330,62 @@ namespace Logic.Lite
             });
             SaveSession();
 
+            // Notify UI layer that inference has commenced.
+            EmitSignal(SignalName.OnBotStartedThinking);
+
+            // Await any pending extractions in the user's input before continuing
+            var fileRegex = new global::System.Text.RegularExpressions.Regex(@"\[file\](.*?)\[\/file\]");
+            var fileMatches = fileRegex.Matches(userInput);
+            
+            if (fileMatches.Count > 0)
+            {
+                string historyDir = global::System.IO.Path.Combine(
+                    global::System.Environment.GetFolderPath(global::System.Environment.SpecialFolder.LocalApplicationData),
+                    "agi", "history", _currentSession.SessionName ?? "default_chat"
+                );
+
+                bool showedWaitMessage = false;
+
+                foreach (global::System.Text.RegularExpressions.Match match in fileMatches)
+                {
+                    string fileName = match.Groups[1].Value.Trim();
+                    string pathToCheck = global::System.IO.Path.Combine(historyDir, fileName);
+                    string ext = global::System.IO.Path.GetExtension(fileName).ToLower();
+                    string[] binaries = { ".pdf", ".xlsx", ".xls", ".csv", ".doc", ".docx", ".odt" };
+                    string[] medias = { ".mp4", ".avi", ".mkv", ".mov", ".mp3", ".wav", ".m4a" };
+                    
+                    bool isExtractable = false;
+                    if (global::System.Array.IndexOf(binaries, ext) >= 0) 
+                    {
+                        pathToCheck += ".extracted.txt";
+                        isExtractable = true;
+                    }
+                    else if (global::System.Array.IndexOf(medias, ext) >= 0) 
+                    {
+                        pathToCheck += "_meta.json";
+                        isExtractable = true;
+                    }
+
+                    if (isExtractable)
+                    {
+                        int waitCount = 0;
+                        while (!global::System.IO.File.Exists(pathToCheck) && waitCount < 30) // Wait up to 15s
+                        {
+                            if (!showedWaitMessage)
+                            {
+                                CallDeferred(MethodName.EmitSignal, SignalName.OnBotThoughtTokenReceived, "\n[i]Procesando archivo...[/i]\n");
+                                showedWaitMessage = true;
+                            }
+                            await global::System.Threading.Tasks.Task.Delay(500);
+                            waitCount++;
+                        }
+                    }
+                }
+            }
+
             // Step 2: Construct the initial LLM prompt based on the current conversation state.
             await SyncMCPTools();
             string prompt = BuildPrompt(mode, activeTools);
-
-            // Notify UI layer that inference has commenced.
-            EmitSignal(SignalName.OnBotStartedThinking);
 
             // Reset stateful buffers for the new transaction.
             _currentAssistantBuffer = string.Empty;
@@ -395,8 +463,38 @@ namespace Logic.Lite
                         // ── SECURITY INTERCEPTOR: DATA-DRIVEN APPROVAL GATE ──────────────────
                         var configForApproval = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
                         int toolPermission = 1; // Default to Ask First when no preference saved.
+                        
+                        // Determinar si la operación sale del workspace seguro
+                        bool isExternalAccess = false;
+                        if (argsDict.TryGetValue("path", out string targetPath) || argsDict.TryGetValue("directory", out targetPath))
+                        {
+                            isExternalAccess = true;
+                            if (_currentSession.Workspaces != null && _currentSession.Workspaces.Count > 0)
+                            {
+                                var activeWorkspaces = _currentSession.Workspaces.Where(w => !w.StartsWith("!")).ToList();
+                                foreach (var ws in activeWorkspaces)
+                                {
+                                    if (targetPath.StartsWith(ws, global::System.StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        isExternalAccess = false;
+                                        break;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                string defaultWorkspace = ProjectSettings.GlobalizePath("user://workspace");
+                                if (targetPath.StartsWith(defaultWorkspace, global::System.StringComparison.OrdinalIgnoreCase))
+                                {
+                                    isExternalAccess = false;
+                                }
+                            }
+                        }
+
+                        string effectiveToolName = isExternalAccess ? "global_access" : toolName;
+
                         if (configForApproval?.ToolPermissions != null
-                            && configForApproval.ToolPermissions.TryGetValue(toolName, out int savedPerm))
+                            && configForApproval.ToolPermissions.TryGetValue(effectiveToolName, out int savedPerm))
                         {
                             toolPermission = savedPerm;
                         }
@@ -407,12 +505,19 @@ namespace Logic.Lite
 
                         if (isExcluded)
                         {
-                            GD.Print($"[AGENT] Tool '{toolName}' is EXCLUDED by user policy. Blocking execution.");
+                            GD.Print($"[AGENT] Tool '{effectiveToolName}' is EXCLUDED by user policy. Blocking execution.");
                             toolApproved = false;
                         }
                         else if (requiresApproval)
                         {
-                            CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolApprovalRequired, toolName, finalJsonPayload);
+                            if (isExternalAccess)
+                            {
+                                CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolApprovalRequired, "Acceso Fuera del Workspace: " + toolName, finalJsonPayload);
+                            }
+                            else
+                            {
+                                CallDeferred(MethodName.EmitSignal, SignalName.OnBotToolApprovalRequired, toolName, finalJsonPayload);
+                            }
                             var userDecision = await ToSignal(this, SignalName.OnUserToolApprovalResponse);
                             toolApproved = userDecision[0].AsBool();
                             finalJsonPayload = userDecision[1].AsString();
@@ -669,6 +774,44 @@ namespace Logic.Lite
                 {
                     fullContent = $"<think>\n{msg.Think}\n</think>\n{msg.Content}";
                 }
+
+                // Inject [file] contents directly into the AI's context
+                string chatId = _currentSession.SessionName ?? "default_chat";
+                string historyDir = global::System.IO.Path.Combine(
+                    global::System.Environment.GetFolderPath(global::System.Environment.SpecialFolder.LocalApplicationData),
+                    "agi", "history", chatId
+                );
+
+                fullContent = global::System.Text.RegularExpressions.Regex.Replace(fullContent, @"\[file\](.*?)\[/file\]", match => {
+                    string fileName = match.Groups[1].Value.Trim();
+                    string pathToCheck = global::System.IO.Path.Combine(historyDir, fileName);
+                    
+                    string ext = global::System.IO.Path.GetExtension(fileName).ToLower();
+                    string[] binaries = { ".pdf", ".xlsx", ".xls", ".csv", ".doc", ".docx", ".odt" };
+                    string[] medias = { ".mp4", ".avi", ".mkv", ".mov", ".mp3", ".wav", ".m4a" };
+                    
+                    if (global::System.Array.IndexOf(binaries, ext) >= 0) pathToCheck += ".extracted.txt";
+                    else if (global::System.Array.IndexOf(medias, ext) >= 0) pathToCheck += "_meta.json";
+
+                    if (global::System.IO.File.Exists(pathToCheck))
+                    {
+                        try
+                        {
+                            string content = global::System.IO.File.ReadAllText(pathToCheck);
+                            if (content.Length > 8000) 
+                            {
+                                content = content.Substring(0, 8000) + "\n...[CONTENT TRUNCATED DUE TO SIZE. Use read_file tool on this file if you need more]...";
+                            }
+                            return $"\n--- ATTACHED FILE ({fileName}) ---\n{content}\n--- END ATTACHED FILE ---\n";
+                        }
+                        catch { }
+                    }
+                    else if (global::System.IO.File.Exists(global::System.IO.Path.Combine(historyDir, fileName)))
+                    {
+                        return $"\n[System Error: The file {fileName} extraction timed out. Could not parse its content.]\n";
+                    }
+                    return match.Value;
+                }, global::System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                 string prefix = msg.Role == "user" ? template.UserPrefix : (msg.Role == "system" ? template.SystemPrefix : template.AssistantPrefix);
                 builder.Append($"{prefix}{fullContent.Trim()}{template.StopSequence}");

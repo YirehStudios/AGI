@@ -16,6 +16,7 @@
 [ext_resource type="Texture2D" uid="uid://d0tsudji8krk8" path="res://Resources/Images/Icons/Util/Tools.svg" id="12_u6rn7"]
 [ext_resource type="Texture2D" uid="uid://cal47j4iliryc" path="res://Resources/Images/Icons/Util/Flash.svg" id="13_143c2"]
 [ext_resource type="PackedScene" uid="uid://crfads6pfh14x" path="res://Scenes/IAScene/CodeEdit.tscn" id="13_amhcu"]
+[ext_resource type="Texture2D" uid="uid://cdr5dgl3bmwp3" path="res://Resources/Images/Icons/Util/Add.svg" id="13_wyifx"]
 [ext_resource type="Texture2D" uid="uid://dv8x38vp6vjl3" path="res://Resources/Images/Icons/Util/Focus.svg" id="14_b06b1"]
 [ext_resource type="Shader" uid="uid://c5f447olcpncs" path="res://Resources/Shaders/frosted_glass.gdshader" id="14_glass"]
 [ext_resource type="FontFile" uid="uid://b1c5skpnsmnx6" path="res://Resources/Fonts/Roboto/static/Roboto-Light.ttf" id="14_lgxif"]
@@ -24,8 +25,33 @@
 [ext_resource type="Texture2D" uid="uid://i3iqvqvfchtg" path="res://Resources/Images/Icons/Util/Real Time.svg" id="20_js05h"]
 [ext_resource type="Texture2D" uid="uid://fdt2x4hs7d40" path="res://Resources/Images/Icons/Util/Deep Search.svg" id="21_rp26x"]
 [ext_resource type="Texture2D" uid="uid://c6d5wmoj46v43" path="res://Resources/Images/Icons/Util/image.svg" id="22_2c06c"]
+[ext_resource type="Script" uid="uid://eax72vomdw1v" path="res://addons/TextContainer/HeaderFormat.cs" id="22_rn0hu"]
 [ext_resource type="Texture2D" uid="uid://cpx37bn2p26k4" path="res://Resources/Images/Icons/Util/Video.svg" id="23_wyifx"]
 [ext_resource type="Texture2D" uid="uid://c7ynkw0628mb6" path="res://Resources/Images/Icons/Util/Voice.svg" id="24_cdhtr"]
+[ext_resource type="Script" uid="uid://dtgs23bk5eo65" path="res://addons/TextContainer/TextContainer.cs" id="25_tc"]
+
+[sub_resource type="Resource" id="Resource_2c06c"]
+script = ExtResource("22_rn0hu")
+
+[sub_resource type="Resource" id="Resource_wyifx"]
+script = ExtResource("22_rn0hu")
+FontSize = 1.714
+
+[sub_resource type="Resource" id="Resource_cdhtr"]
+script = ExtResource("22_rn0hu")
+FontSize = 1.428
+
+[sub_resource type="Resource" id="Resource_8f5ok"]
+script = ExtResource("22_rn0hu")
+FontSize = 1.142
+
+[sub_resource type="Resource" id="Resource_q3ipm"]
+script = ExtResource("22_rn0hu")
+FontSize = 1.0
+
+[sub_resource type="Resource" id="Resource_jgyfx"]
+script = ExtResource("22_rn0hu")
+FontSize = 0.857
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jta4j"]
 bg_color = Color(0.2739657, 0.6233799, 0.9242838, 1)
@@ -52,7 +78,7 @@ shader = ExtResource("14_glass")
 shader_parameter/blur_amount = 2.5
 shader_parameter/mix_color = Color(0.04, 0.04, 0.07, 0.45)
 
-[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "ModeSelector", "ToggleToolTime", "ToggleToolWebSearch", "ToggleToolMCP", "CodeBlockTemplate")]
+[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "AttachmentMenuBtn", "AttachmentFileDialog", "ToolsMenuButton", "ToolsMenuPanel", "panel", "MenuLayout", "Label", "InputPanel", "ModeSelector", "ToggleToolTime", "ToggleToolWebSearch", "ToggleToolMCP", "CodeBlockTemplate")]
 self_modulate = Color(1, 1, 1, 0)
 anchors_preset = 15
 anchor_right = 1.0
@@ -66,6 +92,14 @@ TextInputField = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/Input
 SendButton = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/SendButton")
 EscenaMensajeUsuario = ExtResource("2_jta4j")
 EscenaMensajeBot = ExtResource("3_amhcu")
+AttachmentMenuBtn = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/AttachmentMenuBtn")
+AttachmentFileDialog = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/AttachmentMenuBtn/FileDialog")
+ToolsMenuButton = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolsMenuButton")
+ToolsMenuPanel = NodePath("ToolsMenuPanel")
+panel = NodePath("ToolsMenuPanel/panel")
+MenuLayout = NodePath("ToolsMenuPanel/MenuMargin/MenuLayout")
+Label = NodePath("ToolsMenuPanel/MenuMargin/MenuLayout/Label")
+InputPanel = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel")
 ModeSelector = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ModeSelector")
 ToggleToolTime = NodePath("ToolsMenuPanel/MenuMargin/MenuLayout/ToggleToolTime")
 ToggleToolWebSearch = NodePath("ToolsMenuPanel/MenuMargin/MenuLayout/ToggleToolWebSearch")
@@ -136,10 +170,24 @@ icon = ExtResource("12_2d4k7")
 flat = true
 icon_alignment = 2
 
+[node name="AttachmentMenuBtn" type="Button" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=1909961061]
+custom_minimum_size = Vector2(45, 45)
+layout_mode = 2
+size_flags_vertical = 4
+text = "➕"
+icon = ExtResource("13_wyifx")
+flat = true
+icon_alignment = 1
+
+[node name="FileDialog" type="FileDialog" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/AttachmentMenuBtn" unique_id=794082127]
+oversampling_override = 1.0
+use_native_dialog = true
+
 [node name="ModeSelector" type="OptionButton" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=1136507933]
 custom_minimum_size = Vector2(100, 40)
 layout_mode = 2
 size_flags_vertical = 4
+flat = true
 selected = 0
 item_count = 3
 popup/item_0/text = "Flash"
@@ -152,13 +200,24 @@ popup/item_2/text = "Deep"
 popup/item_2/icon = ExtResource("15_rq6ts")
 popup/item_2/id = 2
 
-[node name="TextInputField" type="TextEdit" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=733254512]
+[node name="TextInputField" type="RichTextLabel" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=733254512]
 custom_minimum_size = Vector2(0, 45)
 layout_mode = 2
 size_flags_horizontal = 3
-placeholder_text = "Escribe tu mensaje aquí..."
-wrap_mode = 1
-caret_blink = true
+focus_mode = 0
+mouse_filter = 2
+bbcode_enabled = true
+context_menu_enabled = true
+selection_enabled = true
+script = ExtResource("25_tc")
+H1 = SubResource("Resource_2c06c")
+H2 = SubResource("Resource_wyifx")
+H3 = SubResource("Resource_cdhtr")
+H4 = SubResource("Resource_8f5ok")
+H5 = SubResource("Resource_q3ipm")
+H6 = SubResource("Resource_jgyfx")
+IsInputMode = true
+PlaceholderText = "Escribe aqui..."
 
 [node name="SendButton" type="Button" parent="MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout" unique_id=1967729766]
 custom_minimum_size = Vector2(50, 50)
@@ -170,6 +229,7 @@ icon_alignment = 1
 expand_icon = true
 
 [node name="ToolsMenuPanel" type="PanelContainer" parent="." unique_id=717173464]
+visible = false
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0

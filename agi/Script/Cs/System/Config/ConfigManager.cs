@@ -148,6 +148,9 @@ namespace Logic.System.Config
 
             [global::System.Text.Json.Serialization.JsonPropertyName("mcp_server")]
             public TtsServerConfig McpServer { get; set; }
+
+            [global::System.Text.Json.Serialization.JsonPropertyName("file_extractor")]
+            public TtsServerConfig FileExtractor { get; set; }
         }
 
         /// <summary>
@@ -451,7 +454,11 @@ namespace Logic.System.Config
                     if (state.PerformanceTier.HasValue) CurrentPerformanceTier = state.PerformanceTier.Value;
                     if (state.ActiveProfilePath != null) ActiveProfilePath = state.ActiveProfilePath;
                     if (state.PerformanceProfile != null) PerformanceProfile = state.PerformanceProfile;
-                    if (state.ToolPermissions != null) ToolPermissions = state.ToolPermissions;
+                    if (state.ToolPermissions != null) 
+                    {
+                        ToolPermissions = state.ToolPermissions;
+                        ToolPermissions.Remove("global_access");
+                    }
                     if (state.PersistedSelectedAiMode.HasValue) PersistedSelectedAiMode = state.PersistedSelectedAiMode.Value;
                     if (state.PersistedToolTimeActive.HasValue) PersistedToolTimeActive = state.PersistedToolTimeActive.Value;
                     if (state.PersistedToolWebSearchActive.HasValue) PersistedToolWebSearchActive = state.PersistedToolWebSearchActive.Value;

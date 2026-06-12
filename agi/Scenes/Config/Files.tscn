@@ -1,0 +1,196 @@
+[gd_scene format=3 uid="uid://f3x84k45j2pj"]
+
+[ext_resource type="Script" uid="uid://sfbhq3rd0y0a" path="res://Script/Cs/Logic/UI/Files.cs" id="1_script"]
+[ext_resource type="Shader" uid="uid://c5f447olcpncs" path="res://Resources/Shaders/frosted_glass.gdshader" id="2_glass"]
+[ext_resource type="Texture2D" uid="uid://cdr5dgl3bmwp3" path="res://Resources/Images/Icons/Util/Add.svg" id="3_add"]
+[ext_resource type="Texture2D" uid="uid://b0deoufvhlxpv" path="res://Resources/Images/Icons/Util/Delete.svg" id="4_delete"]
+[ext_resource type="Texture2D" uid="uid://byasaar18qqk" path="res://Resources/Images/Icons/Util/upload.svg" id="5_upload"]
+[ext_resource type="Script" uid="uid://2nqtoyaypm0e" path="res://Script/Cs/Logic/UI/FileChip.cs" id="6_filechip"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_GlassRoot"]
+shader = ExtResource("2_glass")
+shader_parameter/blur_amount = 1.8
+shader_parameter/mix_color = Color(0.06, 0.06, 0.09, 0.35)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_RootPanel"]
+content_margin_left = 24.0
+content_margin_top = 24.0
+content_margin_right = 24.0
+content_margin_bottom = 24.0
+bg_color = Color(0.6, 0.6, 0.6, 0)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="SystemFont" id="SystemFont_Title"]
+font_names = PackedStringArray("Sans-Serif")
+font_weight = 700
+subpixel_positioning = 0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_DropZone"]
+bg_color = Color(0.1, 0.1, 0.15, 0.2)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.4, 0.6, 0.5)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="FilesRoot" type="PanelContainer" unique_id=1068191163 node_paths=PackedStringArray("AddFileBtn", "FilesListContainer", "FileChipTemplate", "OverwriteDialog", "FileDialog")]
+material = SubResource("ShaderMaterial_GlassRoot")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_RootPanel")
+script = ExtResource("1_script")
+AddFileBtn = NodePath("MainLayout/TopBar/AddFileBtn")
+FilesListContainer = NodePath("MainLayout/ScrollContainer/FilesListContainer")
+FileChipTemplate = NodePath("MainLayout/ScrollContainer/FilesListContainer/FileChipTemplate")
+OverwriteDialog = NodePath("OverwriteDialog")
+FileDialog = NodePath("FileDialog")
+
+[node name="MainLayout" type="VBoxContainer" parent="." unique_id=1327118635]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TopBar" type="HBoxContainer" parent="MainLayout" unique_id=1147165774]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="MainLayout/TopBar" unique_id=1893322266]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = SubResource("SystemFont_Title")
+theme_override_font_sizes/font_size = 24
+text = "Archivos del Chat"
+
+[node name="AddFileBtn" type="Button" parent="MainLayout/TopBar" unique_id=1332363300]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+icon = ExtResource("3_add")
+flat = true
+icon_alignment = 1
+expand_icon = true
+
+[node name="SortBar" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SortOptionBtn" type="OptionButton" parent="MainLayout/SortBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+item_count = 3
+popup/item_0/text = "Fecha (Más recientes)"
+popup/item_0/id = 0
+popup/item_1/text = "Nombre"
+popup/item_1/id = 1
+popup/item_2/text = "Peso"
+popup/item_2/id = 2
+
+[node name="SortOrderBtn" type="Button" parent="MainLayout/SortBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(30, 0)
+text = "↓"
+flat = true
+
+[node name="DropZonePanel" type="PanelContainer" parent="MainLayout" unique_id=88443322]
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_DropZone")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MainLayout/DropZonePanel" unique_id=1085767051]
+layout_mode = 2
+alignment = 1
+
+[node name="TextureRect" type="TextureRect" parent="MainLayout/DropZonePanel/VBoxContainer" unique_id=1431791154]
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+texture = ExtResource("5_upload")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Label" type="Label" parent="MainLayout/DropZonePanel/VBoxContainer" unique_id=2037780337]
+layout_mode = 2
+text = "Arrastra tus archivos aquí"
+horizontal_alignment = 1
+
+[node name="ScrollContainer" type="ScrollContainer" parent="MainLayout" unique_id=1648903608]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="FilesListContainer" type="VBoxContainer" parent="MainLayout/ScrollContainer" unique_id=936921715]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="FileChipTemplate" type="PanelContainer" parent="MainLayout/ScrollContainer/FilesListContainer" unique_id=1239639187]
+visible = false
+layout_mode = 2
+mouse_default_cursor_shape = 2
+script = ExtResource("6_filechip")
+
+[node name="ChipHBox" type="HBoxContainer" parent="MainLayout/ScrollContainer/FilesListContainer/FileChipTemplate" unique_id=416806919]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="FileIcon" type="TextureRect" parent="MainLayout/ScrollContainer/FilesListContainer/FileChipTemplate/ChipHBox" unique_id=1941583446]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TextVBox" type="VBoxContainer" parent="MainLayout/ScrollContainer/FilesListContainer/FileChipTemplate/ChipHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="FileNameLabel" type="Label" parent="MainLayout/ScrollContainer/FilesListContainer/FileChipTemplate/ChipHBox/TextVBox"]
+layout_mode = 2
+mouse_filter = 1
+text = "archivo.txt"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="FileNameEdit" type="LineEdit" parent="MainLayout/ScrollContainer/FilesListContainer/FileChipTemplate/ChipHBox/TextVBox"]
+visible = false
+layout_mode = 2
+flat = true
+select_all_on_focus = true
+
+[node name="FileInfoLabel" type="Label" parent="MainLayout/ScrollContainer/FilesListContainer/FileChipTemplate/ChipHBox/TextVBox"]
+layout_mode = 2
+mouse_filter = 1
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 0.8)
+theme_override_font_sizes/font_size = 11
+text = "12/06/2026 - 1.2 MB"
+
+[node name="RemoveFileBtn" type="TextureButton" parent="MainLayout/ScrollContainer/FilesListContainer/FileChipTemplate/ChipHBox" unique_id=903327896]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+size_flags_vertical = 4
+texture_normal = ExtResource("4_delete")
+ignore_texture_size = true
+stretch_mode = 5
+
+[node name="OverwriteDialog" type="ConfirmationDialog" parent="." unique_id=1987592389]
+oversampling_override = 1.0
+title = "Sobrescribir archivo"
+size = Vector2i(335, 100)
+dialog_text = "El archivo ya existe. ¿Deseas sobrescribirlo?"
+cancel_button_text = "Cancelar"
+
+[node name="FileDialog" type="FileDialog" parent="." unique_id=564599296]
+title = "Open a File"
+size = Vector2i(600, 400)
+ok_button_text = "Open"
+file_mode = 0
+access = 2
+use_native_dialog = true

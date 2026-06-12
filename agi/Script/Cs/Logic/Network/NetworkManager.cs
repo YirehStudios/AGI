@@ -29,6 +29,19 @@ namespace Logic.Network
             Timeout = global::System.Threading.Timeout.InfiniteTimeSpan
         };
 
+        private global::System.Threading.CancellationTokenSource _currentCts;
+
+        public void CancelCurrentRequest()
+        {
+            if (_currentCts != null)
+            {
+                _currentCts.Cancel();
+                _currentCts.Dispose();
+                _currentCts = null;
+                GD.Print("[NET] Request CANCELLED by user.");
+            }
+        }
+
         public async void PerformHandshake()
         {
             try
@@ -61,6 +74,10 @@ namespace Logic.Network
         /// <param name="prompt">The absolute instruction and context template context payload.</param>
         public async Task StreamChatCompletion(string prompt)
         {
+            CancelCurrentRequest();
+            _currentCts = new global::System.Threading.CancellationTokenSource();
+            var token = _currentCts.Token;
+
             string urlSegura = GetActiveUrl();
             GD.Print($"[NET] Enviando petición a Llama en: {urlSegura}");
 
@@ -83,13 +100,13 @@ namespace Logic.Network
                         Content = content
                     };
 
-                    using HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                    using HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
                     response.EnsureSuccessStatusCode();
 
-                    using Stream responseStream = await response.Content.ReadAsStreamAsync();
+                    using Stream responseStream = await response.Content.ReadAsStreamAsync(token);
                     using StreamReader reader = new StreamReader(responseStream);
 
-                    while (!reader.EndOfStream)
+                    while (!reader.EndOfStream && !token.IsCancellationRequested)
                     {
                         string line = await reader.ReadLineAsync();
                         if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data: ")) continue;
@@ -135,6 +152,10 @@ namespace Logic.Network
             var config = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
             if (config?.ActiveProfile == null || string.IsNullOrEmpty(config.ActiveProfile.ApiKey)) return;
 
+            CancelCurrentRequest();
+            _currentCts = new global::System.Threading.CancellationTokenSource();
+            var token = _currentCts.Token;
+
             bool isGemini = config.ActiveProfile.EndpointUrl.Contains("googleapis.com");
 
             string requestUrl = isGemini
@@ -159,7 +180,7 @@ namespace Logic.Network
                     if (isGemini) request.Headers.Add("x-goog-api-key", config.ActiveProfile.ApiKey);
                     else request.Headers.Add("Authorization", $"Bearer {config.ActiveProfile.ApiKey}");
 
-                    using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                    using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -172,8 +193,8 @@ namespace Logic.Network
                         return;
                     }
 
-                    using var reader = new StreamReader(await response.Content.ReadAsStreamAsync());
-                    while (!reader.EndOfStream)
+                    using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(token));
+                    while (!reader.EndOfStream && !token.IsCancellationRequested)
                     {
                         string line = await reader.ReadLineAsync();
                         if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data: ")) continue;

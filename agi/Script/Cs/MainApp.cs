@@ -26,12 +26,23 @@ namespace Logic.UI
         [Export] public PanelContainer SidebarContainer;
         [Export] public Button SidebarSettingsButton;
 
+        [ExportCategory("Files UI")]
+        [Export] public Button SidebarFilesButton;
+        [Export] public Panel FilesPanel;
+        [Export] public Button FilesTabBtn;
+        [Export] public VBoxContainer FilesListContainer;
+        [Export] public PanelContainer AttachmentChipTemplate;
+
         private Node _currentView;
         private bool _isSidebarOpen = true;
         private bool _isSettingsOpen = false;
+        private bool _isFilesOpen = false;
         private Tween _settingsTabTween;
         private Tween _settingsPanelTween;
+        private Tween _filesTabTween;
+        private Tween _filesPanelTween;
         private const float SettingsWidth = 640.0f;
+        private const float FilesWidth = 400.0f;
         private bool _isCurrentlyDark = false;
         private readonly global::System.Collections.Generic.HashSet<string> _displayedHistoryFiles = new();
         private readonly global::System.Collections.Generic.Dictionary<string, MarginContainer> _historyRows = new();
@@ -92,6 +103,25 @@ namespace Logic.UI
             if (chatManager != null)
             {
                 chatManager.OnSessionListUpdated += LoadHistoryFiles;
+            }
+
+            if (SidebarFilesButton != null)
+                SidebarFilesButton.Pressed += ToggleFilesPanel;
+            
+            if (SettingsTabBtn != null)
+            {
+                SettingsTabBtn.OffsetLeft = -20.0f;
+                SettingsTabBtn.OffsetRight = 40.0f;
+            }
+
+            if (FilesTabBtn != null)
+            {
+                FilesTabBtn.Pressed += ToggleFilesPanel;
+                FilesTabBtn.MouseEntered += OnFilesTabHovered;
+                FilesTabBtn.MouseExited += OnFilesTabUnhovered;
+                
+                FilesTabBtn.OffsetLeft = -20.0f;
+                FilesTabBtn.OffsetRight = 40.0f;
             }
 
             ChangeMode(ChatbotScene, "Modo Chat Bot");
@@ -676,12 +706,81 @@ namespace Logic.UI
             }
         }
 
+        private void OnFilesTabHovered()
+        {
+            if (_isFilesOpen) return;
+            _filesTabTween?.Kill();
+            _filesTabTween = GetTree().CreateTween();
+            if (FilesTabBtn != null)
+            {
+                _filesTabTween.Parallel().TweenProperty(FilesTabBtn, "offset_left", -60.0f, 0.2f).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+                _filesTabTween.Parallel().TweenProperty(FilesTabBtn, "offset_right", 0.0f, 0.2f).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+            }
+        }
+
+        private void OnFilesTabUnhovered()
+        {
+            if (_isFilesOpen) return;
+            _filesTabTween?.Kill();
+            _filesTabTween = GetTree().CreateTween();
+            if (FilesTabBtn != null)
+            {
+                _filesTabTween.Parallel().TweenProperty(FilesTabBtn, "offset_left", -20.0f, 0.3f).SetTrans(Tween.TransitionType.Expo).SetEase(Tween.EaseType.Out);
+                _filesTabTween.Parallel().TweenProperty(FilesTabBtn, "offset_right", 40.0f, 0.3f).SetTrans(Tween.TransitionType.Expo).SetEase(Tween.EaseType.Out);
+            }
+        }
+
+        private void ToggleFilesPanel()
+        {
+            _isFilesOpen = !_isFilesOpen;
+            _filesPanelTween?.Kill();
+            _filesPanelTween = GetTree().CreateTween();
+
+            if (_isFilesOpen)
+            {
+                _filesTabTween?.Kill();
+                if (FilesTabBtn != null)
+                {
+                    FilesTabBtn.OffsetLeft = -60.0f;
+                    FilesTabBtn.OffsetRight = 0.0f;
+                }
+                _filesPanelTween.Parallel().TweenProperty(FilesPanel, "offset_left", -SettingsWidth, 0.6f).SetTrans(Tween.TransitionType.Expo).SetEase(Tween.EaseType.Out);
+                _filesPanelTween.Parallel().TweenProperty(FilesPanel, "offset_right", 0.0f, 0.6f).SetTrans(Tween.TransitionType.Expo).SetEase(Tween.EaseType.Out);
+            }
+            else
+            {
+                _filesPanelTween.Parallel().TweenProperty(FilesPanel, "offset_left", 0.0f, 0.5f).SetTrans(Tween.TransitionType.Expo).SetEase(Tween.EaseType.Out);
+                _filesPanelTween.Parallel().TweenProperty(FilesPanel, "offset_right", SettingsWidth, 0.5f).SetTrans(Tween.TransitionType.Expo).SetEase(Tween.EaseType.Out);
+                _filesTabTween?.Kill();
+                _filesTabTween = GetTree().CreateTween();
+                if (FilesTabBtn != null)
+                {
+                    _filesTabTween.Parallel().TweenProperty(FilesTabBtn, "offset_left", -20.0f, 0.5f).SetTrans(Tween.TransitionType.Expo).SetEase(Tween.EaseType.Out);
+                    _filesTabTween.Parallel().TweenProperty(FilesTabBtn, "offset_right", 40.0f, 0.5f).SetTrans(Tween.TransitionType.Expo).SetEase(Tween.EaseType.Out);
+                }
+            }
+        }
+
+        public void OpenFilesPanelIfNotOpen()
+        {
+            if (!_isFilesOpen)
+            {
+                ToggleFilesPanel();
+            }
+        }
+
         public void SetThemeMode(bool isDark)
         {
             _isCurrentlyDark = isDark;
             if (_currentView != null && _currentView.HasMethod("UpdateTheme"))
             {
                 _currentView.Call("UpdateTheme", isDark);
+            }
+            
+            var filesRoot = GetNodeOrNull("FilesOverlay/FilesPanel/FilesMargin/FilesRoot");
+            if (filesRoot != null && filesRoot.HasMethod("UpdateTheme"))
+            {
+                filesRoot.Call("UpdateTheme", isDark);
             }
         }
     }

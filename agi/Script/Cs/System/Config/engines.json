@@ -32,5 +32,8 @@
   },
   "mcp_server": {
     "Url": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/agi/Script/Cs/System/Drivers/mcp_server.py"
+  },
+  "file_extractor": {
+    "Url": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/agi/Script/Cs/System/Drivers/file_extractor.py"
   }
 } 

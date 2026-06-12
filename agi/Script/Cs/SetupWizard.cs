@@ -497,8 +497,9 @@ namespace Logic.Utils
 
             string searchServerUrl = engineConfigs.search_server?.Url ?? "";
             string mcpServerUrl = engineConfigs.McpServer?.Url ?? "";
+            string fileExtractorUrl = engineConfigs.FileExtractor?.Url ?? "";
 
-            bool searchOk = await _packageManager.EnsureMicroservicesEnvironmentAsync(currentPythonUrl, searchServerUrl, mcpServerUrl);
+            bool searchOk = await _packageManager.EnsureMicroservicesEnvironmentAsync(currentPythonUrl, searchServerUrl, mcpServerUrl, fileExtractorUrl);
             bool ttsOk = await _packageManager.EnsurePythonEnvironmentAsync(currentPythonUrl);
             bool pythonOk = searchOk && ttsOk;
 

@@ -8,7 +8,9 @@
 [ext_resource type="Texture2D" uid="uid://c4uj1r172utru" path="res://Resources/Images/Icons/Util/ChatMode.svg" id="5_ide7w"]
 [ext_resource type="Texture2D" uid="uid://dxcnkms337jlm" path="res://Resources/Images/Icons/Util/LiveMode.svg" id="6_8bqqk"]
 [ext_resource type="Texture2D" uid="uid://b1vmdijvvtehk" path="res://Resources/Images/Icons/Util/Modo3D.svg" id="7_ide7w"]
+[ext_resource type="Texture2D" uid="uid://dfadm5kcjmvjk" path="res://Resources/Images/Icons/Util/files.svg" id="10_b140v"]
 [ext_resource type="PackedScene" uid="uid://bvo0frg37bl" path="res://Scenes/Config/Settings.tscn" id="14_settings"]
+[ext_resource type="PackedScene" uid="uid://f3x84k45j2pj" path="res://Scenes/Config/Files.tscn" id="15_files"]
 [ext_resource type="Texture2D" uid="uid://br187aqkvne0f" path="res://Resources/Images/Icons/Util/History.svg" id="icon_history"]
 [ext_resource type="Texture2D" uid="uid://cr40nman7fa0v" path="res://Resources/Images/Icons/Util/Menu.svg" id="icon_menu"]
 [ext_resource type="Texture2D" uid="uid://b4lil6k3srfwq" path="res://Resources/Images/Icons/Util/Settings.svg" id="icon_settings"]
@@ -117,7 +119,7 @@ subpixel_positioning = 0
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4nqfe"]
 bg_color = Color(0.6, 0.6, 0.6, 0)
 
-[node name="MainApp" type="Panel" unique_id=488006737 node_paths=PackedStringArray("SidebarWrapper", "ContentContainer", "WelcomeOverlay", "CompanyLogo", "MenuToggleButton", "ChatBotModeButton", "LiveModeButton", "AgiModeButton", "HeaderTitle", "HistoryButton", "HistoryScroll", "HistoryListContainer", "UiAnimator", "SettingsTabBtn", "SettingsPanel", "SidebarContainer", "SidebarSettingsButton")]
+[node name="MainApp" type="Panel" unique_id=488006737 node_paths=PackedStringArray("SidebarWrapper", "ContentContainer", "WelcomeOverlay", "CompanyLogo", "MenuToggleButton", "ChatBotModeButton", "LiveModeButton", "AgiModeButton", "HeaderTitle", "HistoryButton", "HistoryScroll", "HistoryListContainer", "UiAnimator", "SettingsTabBtn", "SettingsPanel", "SidebarContainer", "SidebarSettingsButton", "SidebarFilesButton", "FilesPanel", "FilesTabBtn", "FilesListContainer", "AttachmentChipTemplate")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -144,6 +146,11 @@ SettingsTabBtn = NodePath("SettingsOverlay/SettingsPanel/SettingsTabBtn")
 SettingsPanel = NodePath("SettingsOverlay/SettingsPanel")
 SidebarContainer = NodePath("MainLayout/SidebarWrapper/SidebarContainer")
 SidebarSettingsButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/SettingsButton")
+SidebarFilesButton = NodePath("MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout/FilesButton")
+FilesPanel = NodePath("FilesOverlay/FilesPanel")
+FilesTabBtn = NodePath("FilesOverlay/FilesPanel/FilesTabBtn")
+FilesListContainer = NodePath("FilesOverlay/FilesPanel/FilesMargin/FilesRoot/MainLayout/ScrollContainer/FilesListContainer")
+AttachmentChipTemplate = NodePath("FilesOverlay/FilesPanel/FilesMargin/FilesRoot/MainLayout/ScrollContainer/FilesListContainer/FileChipTemplate")
 
 [node name="Panel" type="Panel" parent="." unique_id=1331394132]
 layout_mode = 0
@@ -279,6 +286,16 @@ horizontal_scroll_mode = 0
 layout_mode = 2
 size_flags_horizontal = 3
 
+[node name="FilesButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout" unique_id=-1949288395]
+custom_minimum_size = Vector2(10, 0)
+layout_mode = 2
+text = " Archivos"
+icon = ExtResource("10_b140v")
+flat = true
+alignment = 0
+text_overrun_behavior = 3
+clip_text = true
+
 [node name="SettingsButton" type="Button" parent="MainLayout/SidebarWrapper/SidebarContainer/SidebarMargin/SidebarLayout" unique_id=452873594]
 custom_minimum_size = Vector2(10, 0)
 layout_mode = 2
@@ -351,6 +368,52 @@ theme_override_fonts/font = SubResource("SystemFont_bold")
 theme_override_font_sizes/font_size = 24
 text = "Bienvenido a AGI de que hablamos hoy"
 horizontal_alignment = 1
+
+[node name="FilesOverlay" type="Panel" parent="." unique_id=778899333]
+self_modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="FilesPanel" type="Panel" parent="FilesOverlay" unique_id=778899444]
+self_modulate = Color(0, 0, 0, 0.14509805)
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 640.0
+grow_horizontal = 0
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_4nqfe")
+
+[node name="FilesTabBtn" type="Button" parent="FilesOverlay/FilesPanel" unique_id=889900444]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -120.0
+offset_bottom = -20.0
+grow_vertical = 2
+icon = ExtResource("10_b140v")
+icon_alignment = 1
+expand_icon = true
+
+[node name="FilesMargin" type="MarginContainer" parent="FilesOverlay/FilesPanel" unique_id=554433333]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="FilesRoot" parent="FilesOverlay/FilesPanel/FilesMargin" unique_id=987654321 instance=ExtResource("15_files")]
+layout_mode = 2
 
 [node name="SettingsOverlay" type="Panel" parent="." unique_id=664321001]
 self_modulate = Color(1, 1, 1, 0)

@@ -3,18 +3,8 @@
 [ext_resource type="Texture2D" uid="uid://du3w0n73d40lw" path="res://Resources/avatar_bot.png" id="1_atrtv"]
 [ext_resource type="Script" uid="uid://v8imubcwct7q" path="res://Script/Cs/Logic/Theme/MensajeBotUI.cs" id="1_jorcp"]
 [ext_resource type="Texture2D" uid="uid://bwewlane66cuh" path="res://Resources/Images/Icons/Util/Thinking.svg" id="2_utauk"]
-[ext_resource type="FontFile" uid="uid://ogy7poywqv0f" path="res://Resources/Fonts/Inter/Inter-VariableFont_opsz,wght.ttf" id="3_0iyyq"]
-[ext_resource type="FontFile" uid="uid://dh2m6i0ene4mw" path="res://Resources/Fonts/Inter/static/Inter_18pt-Bold.ttf" id="4_3m8ox"]
-[ext_resource type="FontFile" uid="uid://cnn7lrla24g7y" path="res://Resources/Fonts/Inter/static/Inter_18pt-BoldItalic.ttf" id="5_k5b3v"]
-[ext_resource type="FontFile" uid="uid://c2w5e8cbsm7yt" path="res://Resources/Fonts/Inter/Inter-Italic-VariableFont_opsz,wght.ttf" id="6_l1hmh"]
-[ext_resource type="FontFile" uid="uid://c88eronmj27o0" path="res://Resources/Fonts/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf" id="7_ycd66"]
-[ext_resource type="Script" uid="uid://dbap0gqox0ty1" path="res://addons/markdownlabel/markdownlabel.gd" id="8_a8k2l"]
-[ext_resource type="Script" uid="uid://dcx7crs23nf4" path="res://addons/markdownlabel/header_formats/h1_format.gd" id="9_svpri"]
-[ext_resource type="Script" uid="uid://d0sin64i4v3op" path="res://addons/markdownlabel/header_formats/h2_format.gd" id="10_il44k"]
-[ext_resource type="Script" uid="uid://dlok0dv1tq2bf" path="res://addons/markdownlabel/header_formats/h3_format.gd" id="11_i65pb"]
-[ext_resource type="Script" uid="uid://bayuh2vafablg" path="res://addons/markdownlabel/header_formats/h4_format.gd" id="12_w41ju"]
-[ext_resource type="Script" uid="uid://dfr1w7u3jgni3" path="res://addons/markdownlabel/header_formats/h5_format.gd" id="13_uxahl"]
-[ext_resource type="Script" uid="uid://bsi6dexoofpe6" path="res://addons/markdownlabel/header_formats/h6_format.gd" id="14_d5m7m"]
+[ext_resource type="Script" uid="uid://dtgs23bk5eo65" path="res://addons/TextContainer/TextContainer.cs" id="4_g11wi"]
+[ext_resource type="Script" uid="uid://eax72vomdw1v" path="res://addons/TextContainer/HeaderFormat.cs" id="5_2n7aa"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_avatar_container"]
 bg_color = Color(1, 1, 1, 1)
@@ -52,31 +42,28 @@ void fragment() {
 shader = SubResource("Shader_bot_glow")
 shader_parameter/glow_intensity = 0.0
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_utauk"]
+[sub_resource type="Resource" id="Resource_nhcgv"]
+script = ExtResource("5_2n7aa")
 
-[sub_resource type="Resource" id="Resource_js05h"]
-resource_local_to_scene = true
-script = ExtResource("9_svpri")
+[sub_resource type="Resource" id="Resource_ue58k"]
+script = ExtResource("5_2n7aa")
+FontSize = 1.714
 
-[sub_resource type="Resource" id="Resource_rp26x"]
-resource_local_to_scene = true
-script = ExtResource("10_il44k")
+[sub_resource type="Resource" id="Resource_blmq1"]
+script = ExtResource("5_2n7aa")
+FontSize = 1.428
 
-[sub_resource type="Resource" id="Resource_2c06c"]
-resource_local_to_scene = true
-script = ExtResource("11_i65pb")
+[sub_resource type="Resource" id="Resource_806oo"]
+script = ExtResource("5_2n7aa")
+FontSize = 1.142
 
-[sub_resource type="Resource" id="Resource_wyifx"]
-resource_local_to_scene = true
-script = ExtResource("12_w41ju")
+[sub_resource type="Resource" id="Resource_giyen"]
+script = ExtResource("5_2n7aa")
+FontSize = 1.0
 
-[sub_resource type="Resource" id="Resource_cdhtr"]
-resource_local_to_scene = true
-script = ExtResource("13_uxahl")
-
-[sub_resource type="Resource" id="Resource_8f5ok"]
-resource_local_to_scene = true
-script = ExtResource("14_d5m7m")
+[sub_resource type="Resource" id="Resource_8cp0a"]
+script = ExtResource("5_2n7aa")
+FontSize = 0.857
 
 [node name="BotMessageTemplate" type="HBoxContainer" unique_id=360042153 node_paths=PackedStringArray("_messageBody", "_botActionsContainer", "_botActionsLabel")]
 offset_left = 2.0
@@ -85,7 +72,7 @@ offset_right = 207.0
 offset_bottom = 68.0
 theme_override_constants/separation = 15
 script = ExtResource("1_jorcp")
-_messageBody = NodePath("MessageBubble/MessageLayout/MessageBody")
+_messageBody = NodePath("MessageBubble/MessageLayout/TextContainer")
 _botActionsContainer = NodePath("MessageBubble/MessageLayout/BotActionsContainer")
 _botActionsLabel = NodePath("MessageBubble/MessageLayout/BotActionsContainer/BotActions")
 
@@ -230,28 +217,22 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
 text = "Pensando..."
 
-[node name="MessageBody" type="RichTextLabel" parent="MessageBubble/MessageLayout" unique_id=1606855497]
-custom_minimum_size = Vector2(100, 0)
+[node name="TextContainer" type="RichTextLabel" parent="MessageBubble/MessageLayout" unique_id=422929553]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
-theme_override_fonts/normal_font = ExtResource("3_0iyyq")
-theme_override_fonts/bold_font = ExtResource("4_3m8ox")
-theme_override_fonts/bold_italics_font = ExtResource("5_k5b3v")
-theme_override_fonts/italics_font = ExtResource("6_l1hmh")
-theme_override_fonts/mono_font = ExtResource("7_ycd66")
-theme_override_styles/normal = SubResource("StyleBoxEmpty_utauk")
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
 autowrap_mode = 2
 context_menu_enabled = true
 selection_enabled = true
-script = ExtResource("8_a8k2l")
-h1 = SubResource("Resource_js05h")
-h2 = SubResource("Resource_rp26x")
-h3 = SubResource("Resource_2c06c")
-h4 = SubResource("Resource_wyifx")
-h5 = SubResource("Resource_cdhtr")
-h6 = SubResource("Resource_8f5ok")
+script = ExtResource("4_g11wi")
+H1 = SubResource("Resource_nhcgv")
+H2 = SubResource("Resource_ue58k")
+H3 = SubResource("Resource_blmq1")
+H4 = SubResource("Resource_806oo")
+H5 = SubResource("Resource_giyen")
+H6 = SubResource("Resource_8cp0a")
+metadata/_custom_type_script = "uid://dtgs23bk5eo65"

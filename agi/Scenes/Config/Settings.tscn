@@ -10,6 +10,9 @@
 [ext_resource type="Texture2D" uid="uid://c6h4dchoc2bf6" path="res://Resources/Images/Icons/Util/Info.svg" id="8_0jj0d"]
 [ext_resource type="Texture2D" uid="uid://bq4h3or8fle5f" path="res://Resources/Images/Icons/Util/Update.svg" id="9_jepcl"]
 [ext_resource type="Texture2D" uid="uid://ckm6vcebgm3he" path="res://Resources/Images/Icons/Util/DarkMode.svg" id="10_jepcl"]
+[ext_resource type="Texture2D" uid="uid://cekwobt1bjqdl" path="res://Resources/Images/Icons/Util/Workspace.svg" id="11_workspace"]
+[ext_resource type="Texture2D" uid="uid://d3sgdb2snebpe" path="res://Resources/Images/Icons/Util/Folder_Open.svg" id="12_folder"]
+[ext_resource type="Texture2D" uid="uid://b0deoufvhlxpv" path="res://Resources/Images/Icons/Util/Delete.svg" id="13_delete"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_GlassRoot"]
 shader = ExtResource("2_glass")
@@ -34,7 +37,7 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[node name="SettingsRoot" type="PanelContainer" unique_id=1300762470 node_paths=PackedStringArray("ModelsBtn", "PerformanceBtn", "ToolsBtn", "PreferencesBtn", "PrivacyBtn", "InfoBtn", "UpdateBtn", "ModelsViewContainer", "PerformanceViewContainer", "ToolsViewContainer", "PreferencesViewContainer", "PrivacyViewContainer", "ActiveModelSelector", "TxtIaDisplayNameInput", "NumInputTokensLimit", "NumOutputTokensLimit", "NumContextWindowSize", "WeightImportLineEdit", "WeightImportBtn", "CpuThreadsSpinBox", "GpuLayersSpinBox", "RamSaturationSpinBox", "ToolsGrid", "DarkModeToggle", "StoragePathLineEdit", "PurgeDataBtn", "TelemetryToggle")]
+[node name="SettingsRoot" type="PanelContainer" unique_id=1300762470 node_paths=PackedStringArray("ModelsBtn", "PerformanceBtn", "ToolsBtn", "PreferencesBtn", "WorkspacesBtn", "PrivacyBtn", "InfoBtn", "UpdateBtn", "ModelsViewContainer", "PerformanceViewContainer", "ToolsViewContainer", "PreferencesViewContainer", "WorkspacesViewContainer", "PrivacyViewContainer", "ActiveModelSelector", "TxtIaDisplayNameInput", "NumInputTokensLimit", "NumOutputTokensLimit", "NumContextWindowSize", "WeightImportLineEdit", "WeightImportBtn", "CpuThreadsSpinBox", "GpuLayersSpinBox", "GpuSelector", "RamSaturationSpinBox", "ToolsGrid", "DarkModeToggle", "WorkspaceListContainer", "WorkspaceItemTemplate", "WorkspaceBrowseBtn", "WorkspaceFileDialog", "StoragePathLineEdit", "PurgeDataBtn", "TelemetryToggle")]
 material = SubResource("ShaderMaterial_GlassRoot")
 anchors_preset = 15
 anchor_right = 1.0
@@ -48,6 +51,7 @@ ModelsBtn = NodePath("HBoxLayout/NavigationSidebar/ModelsBtn")
 PerformanceBtn = NodePath("HBoxLayout/NavigationSidebar/PerformanceBtn")
 ToolsBtn = NodePath("HBoxLayout/NavigationSidebar/ToolsBtn")
 PreferencesBtn = NodePath("HBoxLayout/NavigationSidebar/PreferencesBtn")
+WorkspacesBtn = NodePath("HBoxLayout/NavigationSidebar/WorkspacesBtn")
 PrivacyBtn = NodePath("HBoxLayout/NavigationSidebar/PrivacyBtn")
 InfoBtn = NodePath("HBoxLayout/NavigationSidebar/InfoBtn")
 UpdateBtn = NodePath("HBoxLayout/NavigationSidebar/UpdateBtn")
@@ -55,6 +59,7 @@ ModelsIcon = ExtResource("3_ttceo")
 PerformanceIcon = ExtResource("4_typf2")
 ToolsIcon = ExtResource("5_0jj0d")
 PreferencesIcon = ExtResource("6_jepcl")
+WorkspacesIcon = ExtResource("11_workspace")
 PrivacyIcon = ExtResource("7_fm1s0")
 InfoIcon = ExtResource("8_0jj0d")
 UpdateIcon = ExtResource("9_jepcl")
@@ -62,6 +67,7 @@ ModelsViewContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMarg
 PerformanceViewContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer")
 ToolsViewContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ToolsViewContainer")
 PreferencesViewContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer")
+WorkspacesViewContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer")
 PrivacyViewContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PrivacyViewContainer")
 ActiveModelSelector = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/ActiveModelSelector")
 TxtIaDisplayNameInput = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/TxtIaDisplayNameInput")
@@ -72,9 +78,14 @@ WeightImportLineEdit = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMar
 WeightImportBtn = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/ImportHBox/WeightImportBtn")
 CpuThreadsSpinBox = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer/CpuThreadsSpinBox")
 GpuLayersSpinBox = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer/GpuLayersSpinBox")
+GpuSelector = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer/GpuSelector")
 RamSaturationSpinBox = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PerformanceViewContainer/RamSaturationSpinBox")
 ToolsGrid = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ToolsViewContainer/ToolsGrid")
 DarkModeToggle = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/DarkModeToggle")
+WorkspaceListContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer/WorkspaceListContainer")
+WorkspaceItemTemplate = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer/WorkspaceListContainer/WorkspaceItemTemplate")
+WorkspaceBrowseBtn = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer/WorkspaceTopBar/WorkspaceBrowseBtn")
+WorkspaceFileDialog = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer/WorkspaceTopBar/WorkspaceFileDialog")
 StoragePathLineEdit = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PrivacyViewContainer/StoragePathLineEdit")
 PurgeDataBtn = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PrivacyViewContainer/PurgeDataBtn")
 TelemetryToggle = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PrivacyViewContainer/TelemetryToggle")
@@ -121,6 +132,15 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 icon = ExtResource("6_jepcl")
+flat = true
+alignment = 0
+icon_alignment = 1
+
+[node name="WorkspacesBtn" type="Button" parent="HBoxLayout/NavigationSidebar" unique_id=98712398]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+icon = ExtResource("11_workspace")
 flat = true
 alignment = 0
 icon_alignment = 1
@@ -258,10 +278,19 @@ layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "/ruta/absoluta/al/modelo.gguf"
 
+[node name="ModelsFileDialog" type="FileDialog" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/ImportHBox" unique_id=933818308]
+unique_name_in_owner = true
+title = "Open a File"
+ok_button_text = "Abrir"
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.gguf")
+use_native_dialog = true
+
 [node name="WeightImportBtn" type="Button" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/ImportHBox" unique_id=1513331412]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Importar"
+icon = ExtResource("12_folder")
 
 [node name="PerformanceViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin" unique_id=2117732419]
 unique_name_in_owner = true
@@ -350,32 +379,60 @@ layout_mode = 2
 text = "Modo Oscuro"
 icon = ExtResource("10_jepcl")
 
-[node name="LblWorkspace" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=2938471628]
-layout_mode = 2
-text = "Espacio de Trabajo (Workspace)"
-
-[node name="WorkspaceHBox" type="HBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=198273645]
-layout_mode = 2
-
-[node name="WorkspacePathLineEdit" type="LineEdit" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/WorkspaceHBox" unique_id=982736452]
+[node name="WorkspacesViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin" unique_id=91283719]
 unique_name_in_owner = true
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
-placeholder_text = "Selecciona la ruta de tu Workspace..."
-editable = false
+mouse_filter = 2
+theme_override_constants/separation = 12
 
-[node name="WorkspaceBrowseBtn" type="Button" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/WorkspaceHBox" unique_id=45729384]
+[node name="LblWorkspaces" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer" unique_id=91827361]
+layout_mode = 2
+text = "Gestión de Workspaces"
+
+[node name="WorkspaceTopBar" type="HBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer" unique_id=19283746]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="WorkspaceBrowseBtn" type="Button" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer/WorkspaceTopBar" unique_id=39485767]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Explorar"
+text = "Agregar Carpeta al Workspace (+)"
+icon = ExtResource("12_folder")
 
-[node name="WorkspaceFileDialog" type="FileDialog" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=89237465]
+[node name="WorkspaceFileDialog" type="FileDialog" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer/WorkspaceTopBar" unique_id=49586778]
 unique_name_in_owner = true
 title = "Open a Directory"
-ok_button_text = "Select Current Folder"
+ok_button_text = "Seleccionar"
 file_mode = 2
 access = 2
 use_native_dialog = true
+
+[node name="WorkspaceListContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer" unique_id=283746591]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="WorkspaceItemTemplate" type="HBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer/WorkspaceListContainer" unique_id=847362510]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PathEdit" type="LineEdit" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer/WorkspaceListContainer/WorkspaceItemTemplate" unique_id=29384756]
+layout_mode = 2
+size_flags_horizontal = 3
+editable = false
+
+[node name="DeactivateToggle" type="CheckBox" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer/WorkspaceListContainer/WorkspaceItemTemplate" unique_id=583726194]
+layout_mode = 2
+button_pressed = true
+text = "Activo"
+
+[node name="DeleteBtn" type="Button" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer/WorkspaceListContainer/WorkspaceItemTemplate" unique_id=746352410]
+layout_mode = 2
+icon = ExtResource("13_delete")
 
 [node name="PrivacyViewContainer" type="VBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin" unique_id=1587880699]
 unique_name_in_owner = true

@@ -53,7 +53,7 @@ project/assembly_name="AGI"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/markdownlabel/plugin.cfg")
+enabled=PackedStringArray("res://addons/TextContainer/plugin.cfg")
 
 [gui]
 

@@ -18,6 +18,24 @@ import sys
 from websockets.exceptions import ConnectionClosed
 from kokoro_onnx import Kokoro
 
+import threading
+import time
+import os
+
+def watch_parent_process():
+    # En Linux, un proceso huérfano es adoptado por init (PID 1) o systemd.
+    # Si detectamos que el parent_pid es 1, o que Godot ya no existe, nos suicidamos.
+    initial_ppid = os.getppid()
+    while True:
+        current_ppid = os.getppid()
+        if current_ppid == 1 or (initial_ppid != 1 and current_ppid != initial_ppid):
+            print(f"Parent process {initial_ppid} died. Auto-terminating.", flush=True)
+            os._exit(0)
+        time.sleep(2)
+
+threading.Thread(target=watch_parent_process, daemon=True).start()
+
+
 def parse_arguments() -> argparse.Namespace:
     """
     Parses command line arguments required for server configuration.
