@@ -86,11 +86,24 @@ namespace Logic.Network
                                         CallDeferred(Godot.GodotObject.MethodName.EmitSignal, SignalName.DownloadProgress, fileName, percentage);
                                     }
                                 }
+                                else if (e.Data.Contains("[ERROR]") || e.Data.Contains("Exception:"))
+                                {
+                                    GD.PrintErr($"[aria2c - {fileName}]: {e.Data}");
+                                }
+                            }
+                        };
+
+                        process.ErrorDataReceived += (sender, e) =>
+                        {
+                            if (!string.IsNullOrEmpty(e.Data))
+                            {
+                                GD.PrintErr($"[aria2c - {fileName}]: {e.Data}");
                             }
                         };
 
                         process.Start();
                         process.BeginOutputReadLine();
+                        process.BeginErrorReadLine();
                         process.WaitForExit();
                         downloadSuccess = (process.ExitCode == 0);
                     }

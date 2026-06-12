@@ -285,26 +285,63 @@ namespace Logic.System.Config
             try
             {
                 string jsonString = File.ReadAllText(enginesPath);
-                JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 
-                // Attempt to deserialize as the dual-track manifest architecture first.
-                var manifest = JsonSerializer.Deserialize<EngineManifest>(jsonString, options);
-                
-                if (manifest?.VulkanBaseline != null)
+                using (JsonDocument doc = JsonDocument.Parse(jsonString))
                 {
-                    if (UseCudaTurbo && manifest.CudaTurbo != null)
-                    {
-                        GD.Print("ConfigManager: Operating on CUDA Turbo download manifest track.");
-                        return manifest.CudaTurbo;
-                    }
-                    
-                    GD.Print("ConfigManager: Operating on Vulkan Baseline download manifest track.");
-                    return manifest.VulkanBaseline;
-                }
+                    JsonElement root = doc.RootElement;
+                    EngineConfig finalConfig = new EngineConfig();
 
-                // Fallback for legacy flat JSON engines format
-                GD.Print("ConfigManager: Operating on legacy single-track download manifest.");
-                return JsonSerializer.Deserialize<EngineConfig>(jsonString, options);
+                    // Parse root elements (Sherpa, Python, Servers)
+                    JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                    
+                    if (root.TryGetProperty("Sherpa", out JsonElement sherpaEl))
+                        finalConfig.Sherpa = JsonSerializer.Deserialize<EngineUrls>(sherpaEl.GetRawText(), options);
+                        
+                    if (root.TryGetProperty("Python", out JsonElement pythonEl))
+                        finalConfig.Python = JsonSerializer.Deserialize<EngineUrls>(pythonEl.GetRawText(), options);
+                        
+                    if (root.TryGetProperty("tts_server", out JsonElement ttsEl))
+                        finalConfig.TtsServer = JsonSerializer.Deserialize<TtsServerConfig>(ttsEl.GetRawText(), options);
+                        
+                    if (root.TryGetProperty("search_server", out JsonElement searchEl))
+                        finalConfig.search_server = JsonSerializer.Deserialize<TtsServerConfig>(searchEl.GetRawText(), options);
+                        
+                    if (root.TryGetProperty("mcp_server", out JsonElement mcpEl))
+                        finalConfig.McpServer = JsonSerializer.Deserialize<TtsServerConfig>(mcpEl.GetRawText(), options);
+                        
+                    if (root.TryGetProperty("file_extractor", out JsonElement fileExtEl))
+                        finalConfig.FileExtractor = JsonSerializer.Deserialize<TtsServerConfig>(fileExtEl.GetRawText(), options);
+
+                    // Parse dual-track engines
+                    if (root.TryGetProperty("engines", out JsonElement enginesEl))
+                    {
+                        string targetTrack = UseCudaTurbo ? "cuda_turbo" : "vulkan_baseline";
+                        if (!enginesEl.TryGetProperty(targetTrack, out JsonElement trackEl))
+                        {
+                            targetTrack = "vulkan_baseline";
+                            enginesEl.TryGetProperty(targetTrack, out trackEl);
+                        }
+
+                        GD.Print($"ConfigManager: Operating on {targetTrack} download manifest track.");
+                        
+                        finalConfig.Llama = new EngineUrls();
+                        finalConfig.Whisper = new EngineUrls();
+                        
+                        if (trackEl.TryGetProperty("llama_LinuxUrl", out JsonElement llamaLin)) finalConfig.Llama.LinuxUrl = llamaLin.GetString();
+                        if (trackEl.TryGetProperty("llama_WindowsUrl", out JsonElement llamaWin)) finalConfig.Llama.WindowsUrl = llamaWin.GetString();
+                        
+                        if (trackEl.TryGetProperty("whisper_LinuxUrl", out JsonElement whisperLin)) finalConfig.Whisper.LinuxUrl = whisperLin.GetString();
+                        if (trackEl.TryGetProperty("whisper_windowsUrl", out JsonElement whisperWin)) finalConfig.Whisper.WindowsUrl = whisperWin.GetString();
+                    }
+                    else
+                    {
+                        // Fallback for legacy flat JSON
+                        GD.Print("ConfigManager: Operating on legacy single-track download manifest.");
+                        finalConfig = JsonSerializer.Deserialize<EngineConfig>(jsonString, options);
+                    }
+
+                    return finalConfig;
+                }
             }
             catch (Exception ex)
             {
