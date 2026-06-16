@@ -28,6 +28,7 @@ namespace Logic.Backend
         private Process _comfyProcess;
         private Process _imageProcess;
         private Process _videoProcess;
+        private Process _sdCppProcess;
         private static readonly object _comfyLogLock = new object();
         private const long MaxRamAllowed = 12L * 1024 * 1024 * 1024;
         private bool _isPanicking = false;
@@ -360,8 +361,60 @@ namespace Logic.Backend
                 _videoProcess.BeginOutputReadLine();
                 _videoProcess.BeginErrorReadLine();
 
+                bool isImageModel = _configManager?.ActiveModelName != null && (_configManager.ActiveModelName.Contains("Pony") || _configManager.ActiveModelName.Contains("SDXL") || _configManager.ActiveModelName.Contains("Diffusion")) && !_configManager.ActiveModelName.Contains("SVD");
+                bool isVideoModel = _configManager?.ActiveModelName != null && (_configManager.ActiveModelName.Contains("SVD") || _configManager.ActiveModelName.Contains("Video"));
+
+                string sdCppDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "sd_cpp");
+                string sdCppBinaryName = osFolder == "windows" ? "sd.exe" : "sd";
+                string sdCppPath = global::System.IO.Path.Combine(sdCppDir, sdCppBinaryName);
+
                 string comfyuiDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "comfyui");
-                if (global::System.IO.Directory.Exists(comfyuiDir))
+                string comfyMainPy = global::System.IO.Path.Combine(comfyuiDir, "main.py");
+                
+                if (isImageModel && !isVideoModel && global::System.IO.File.Exists(sdCppPath))
+                {
+                    GD.Print("[BackendLauncher] Standard image model detected. Initializing stable-diffusion.cpp native server.");
+                    
+                    string modelsBaseDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "comfyui", "models");
+                    string unetPath = global::System.IO.Path.Combine(modelsBaseDir, "checkpoints", safeFileName);
+                    if (!global::System.IO.File.Exists(unetPath)) {
+                        unetPath = global::System.IO.Path.Combine(modelsBaseDir, "unet", safeFileName);
+                    }
+                    string vaePath = global::System.IO.Path.Combine(modelsBaseDir, "vae", "sdxl_vae.safetensors");
+                    string clipPath = global::System.IO.Path.Combine(modelsBaseDir, "clip", "clip_l.safetensors");
+                    string t5Path = global::System.IO.Path.Combine(modelsBaseDir, "clip", "t5xxl_fp16.safetensors");
+
+                    string sdArgs = $"--mode server --port 8188 -m \"{unetPath}\"";
+                    if (global::System.IO.File.Exists(vaePath)) sdArgs += $" --vae \"{vaePath}\"";
+                    if (global::System.IO.File.Exists(clipPath)) sdArgs += $" --clip_l \"{clipPath}\"";
+                    if (global::System.IO.File.Exists(t5Path)) sdArgs += $" --t5xxl \"{t5Path}\"";
+
+                    ProcessStartInfo sdInfo = new ProcessStartInfo
+                    {
+                        FileName = sdCppPath,
+                        Arguments = sdArgs,
+                        WorkingDirectory = sdCppDir,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    if (gpuIndex >= 0)
+                    {
+                        string vulkanGpuStr = GetVulkanIndexForGpu(gpuIndex);
+                        sdInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = vulkanGpuStr;
+                    }
+
+                    _sdCppProcess = new Process { StartInfo = sdInfo, EnableRaisingEvents = true };
+                    _sdCppProcess.OutputDataReceived += (s, e) => LogMicroserviceStream("SD.cpp", e.Data, false);
+                    _sdCppProcess.ErrorDataReceived += (s, e) => LogMicroserviceStream("SD.cpp", e.Data, true);
+                    _sdCppProcess.Exited += OnProcessExited;
+                    _sdCppProcess.Start();
+                    _sdCppProcess.BeginOutputReadLine();
+                    _sdCppProcess.BeginErrorReadLine();
+                }
+                else if (global::System.IO.File.Exists(comfyMainPy))
                 {
                     // Clean up ComfyUI log file from previous run
                     try
@@ -390,7 +443,6 @@ namespace Logic.Backend
                     // Arquitectura de GPU
                     if (gpuName.Contains("nvidia"))
                     {
-                        // NVIDIA predeterminado usa CUDA de base si la versión pytorch soporta
                         GD.Print("[BackendLauncher] NVIDIA Architecture detected for Image/Video Pipeline.");
                     }
                     else if (gpuName.Contains("amd") || gpuName.Contains("radeon"))
@@ -420,7 +472,14 @@ namespace Logic.Backend
 
                     if (osFolder == "linux")
                     {
-                        comfyInfo.FileName = "uv";
+                        string home = global::System.Environment.GetEnvironmentVariable("HOME");
+                        string localUv = $"{home}/.local/bin/uv";
+                        string cargoUv = $"{home}/.cargo/bin/uv";
+                        string uvPath = "uv";
+                        if (global::System.IO.File.Exists(localUv)) uvPath = localUv;
+                        else if (global::System.IO.File.Exists(cargoUv)) uvPath = cargoUv;
+
+                        comfyInfo.FileName = uvPath;
                         comfyInfo.Arguments = $"run main.py {comfyArgs}";
                     }
                     else
@@ -428,8 +487,6 @@ namespace Logic.Backend
                         comfyInfo.FileName = global::System.IO.Path.Combine(comfyuiDir, "python_embedded", "python.exe");
                         comfyInfo.Arguments = $"main.py {comfyArgs}";
                     }
-
-                    comfyInfo.EnvironmentVariables["CUDA_VISIBLE_DEVICES"] = "-1";
 
                     if (gpuIndex >= 0)
                     {
@@ -718,6 +775,11 @@ namespace Logic.Backend
                 {
                     GD.Print($"BackendLauncher: Evaluating Video process context. Exited state: {_videoProcess.HasExited}");
                     if (!_videoProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to Video server."); _videoProcess.Kill(true); }
+                }
+                if (_sdCppProcess != null)
+                {
+                    GD.Print($"BackendLauncher: Evaluating SD.cpp process context. Exited state: {_sdCppProcess.HasExited}");
+                    if (!_sdCppProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to SD.cpp server."); _sdCppProcess.Kill(true); }
                 }
             }
             catch (Exception ex)

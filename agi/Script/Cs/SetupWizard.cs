@@ -534,6 +534,9 @@ namespace Logic.Utils
             string currentPythonUrl = isWindows ? engineConfigs.Python?.WindowsUrl : engineConfigs.Python?.LinuxUrl;
             string sherpaArchive = isWindows ? "sherpa-onnx-win.tar.bz2" : "sherpa-onnx-linux.tar.bz2";
 
+            string currentSdCppUrl = isWindows ? engineConfigs.SdCpp?.WindowsUrl : engineConfigs.SdCpp?.LinuxUrl;
+            string sdCppArchive = isWindows ? "sd_cpp_win.zip" : "sd_cpp_linux.zip";
+
             if (engineConfigs.TtsServer != null && !string.IsNullOrEmpty(engineConfigs.TtsServer.Url))
             {
                 if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando archivos necesarios...[/center]";
@@ -557,7 +560,13 @@ namespace Logic.Utils
             if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando motor de audio...[/center]";
             bool sherpaOk = await _packageManager.DownloadAndPrepareEngineAsync(currentSherpaUrl, sherpaArchive, "sherpa", "sherpa-onnx");
 
-            if (!llamaOk || !whisperOk || !sherpaOk || !pythonOk)
+            if (ModelDownloadStatus != null) ModelDownloadStatus.Text = "[center]Descargando motor de imagen estandar...[/center]";
+            bool sdCppOk = true;
+            if (!string.IsNullOrEmpty(currentSdCppUrl)) {
+                sdCppOk = await _packageManager.DownloadAndPrepareEngineAsync(currentSdCppUrl, sdCppArchive, "sd_cpp", "sd");
+            }
+
+            if (!llamaOk || !whisperOk || !sherpaOk || !pythonOk || !sdCppOk)
             {
                 string errorMessage = !pythonOk ? "Error al configurar el entorno base." : "Fallo en la preparación del motor.";
                 GD.PrintErr($"SetupWizard: {errorMessage}");
@@ -623,7 +632,19 @@ namespace Logic.Utils
                     _configManager.ActiveProfilePath = fullPath;
                 }
 
-                _configManager.ActiveModelUrl = preset.DownloadLinks[0];
+                if (preset.DownloadLinks != null && preset.DownloadLinks.Count > 0)
+                {
+                    _configManager.ActiveModelUrl = preset.DownloadLinks[0];
+                }
+                else if (preset.AdvancedDownloads != null && preset.AdvancedDownloads.Count > 0)
+                {
+                    _configManager.ActiveModelUrl = preset.AdvancedDownloads[0].Url;
+                }
+                else
+                {
+                    _configManager.ActiveModelUrl = "";
+                }
+                
                 _configManager.SaveConfiguration();
 
                 string globalPath = global::System.IO.Path.Combine(modelsDir, safeFileName);

@@ -153,6 +153,7 @@ namespace Logic.System.Config
             public EngineUrls Whisper { get; set; }
             public EngineUrls Sherpa { get; set; }
             public EngineUrls Python { get; set; }
+            public EngineUrls SdCpp { get; set; }
 
             [global::System.Text.Json.Serialization.JsonPropertyName("tts_server")]
             public TtsServerConfig TtsServer { get; set; }
@@ -371,6 +372,10 @@ namespace Logic.System.Config
                         
                         if (trackEl.TryGetProperty("whisper_LinuxUrl", out JsonElement whisperLin)) finalConfig.Whisper.LinuxUrl = whisperLin.GetString();
                         if (trackEl.TryGetProperty("whisper_windowsUrl", out JsonElement whisperWin)) finalConfig.Whisper.WindowsUrl = whisperWin.GetString();
+                        
+                        finalConfig.SdCpp = new EngineUrls();
+                        if (trackEl.TryGetProperty("sd_cpp_LinuxUrl", out JsonElement sdcppLin)) finalConfig.SdCpp.LinuxUrl = sdcppLin.GetString();
+                        if (trackEl.TryGetProperty("sd_cpp_WindowsUrl", out JsonElement sdcppWin)) finalConfig.SdCpp.WindowsUrl = sdcppWin.GetString();
                     }
                     else
                     {

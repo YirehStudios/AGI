@@ -6,7 +6,10 @@
       "llama_WindowsUrl": "https://github.com/ggml-org/llama.cpp/releases/download/b8941/llama-b8941-bin-win-vulkan-x64.zip",
       "whisper_binary": "whisper-server-vulkan",
       "whisper_LinuxUrl": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/agi-engines/whisper-dist/whisper-server-vulkan-linux.tar.gz",
-      "whisper_windowsUrl": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/agi-engines/whisper-dist/whisper-server-vulkan-windows.zip"
+      "whisper_windowsUrl": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/agi-engines/whisper-dist/whisper-server-vulkan-windows.zip",
+      "sd_cpp_binary": "sd",
+      "sd_cpp_LinuxUrl": "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-709-92a3b73/sd-master-92a3b73-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip",
+      "sd_cpp_WindowsUrl": "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-709-92a3b73/sd-master-92a3b73-bin-win-avx2-x64.zip"
     },
     "cuda_turbo": {
       "llama_binary": "llama-server-cuda",
@@ -14,7 +17,10 @@
       "llama_WindowsUrl": "https://github.com/ggml-org/llama.cpp/releases/download/b8941/llama-b8941-bin-win-cuda-cu12.4-x64.zip",
       "whisper_binary": "whisper-server-cuda",
       "whisper_LinuxUrl": "https://github.com/YirehStudios/AGI/releases/download/v1.0.0/whisper-cuda-linux-x64.tar.gz",
-      "whisper_windowsUrl": "https://github.com/YirehStudios/AGI/releases/download/v1.0.0/whisper-cuda-win-x64.zip"
+      "whisper_windowsUrl": "https://github.com/YirehStudios/AGI/releases/download/v1.0.0/whisper-cuda-win-x64.zip",
+      "sd_cpp_binary": "sd",
+      "sd_cpp_LinuxUrl": "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-709-92a3b73/sd-master-92a3b73-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip",
+      "sd_cpp_WindowsUrl": "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-709-92a3b73/sd-master-92a3b73-bin-win-avx2-x64.zip"
     }
   },
   "Sherpa": {
