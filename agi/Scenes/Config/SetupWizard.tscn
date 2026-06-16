@@ -13,7 +13,7 @@ border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.8, 0.8, 0.8, 0.15)
+border_color = Color(0.8, 0.8, 0.8, 0)
 border_blend = true
 corner_radius_top_left = 24
 corner_radius_top_right = 24
@@ -402,7 +402,8 @@ alignment = 1
 [node name="CardTitle" type="Label" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout" unique_id=10112235]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
-text = "Cloud API"
+text = "Cloud API
+(Experimental)"
 horizontal_alignment = 1
 
 [node name="CardDesc" type="Label" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/CloudCard/CardLayout" unique_id=10112236]
@@ -496,7 +497,8 @@ alignment = 1
 [node name="CardTitle" type="Label" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout" unique_id=30112235]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
-text = "Local Network"
+text = "Local Network
+(Experimental)"
 horizontal_alignment = 1
 
 [node name="CardDesc" type="Label" parent="Background/CenterContainer/PanelModeSelection/Layout/ConnectionsHBox/LanCard/CardLayout" unique_id=30112236]

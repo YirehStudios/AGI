@@ -13,6 +13,10 @@ from pathlib import Path
 
 import threading
 import time
+import json
+import httpx
+import uuid
+import asyncio
 
 def watch_parent_process():
     # En Linux, un proceso huérfano es adoptado por init (PID 1) o systemd.
@@ -297,6 +301,8 @@ def read_multiple_files(paths: list) -> str:
             results.append(f"[{path}] Read Error: {str(e)}")
     return "\n\n".join(results)
 
+
+
 @app.get("/list_tools")
 async def list_tools():
     """
@@ -379,6 +385,16 @@ async def list_tools():
                 "name": "global_access",
                 "description": "Virtual Godot tool. Governs operations outside the workspace. DO NOT CALL DIRECTLY. (WARNING: Requires explicit user approval, HIGH RISK)",
                 "parameters": {"path": "string"}
+            },
+            {
+                "name": "generate_image",
+                "description": "Generate an image using the local ComfyUI engine. The prompt can be natural language, Danbooru tags, or a raw ComfyUI JSON workflow depending on the selected Prompt Strategy.",
+                "parameters": {"prompt": "string"}
+            },
+            {
+                "name": "generate_video",
+                "description": "Generate a video using the local ComfyUI engine. The prompt can be natural language or a raw ComfyUI JSON workflow.",
+                "parameters": {"prompt": "string"}
             }
         ]
     }
@@ -420,8 +436,95 @@ async def call_tool(request: ToolCallRequest):
         return {"result": create_directory(args.get("path", ""))}
     elif name == "read_multiple_files":
         return {"result": read_multiple_files(args.get("paths", []))}
+    elif name == "generate_image":
+        port = getattr(app.state, "port", 8002)
+        image_port = port + 2
+        
+        # Build dynamic payload reading from preferences and presets
+        payload = {"prompt": args.get("prompt", "")}
+        try:
+            pref_path = SANDBOX_ROOT / "Script" / "Cs" / "System" / "Config" / "preferences.json"
+            presets_path = SANDBOX_ROOT / "Script" / "Cs" / "System" / "Config" / "presets.json"
+            
+            if pref_path.exists() and presets_path.exists():
+                with open(pref_path, "r", encoding="utf-8") as f:
+                    active_model = json.load(f).get("ActiveImageModel", "")
+                    
+                with open(presets_path, "r", encoding="utf-8") as f:
+                    presets = json.load(f)
+                    
+                for preset in presets:
+                    if preset.get("Name") == active_model:
+                        adv = preset.get("AdvancedDownloads")
+                        if adv:
+                            for dl in adv:
+                                sub = dl.get("ComfySubfolder", "")
+                                fname = dl.get("Url", "").split("/")[-1]
+                                if sub == "unet": payload["unet_name"] = fname
+                                elif sub == "vae": payload["vae_name"] = fname
+                                elif sub == "clip":
+                                    if "t5" in fname.lower(): payload["clip_t5"] = fname
+                                    else: payload["clip_l"] = fname
+                        else:
+                            payload["safetensors_name"] = active_model.replace(" ", "_") + ".safetensors"
+                        break
+        except Exception as e:
+            print(f"[MCP] Error building dynamic image payload: {e}")
+
+        try:
+            async with httpx.AsyncClient(timeout=None) as client:
+                resp = await client.post(f"http://127.0.0.1:{image_port}/generate", json=payload)
+                if resp.status_code == 200:
+                    return resp.json()
+                else:
+                    return {"result": f"Error: Image server returned status code {resp.status_code}."}
+        except Exception as e:
+            return {"result": f"Error contacting local image generation server: {str(e)}"}
+    elif name == "generate_video":
+        port = getattr(app.state, "port", 8002)
+        video_port = port + 4
+        
+        # Build dynamic payload reading from preferences and presets
+        payload = {"prompt": args.get("prompt", "")}
+        try:
+            pref_path = SANDBOX_ROOT / "Script" / "Cs" / "System" / "Config" / "preferences.json"
+            presets_path = SANDBOX_ROOT / "Script" / "Cs" / "System" / "Config" / "presets.json"
+            
+            if pref_path.exists() and presets_path.exists():
+                with open(pref_path, "r", encoding="utf-8") as f:
+                    active_model = json.load(f).get("ActiveVideoModel", "")
+                    
+                with open(presets_path, "r", encoding="utf-8") as f:
+                    presets = json.load(f)
+                    
+                for preset in presets:
+                    if preset.get("Name") == active_model:
+                        adv = preset.get("AdvancedDownloads")
+                        if adv:
+                            for dl in adv:
+                                sub = dl.get("ComfySubfolder", "")
+                                fname = dl.get("Url", "").split("/")[-1]
+                                if sub == "unet": payload["unet_name"] = fname
+                                elif sub == "vae": payload["vae_name"] = fname
+                                elif sub == "clip":
+                                    if "t5" in fname.lower(): payload["clip_t5"] = fname
+                                    else: payload["clip_l"] = fname
+                        else:
+                            payload["safetensors_name"] = active_model.replace(" ", "_") + ".safetensors"
+                        break
+        except Exception as e:
+            print(f"[MCP] Error building dynamic video payload: {e}")
+
+        try:
+            async with httpx.AsyncClient(timeout=None) as client:
+                resp = await client.post(f"http://127.0.0.1:{video_port}/generate", json=payload)
+                if resp.status_code == 200:
+                    return resp.json()
+                else:
+                    return {"result": f"Error: Video server returned status code {resp.status_code}."}
+        except Exception as e:
+            return {"result": f"Error contacting local video generation server: {str(e)}"}
     elif name == "web_search":
-        import httpx
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post("http://127.0.0.1:8000/search", json=args)
             data = resp.json()
@@ -433,6 +536,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8002)
     args = parser.parse_args()
+    app.state.port = args.port
 
     # Mantenemos 127.0.0.1 y ahora respetamos el puerto de Godot
     uvicorn.run(app, host="127.0.0.1", port=args.port)

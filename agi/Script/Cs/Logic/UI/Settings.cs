@@ -102,6 +102,9 @@ namespace Logic.UI
         [ExportGroup("Models Controls")]
         /// <summary>Dropdown populated from user://models/ directory JSON manifests.</summary>
         [Export] public OptionButton ActiveModelSelector { get; set; }
+        
+        [Export] public OptionButton ActiveImageModelSelector { get; set; }
+        [Export] public OptionButton ActiveVideoModelSelector { get; set; }
 
         /// <summary>
         /// Editable display name for the currently loaded model profile.
@@ -165,6 +168,15 @@ namespace Logic.UI
         /// Triggers immediate global theme re-evaluation via <see cref="ThemeManager"/>.
         /// </summary>
         [Export] public CheckButton DarkModeToggle { get; set; }
+        public CheckButton TransModeToggle { get; set; }
+        public HSlider TransBlurSlider { get; set; }
+        public HSlider TransOpacitySlider { get; set; }
+        public CheckButton TransPopupsToggle { get; set; }
+        public HSlider TransPopupsBlurSlider { get; set; }
+        public HSlider TransPopupsOpacitySlider { get; set; }
+        public CheckButton TransSubWindowsToggle { get; set; }
+        public HSlider TransSubWindowsBlurSlider { get; set; }
+        public HSlider TransSubWindowsOpacitySlider { get; set; }
         [Export] public Container WorkspaceListContainer { get; set; }
         [Export] public Container WorkspaceItemTemplate { get; set; }
 
@@ -257,6 +269,16 @@ namespace Logic.UI
                 if (GpuSelector == null)
                     GD.PrintErr("[SETTINGS] Fallback: No se pudo enlazar %GpuSelector dinámicamente.");
             }
+
+            TransModeToggle = GetNodeOrNull<CheckButton>("%TransModeToggle");
+            TransBlurSlider = GetNodeOrNull<HSlider>("%TransBlurSlider");
+            TransOpacitySlider = GetNodeOrNull<HSlider>("%TransOpacitySlider");
+            TransPopupsToggle = GetNodeOrNull<CheckButton>("%TransPopupsToggle");
+            TransPopupsBlurSlider = GetNodeOrNull<HSlider>("%TransPopupsBlurSlider");
+            TransPopupsOpacitySlider = GetNodeOrNull<HSlider>("%TransPopupsOpacitySlider");
+            TransSubWindowsToggle = GetNodeOrNull<CheckButton>("%TransSubWindowsToggle");
+            TransSubWindowsBlurSlider = GetNodeOrNull<HSlider>("%TransSubWindowsBlurSlider");
+            TransSubWindowsOpacitySlider = GetNodeOrNull<HSlider>("%TransSubWindowsOpacitySlider");
         }
 
         /// <summary>
@@ -413,6 +435,8 @@ namespace Logic.UI
         {
             // ── Models ──────────────────────────────────────────────
             if (ActiveModelSelector   != null) ActiveModelSelector.ItemSelected   += OnModelSelected;
+            if (ActiveImageModelSelector != null) ActiveImageModelSelector.ItemSelected += OnImageModelSelected;
+            if (ActiveVideoModelSelector != null) ActiveVideoModelSelector.ItemSelected += OnVideoModelSelected;
             if (TxtIaDisplayNameInput != null) TxtIaDisplayNameInput.TextChanged  += OnDisplayNameChanged;
             if (NumInputTokensLimit   != null) NumInputTokensLimit.ValueChanged   += v => UpdateInputTokenLimit((int)v);
             if (NumOutputTokensLimit  != null) NumOutputTokensLimit.ValueChanged  += v => UpdateOutputTokenLimit((int)v);
@@ -441,6 +465,16 @@ namespace Logic.UI
 
             // ── Preferences ─────────────────────────────────────────
             if (DarkModeToggle != null) DarkModeToggle.Toggled += OnDarkModeToggled;
+            
+            if (TransModeToggle != null) TransModeToggle.Toggled += OnTransModeToggled;
+            if (TransBlurSlider != null) TransBlurSlider.DragEnded += (v) => OnTransBlurChanged(TransBlurSlider.Value);
+            if (TransOpacitySlider != null) TransOpacitySlider.DragEnded += (v) => OnTransOpacityChanged(TransOpacitySlider.Value);
+            if (TransPopupsToggle != null) TransPopupsToggle.Toggled += OnTransPopupsToggled;
+            if (TransPopupsBlurSlider != null) TransPopupsBlurSlider.DragEnded += (v) => OnTransPopupsBlurChanged(TransPopupsBlurSlider.Value);
+            if (TransPopupsOpacitySlider != null) TransPopupsOpacitySlider.DragEnded += (v) => OnTransPopupsOpacityChanged(TransPopupsOpacitySlider.Value);
+            if (TransSubWindowsToggle != null) TransSubWindowsToggle.Toggled += OnTransSubWindowsToggled;
+            if (TransSubWindowsBlurSlider != null) TransSubWindowsBlurSlider.DragEnded += (v) => OnTransSubWindowsBlurChanged(TransSubWindowsBlurSlider.Value);
+            if (TransSubWindowsOpacitySlider != null) TransSubWindowsOpacitySlider.DragEnded += (v) => OnTransSubWindowsOpacityChanged(TransSubWindowsOpacitySlider.Value);
 
             if (WorkspaceBrowseBtn != null && WorkspaceFileDialog != null)
             {
@@ -472,22 +506,30 @@ namespace Logic.UI
             // ── Preferences ─────────────────────────────────────────
             bool isDark = _configManager.DarkMode;
             DarkModeToggle?.SetPressedNoSignal(_configManager.DarkMode);
+            TransModeToggle?.SetPressedNoSignal(_configManager.TransModeEnabled);
+            TransBlurSlider?.SetValueNoSignal(_configManager.TransModeBlur);
+            TransOpacitySlider?.SetValueNoSignal(_configManager.TransModeOpacity);
+            TransPopupsToggle?.SetPressedNoSignal(_configManager.TransModeApplyToPopups);
+            TransPopupsBlurSlider?.SetValueNoSignal(_configManager.TransModePopupsBlur);
+            TransPopupsOpacitySlider?.SetValueNoSignal(_configManager.TransModePopupsOpacity);
+            TransSubWindowsToggle?.SetPressedNoSignal(_configManager.TransModeApplyToSubWindows);
+            TransSubWindowsBlurSlider?.SetValueNoSignal(_configManager.TransModeSubWindowsBlur);
+            TransSubWindowsOpacitySlider?.SetValueNoSignal(_configManager.TransModeSubWindowsOpacity);
             
             RefreshWorkspaceUI();
             
-            if (Material is ShaderMaterial glassMat)
-            {
-                Color blendColor = isDark ? new Color(0.06f, 0.06f, 0.09f, 0.45f) : new Color(0.95f, 0.95f, 0.98f, 0.30f);
-                glassMat.SetShaderParameter("mix_color", blendColor);
-                glassMat.SetShaderParameter("blur_amount", isDark ? 2.0f : 1.5f);
-            }
+            Material = null;
+            
+            ThemeManager.Instance?.ApplyTransMode();
             UpdateThemeCornerRadius(isDark ? 16 : 8);
+            UpdateTransSlidersVisibility();
 
             // ── Performance (Dynamic Population) ────────────────────
             PopulateGpuSelector();
 
             // ── Models ──────────────────────────────────────────────
             CargarModelosEnMenu();
+            CargarModelosVisualesEnMenu();
             SyncModelFieldsFromActiveProfile();
 
             // ── Tools ───────────────────────────────────────────────
@@ -652,6 +694,61 @@ namespace Logic.UI
             {
                 ActiveModelSelector.Select(0);
             }
+        }
+
+        private async void CargarModelosVisualesEnMenu()
+        {
+            if (ActiveImageModelSelector == null && ActiveVideoModelSelector == null) return;
+
+            if (ActiveImageModelSelector != null) ActiveImageModelSelector.Clear();
+            if (ActiveVideoModelSelector != null) ActiveVideoModelSelector.Clear();
+
+            if (_configManager != null)
+            {
+                var presets = await _configManager.GetOrDownloadPresetsAsync();
+                
+                if (ActiveImageModelSelector != null)
+                {
+                    var imageModels = presets.Where(p => p.Category == "Image" || p.Name.Contains("Pony") || p.Name.Contains("SDXL") || p.Name.Contains("Diffusion")).ToList();
+                    for(int i = 0; i < imageModels.Count; i++)
+                    {
+                        ActiveImageModelSelector.AddItem(imageModels[i].Name);
+                        if (imageModels[i].Name == _configManager.ActiveImageModel)
+                        {
+                            ActiveImageModelSelector.Select(i);
+                        }
+                    }
+                }
+                
+                if (ActiveVideoModelSelector != null)
+                {
+                    var videoModels = presets.Where(p => p.Category == "Video" || p.Name.Contains("SVD") || p.Name.Contains("Video")).ToList();
+                    for(int i = 0; i < videoModels.Count; i++)
+                    {
+                        ActiveVideoModelSelector.AddItem(videoModels[i].Name);
+                        if (videoModels[i].Name == _configManager.ActiveVideoModel)
+                        {
+                            ActiveVideoModelSelector.Select(i);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void OnImageModelSelected(long idx)
+        {
+            if (ActiveImageModelSelector == null || _configManager == null) return;
+            string selectedName = ActiveImageModelSelector.GetItemText((int)idx);
+            _configManager.ActiveImageModel = selectedName;
+            _configManager.SaveConfiguration();
+        }
+
+        private void OnVideoModelSelected(long idx)
+        {
+            if (ActiveVideoModelSelector == null || _configManager == null) return;
+            string selectedName = ActiveVideoModelSelector.GetItemText((int)idx);
+            _configManager.ActiveVideoModel = selectedName;
+            _configManager.SaveConfiguration();
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -1010,6 +1107,7 @@ namespace Logic.UI
             if (ThemeManager.Instance != null)
             {
                 GetTree().Root.Theme = ThemeManager.Instance.ObtenerTemaGlobal(isPressed);
+                ThemeManager.Instance.ApplyTransMode();
             }
 
             // Notify MainApp to update the active view/Chatbot theme dynamically
@@ -1017,13 +1115,6 @@ namespace Logic.UI
             if (mainApp != null)
             {
                 mainApp.SetThemeMode(isPressed);
-            }
-
-            if (Material is ShaderMaterial glassMat)
-            {
-                Color blendColor = isPressed ? new Color(0.06f, 0.06f, 0.09f, 0.45f) : new Color(0.95f, 0.95f, 0.98f, 0.30f);
-                glassMat.SetShaderParameter("mix_color", blendColor);
-                glassMat.SetShaderParameter("blur_amount", isPressed ? 2.0f : 1.5f);
             }
 
             UpdateThemeCornerRadius(isPressed ? 16 : 8);
@@ -1082,6 +1173,62 @@ namespace Logic.UI
             }
         }
 
+        private void OnTransModeToggled(bool isPressed)
+        {
+            if (_configManager != null) { _configManager.TransModeEnabled = isPressed; _configManager.SaveConfiguration(); }
+            ThemeManager.Instance?.ApplyTransMode();
+            UpdateTransSlidersVisibility();
+        }
+
+        private void OnTransBlurChanged(double value)
+        {
+            if (_configManager != null) { _configManager.TransModeBlur = (float)value; _configManager.SaveConfiguration(); }
+            ThemeManager.Instance?.ApplyTransMode();
+        }
+
+        private void OnTransOpacityChanged(double value)
+        {
+            if (_configManager != null) { _configManager.TransModeOpacity = (float)value; _configManager.SaveConfiguration(); }
+            ThemeManager.Instance?.ApplyTransMode();
+        }
+
+        private void OnTransPopupsToggled(bool isPressed)
+        {
+            if (_configManager != null) { _configManager.TransModeApplyToPopups = isPressed; _configManager.SaveConfiguration(); }
+            ThemeManager.Instance?.ApplyTransMode();
+            UpdateTransSlidersVisibility();
+        }
+
+        private void OnTransPopupsBlurChanged(double value)
+        {
+            if (_configManager != null) { _configManager.TransModePopupsBlur = (float)value; _configManager.SaveConfiguration(); }
+            ThemeManager.Instance?.ApplyTransMode();
+        }
+
+        private void OnTransPopupsOpacityChanged(double value)
+        {
+            if (_configManager != null) { _configManager.TransModePopupsOpacity = (float)value; _configManager.SaveConfiguration(); }
+            ThemeManager.Instance?.ApplyTransMode();
+        }
+
+        private void OnTransSubWindowsToggled(bool isPressed)
+        {
+            if (_configManager != null) { _configManager.TransModeApplyToSubWindows = isPressed; _configManager.SaveConfiguration(); }
+            ThemeManager.Instance?.ApplyTransMode();
+            UpdateTransSlidersVisibility();
+        }
+
+        private void OnTransSubWindowsBlurChanged(double value)
+        {
+            if (_configManager != null) { _configManager.TransModeSubWindowsBlur = (float)value; _configManager.SaveConfiguration(); }
+            ThemeManager.Instance?.ApplyTransMode();
+        }
+
+        private void OnTransSubWindowsOpacityChanged(double value)
+        {
+            if (_configManager != null) { _configManager.TransModeSubWindowsOpacity = (float)value; _configManager.SaveConfiguration(); }
+            ThemeManager.Instance?.ApplyTransMode();
+        }
 
         /// <summary>
         /// Locates the active flat StyleBox architecture belonging to the target panel control 
@@ -1094,6 +1241,30 @@ namespace Logic.UI
             {
                 panelStyle.SetCornerRadiusAll(radius);
             }
+        }
+
+        private void UpdateTransSlidersVisibility()
+        {
+            if (_configManager == null) return;
+
+            // Detección del Gestor de Ventanas:
+            // KWin (Linux) y DWM (Windows 11) gestionan el radio de desenfoque de la ventana principal globalmente.
+            // Para la ventana principal (Fondo Principal), si estamos en Linux o Windows, ocultamos el HSlider de Blur.
+            bool isNativeOSBlur = OS.GetName() == "Linux" || OS.GetName() == "FreeBSD" || OS.GetName() == "Windows";
+            
+            // Mostramos siempre los sliders de Blur y Opacidad de la Ventana Principal
+            // si la transparencia está activa. Para KWin/DWM, un valor de Blur = 0 desactiva
+            // el efecto, y > 0 lo activa (ignorando la intensidad numérica, ya que el SO lo gestiona).
+            if (TransBlurSlider != null) TransBlurSlider.GetParent<Control>().Visible = _configManager.TransModeEnabled;
+            if (TransOpacitySlider != null) TransOpacitySlider.GetParent<Control>().Visible = _configManager.TransModeEnabled;
+            
+            // Para "Pestañas" y "Subventanas/Emergentes", usamos el shader interno de Godot (frosted_glass.gdshader).
+            // Este shader SÍ soporta cambiar el radio de desenfoque interno, por lo que SIEMPRE mostramos sus sliders.
+            if (TransPopupsBlurSlider != null) TransPopupsBlurSlider.GetParent<Control>().Visible = _configManager.TransModeApplyToPopups;
+            if (TransPopupsOpacitySlider != null) TransPopupsOpacitySlider.GetParent<Control>().Visible = _configManager.TransModeApplyToPopups;
+            
+            if (TransSubWindowsBlurSlider != null) TransSubWindowsBlurSlider.GetParent<Control>().Visible = _configManager.TransModeApplyToSubWindows;
+            if (TransSubWindowsOpacitySlider != null) TransSubWindowsOpacitySlider.GetParent<Control>().Visible = _configManager.TransModeApplyToSubWindows;
         }
     }
 }

@@ -323,6 +323,12 @@ public partial class LivemodeMain : Panel
         Color mainBg = isDark ? new Color(0.12f, 0.12f, 0.14f) : new Color(0.95f, 0.95f, 0.97f);
         Color primaryText = isDark ? new Color(1f, 1f, 1f) : new Color(0.2f, 0.2f, 0.2f);
 
+        var config = Logic.System.Config.ConfigManager.Instance;
+        if (config != null && config.TransModeEnabled)
+        {
+            mainBg = new Color(0, 0, 0, 0);
+        }
+
         ColorRect floorBg = GetNodeOrNull<ColorRect>("DynamicFloorBg");
         if (floorBg == null)
         {

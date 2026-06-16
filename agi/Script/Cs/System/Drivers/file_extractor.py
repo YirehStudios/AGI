@@ -160,5 +160,13 @@ if __name__ == "__main__":
                 else:
                     print(f"Datos estructurados:\n{datos}")
         except Exception as e:
-            print(f"Error procesando {arch}: {e}")
+            err_msg = f"Error interno en file_extractor.py procesando {arch}: {e}"
+            print(err_msg)
+            if len(sys.argv) > 2:
+                out_path = sys.argv[2]
+                try:
+                    with open(out_path, 'w', encoding='utf-8') as f:
+                        f.write(err_msg)
+                except:
+                    pass
 

@@ -9,6 +9,7 @@
 [ext_resource type="Texture2D" uid="uid://dxcnkms337jlm" path="res://Resources/Images/Icons/Util/LiveMode.svg" id="6_8bqqk"]
 [ext_resource type="Texture2D" uid="uid://b1vmdijvvtehk" path="res://Resources/Images/Icons/Util/Modo3D.svg" id="7_ide7w"]
 [ext_resource type="Texture2D" uid="uid://dfadm5kcjmvjk" path="res://Resources/Images/Icons/Util/files.svg" id="10_b140v"]
+[ext_resource type="Shader" uid="uid://c5f447olcpncs" path="res://Resources/Shaders/frosted_glass.gdshader" id="14_akbej"]
 [ext_resource type="PackedScene" uid="uid://bvo0frg37bl" path="res://Scenes/Config/Settings.tscn" id="14_settings"]
 [ext_resource type="PackedScene" uid="uid://f3x84k45j2pj" path="res://Scenes/Config/Files.tscn" id="15_files"]
 [ext_resource type="Texture2D" uid="uid://br187aqkvne0f" path="res://Resources/Images/Icons/Util/History.svg" id="icon_history"]
@@ -118,6 +119,18 @@ subpixel_positioning = 0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4nqfe"]
 bg_color = Color(0.6, 0.6, 0.6, 0)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_GlassRoot"]
+shader = ExtResource("14_akbej")
+shader_parameter/blur_amount = 1.8
+shader_parameter/mix_color = Color(0.06, 0.06, 0.09, 0.35)
+shader_parameter/panel_alpha = 0.8
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_tx3vf"]
+shader = ExtResource("14_akbej")
+shader_parameter/blur_amount = 1.8
+shader_parameter/mix_color = Color(0.06, 0.06, 0.09, 0.35)
+shader_parameter/panel_alpha = 0.8
 
 [node name="MainApp" type="Panel" unique_id=488006737 node_paths=PackedStringArray("SidebarWrapper", "ContentContainer", "WelcomeOverlay", "CompanyLogo", "MenuToggleButton", "ChatBotModeButton", "LiveModeButton", "AgiModeButton", "HeaderTitle", "HistoryButton", "HistoryScroll", "HistoryListContainer", "UiAnimator", "SettingsTabBtn", "SettingsPanel", "SidebarContainer", "SidebarSettingsButton", "SidebarFilesButton", "FilesPanel", "FilesTabBtn", "FilesListContainer", "AttachmentChipTemplate")]
 anchors_preset = 15
@@ -369,6 +382,9 @@ theme_override_font_sizes/font_size = 24
 text = "Bienvenido a AGI de que hablamos hoy"
 horizontal_alignment = 1
 
+[node name="BackBufferCopyFiles" type="BackBufferCopy" parent="." unique_id=999888778]
+copy_mode = 2
+
 [node name="FilesOverlay" type="Panel" parent="." unique_id=778899333]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 1
@@ -413,7 +429,11 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="FilesRoot" parent="FilesOverlay/FilesPanel/FilesMargin" unique_id=987654321 instance=ExtResource("15_files")]
+material = SubResource("ShaderMaterial_GlassRoot")
 layout_mode = 2
+
+[node name="BackBufferCopySettings" type="BackBufferCopy" parent="." unique_id=999888777]
+copy_mode = 2
 
 [node name="SettingsOverlay" type="Panel" parent="." unique_id=664321001]
 self_modulate = Color(1, 1, 1, 0)
@@ -459,5 +479,6 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Settings" parent="SettingsOverlay/SettingsPanel/SettingsMargin" unique_id=1979954093 instance=ExtResource("14_settings")]
+material = SubResource("ShaderMaterial_tx3vf")
 layout_mode = 2
 mouse_filter = 0

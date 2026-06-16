@@ -27,6 +27,8 @@ namespace Logic.Utils
             SelectLLM,
             SelectSTT,
             SelectTTS,
+            SelectImageGen,
+            SelectVideoGen,
             SelectPerformance,
             Downloading,
             StartingServer,
@@ -84,6 +86,8 @@ namespace Logic.Utils
         private ConfigManager.ModelPreset _selectedLLM;
         private ConfigManager.ModelPreset _selectedSTT;
         private ConfigManager.ModelPreset _selectedTTS;
+        private ConfigManager.ModelPreset _selectedImageGen;
+        private ConfigManager.ModelPreset _selectedVideoGen;
 
         private bool _esModoOscuro = true;
 
@@ -185,6 +189,11 @@ namespace Logic.Utils
                         TransitionToMainScene();
                     }
                 };
+            }
+            if (Logic.System.Config.ConfigManager.Instance != null && Logic.System.Config.ConfigManager.Instance.TransModeEnabled)
+            {
+                var bg = GetNodeOrNull<Panel>("SetupBackground");
+                if (bg != null) bg.SelfModulate = new Color(0, 0, 0, 0);
             }
 
             if (BtnLocalHost != null)
@@ -366,6 +375,8 @@ namespace Logic.Utils
                 case WizardState.SelectLLM:
                 case WizardState.SelectSTT:
                 case WizardState.SelectTTS:
+                case WizardState.SelectImageGen:
+                case WizardState.SelectVideoGen:
                     if (_activeSelectionPanel == null && MainSelectionPanelScene != null)
                     {
                         _activeSelectionPanel = MainSelectionPanelScene.Instantiate<Logic.UI.DynamicSelectionPanel>();
@@ -419,13 +430,47 @@ namespace Logic.Utils
                                 }
                             }
                         }
+                        else if (state == WizardState.SelectImageGen)
+                        {
+                            displayPayload.Title = "Generación de Imagen (ImageGen)";
+                            displayPayload.Category = Logic.UI.ModelCategory.ImageGen;
+                            foreach (var preset in presets)
+                            {
+                                if (preset.Category == "Image" || preset.Name.Contains("Pony") || preset.Name.Contains("SDXL") || preset.Name.Contains("Diffusion"))
+                                {
+                                    displayPayload.Items.Add(new Logic.UI.ModelItemData
+                                    {
+                                        Name = preset.Name,
+                                        Description = preset.Description,
+                                        TargetExecutable = "comfyui"
+                                    });
+                                }
+                            }
+                        }
+                        else if (state == WizardState.SelectVideoGen)
+                        {
+                            displayPayload.Title = "Generación de Video (VideoGen)";
+                            displayPayload.Category = Logic.UI.ModelCategory.VideoGen;
+                            foreach (var preset in presets)
+                            {
+                                if (preset.Category == "Video" || preset.Name.Contains("SVD") || preset.Name.Contains("Video"))
+                                {
+                                    displayPayload.Items.Add(new Logic.UI.ModelItemData
+                                    {
+                                        Name = preset.Name,
+                                        Description = preset.Description,
+                                        TargetExecutable = "comfyui"
+                                    });
+                                }
+                            }
+                        }
                         else
                         {
                             displayPayload.Title = "Modelos de Lenguaje (LLM)";
                             displayPayload.Category = Logic.UI.ModelCategory.LLM;
                             foreach (var preset in presets)
                             {
-                                if (!preset.Name.Contains("Whisper") && !preset.Name.Contains("Sherpa") && !preset.Name.Contains("Piper") && !preset.Name.Contains("Kokoro"))
+                                if (!preset.Name.Contains("Whisper") && !preset.Name.Contains("Sherpa") && !preset.Name.Contains("Piper") && !preset.Name.Contains("Kokoro") && preset.Category != "Image" && preset.Category != "Video" && !preset.Name.Contains("Pony") && !preset.Name.Contains("SDXL") && !preset.Name.Contains("Diffusion") && !preset.Name.Contains("SVD"))
                                 {
                                     displayPayload.Items.Add(new Logic.UI.ModelItemData
                                     {
@@ -479,14 +524,14 @@ namespace Logic.Utils
                 global::System.IO.Directory.CreateDirectory(globalSharePath);
             }
 
-            string currentLlamaUrl = isWindows ? engineConfigs.Llama.WindowsUrl : engineConfigs.Llama.LinuxUrl;
+            string currentLlamaUrl = isWindows ? engineConfigs.Llama?.WindowsUrl : engineConfigs.Llama?.LinuxUrl;
             string llamaArchive = isWindows ? "llama-server.zip" : "llama-server.tar.gz";
 
-            string currentWhisperUrl = isWindows ? engineConfigs.Whisper.WindowsUrl : engineConfigs.Whisper.LinuxUrl;
+            string currentWhisperUrl = isWindows ? engineConfigs.Whisper?.WindowsUrl : engineConfigs.Whisper?.LinuxUrl;
             string whisperArchive = isWindows ? "whisper-server.zip" : "whisper-server.tar.gz";
 
-            string currentSherpaUrl = isWindows ? engineConfigs.Sherpa.WindowsUrl : engineConfigs.Sherpa.LinuxUrl;
-            string currentPythonUrl = isWindows ? engineConfigs.Python.WindowsUrl : engineConfigs.Python.LinuxUrl;
+            string currentSherpaUrl = isWindows ? engineConfigs.Sherpa?.WindowsUrl : engineConfigs.Sherpa?.LinuxUrl;
+            string currentPythonUrl = isWindows ? engineConfigs.Python?.WindowsUrl : engineConfigs.Python?.LinuxUrl;
             string sherpaArchive = isWindows ? "sherpa-onnx-win.tar.bz2" : "sherpa-onnx-linux.tar.bz2";
 
             if (engineConfigs.TtsServer != null && !string.IsNullOrEmpty(engineConfigs.TtsServer.Url))
@@ -523,7 +568,7 @@ namespace Logic.Utils
             string modelsDir = _environmentManager.ModelsPath;
             global::System.IO.Directory.CreateDirectory(modelsDir);
 
-            List<ConfigManager.ModelPreset> presetsToDownload = new List<ConfigManager.ModelPreset> { _selectedLLM, _selectedSTT, _selectedTTS };
+            List<ConfigManager.ModelPreset> presetsToDownload = new List<ConfigManager.ModelPreset> { _selectedLLM, _selectedSTT, _selectedTTS, _selectedImageGen, _selectedVideoGen };
 
             foreach (ConfigManager.ModelPreset preset in presetsToDownload)
             {
@@ -546,6 +591,14 @@ namespace Logic.Utils
                 else if (preset.Name.Contains("Whisper"))
                 {
                     _configManager.ActiveSTTModel = safeFileName;
+                }
+                else if (preset.Category == "Image" || preset.Name.Contains("Pony") || preset.Name.Contains("SDXL") || preset.Name.Contains("Diffusion"))
+                {
+                    _configManager.ActiveImageModel = preset.Name;
+                }
+                else if (preset.Category == "Video" || preset.Name.Contains("SVD") || preset.Name.Contains("Video"))
+                {
+                    _configManager.ActiveVideoModel = preset.Name;
                 }
                 else
                 {
@@ -590,7 +643,55 @@ namespace Logic.Utils
                     continue;
                 }
 
-                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]Descargando modelo: {preset.Name}...[/center]";
+                if (preset.Category == "Image" || preset.Category == "Video")
+                {
+                    string osFolder = OS.GetName().ToLower();
+                    
+                    if (preset.AdvancedDownloads != null && preset.AdvancedDownloads.Count > 0)
+                    {
+                        foreach (var target in preset.AdvancedDownloads)
+                        {
+                            string sFileName = global::System.IO.Path.GetFileName(new global::System.Uri(target.Url).LocalPath);
+                            string subFolder = target.ComfySubfolder ?? "checkpoints";
+                            string dPath = ProjectSettings.GlobalizePath($"user://bin/{osFolder}/comfyui/models/{subFolder}/{sFileName}");
+                            
+                            // To properly handle download queue, since it expects modelsDir as base, 
+                            // we'll pass the exact directory and file.
+                            string exactDir = ProjectSettings.GlobalizePath($"user://bin/{osFolder}/comfyui/models/{subFolder}");
+                            global::System.IO.Directory.CreateDirectory(exactDir);
+                            
+                            if (!global::System.IO.File.Exists(dPath))
+                            {
+                                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]Descargando {sFileName}...[/center]";
+                                bool dlSuccess = await _downloadManager.DownloadFileAsync(target.Url, exactDir, sFileName);
+                                if (!dlSuccess)
+                                {
+                                    GD.PrintErr($"SetupWizard: Fallo en la descarga de {sFileName}");
+                                    if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center][color=red]Error al descargar {sFileName}.[/color][/center]";
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        string exactDir = ProjectSettings.GlobalizePath($"user://bin/{osFolder}/comfyui/models/checkpoints");
+                        global::System.IO.Directory.CreateDirectory(exactDir);
+                        string sFileName = preset.Name.Replace(" ", "_") + ".safetensors";
+                        string dPath = global::System.IO.Path.Combine(exactDir, sFileName);
+
+                        if (!global::System.IO.File.Exists(dPath))
+                        {
+                            if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center]Descargando modelo: {preset.Name}...[/center]";
+                            bool dlSuccess = await _downloadManager.DownloadFileAsync(preset.DownloadLinks[0], exactDir, sFileName);
+                            if (!dlSuccess)
+                            {
+                                GD.PrintErr($"SetupWizard: Fallo en la descarga de {preset.Name}");
+                                if (ModelDownloadStatus != null) ModelDownloadStatus.Text = $"[center][color=red]Error al descargar {preset.Name}.[/color][/center]";
+                            }
+                        }
+                    }
+                    continue; // Skip the rest of the old handling for Image/Video
+                }
 
                 bool success = await _downloadManager.DownloadFileAsync(preset.DownloadLinks[0], modelsDir, safeFileName);
 
@@ -889,6 +990,16 @@ namespace Logic.Utils
                     break;
 
                 case WizardState.SelectTTS:
+                    _currentWizardState = WizardState.SelectImageGen;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.SelectImageGen:
+                    _currentWizardState = WizardState.SelectVideoGen;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.SelectVideoGen:
                     _currentWizardState = WizardState.SelectPerformance;
                     UpdateWizardUIOverview();
                     break;
@@ -933,6 +1044,16 @@ namespace Logic.Utils
                     break;
 
                 case WizardState.SelectPerformance:
+                    _currentWizardState = WizardState.SelectVideoGen;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.SelectVideoGen:
+                    _currentWizardState = WizardState.SelectImageGen;
+                    UpdateWizardUIOverview();
+                    break;
+
+                case WizardState.SelectImageGen:
                     _currentWizardState = WizardState.SelectTTS;
                     UpdateWizardUIOverview();
                     break;
@@ -1088,7 +1209,7 @@ namespace Logic.Utils
             if (PanelPerformanceProfile != null)
                 PanelPerformanceProfile.Visible = (_currentWizardState == WizardState.SelectPerformance);
 
-            bool isSelectionState = (_currentWizardState == WizardState.ModelSelection || _currentWizardState == WizardState.SelectLLM || _currentWizardState == WizardState.SelectSTT || _currentWizardState == WizardState.SelectTTS);
+            bool isSelectionState = (_currentWizardState == WizardState.ModelSelection || _currentWizardState == WizardState.SelectLLM || _currentWizardState == WizardState.SelectSTT || _currentWizardState == WizardState.SelectTTS || _currentWizardState == WizardState.SelectImageGen || _currentWizardState == WizardState.SelectVideoGen);
 
             if (isSelectionState)
             {
@@ -1156,6 +1277,16 @@ namespace Logic.Utils
                     case Logic.UI.ModelCategory.TTS:
                         _selectedTTS = verifiedPreset;
                         GD.Print($"SetupWizard: Audio generation tensor parameters bound: {modelName}");
+                        break;
+
+                    case Logic.UI.ModelCategory.ImageGen:
+                        _selectedImageGen = verifiedPreset;
+                        GD.Print($"SetupWizard: Image generation model parameters bound: {modelName}");
+                        break;
+
+                    case Logic.UI.ModelCategory.VideoGen:
+                        _selectedVideoGen = verifiedPreset;
+                        GD.Print($"SetupWizard: Video generation model parameters bound: {modelName}");
                         break;
                 }
             }
@@ -1251,10 +1382,18 @@ namespace Logic.Utils
             if (SetupBackground is ColorRect bgRect)
             {
                 bgRect.Color = esOscuro ? new Color("#131313") : new Color("#f5f5f7");
+                if (Logic.System.Config.ConfigManager.Instance != null && Logic.System.Config.ConfigManager.Instance.TransModeEnabled)
+                {
+                    bgRect.Color = new Color(0, 0, 0, 0);
+                }
             }
             else if (SetupBackground is PanelContainer bgPanel)
             {
                 var style = new StyleBoxFlat { BgColor = esOscuro ? new Color("#131313") : new Color("#f5f5f7") };
+                if (Logic.System.Config.ConfigManager.Instance != null && Logic.System.Config.ConfigManager.Instance.TransModeEnabled)
+                {
+                    style.BgColor = new Color(0, 0, 0, 0);
+                }
                 bgPanel.AddThemeStyleboxOverride("panel", style);
             }
 

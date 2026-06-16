@@ -35,5 +35,11 @@
   },
   "file_extractor": {
     "Url": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/agi/Script/Cs/System/Drivers/file_extractor.py"
+  },
+  "image_server": {
+    "Url": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/agi/Script/Cs/System/Drivers/image_server.py"
+  },
+  "video_server": {
+    "Url": "https://github.com/YirehStudios/AGI/raw/refs/heads/main/agi/Script/Cs/System/Drivers/video_server.py"
   }
 } 

@@ -271,7 +271,7 @@ namespace Logic.System.Drivers
                 GD.Print("[PackageManager] Search Env: Installing pip dependencies via uv...");
 
                 // Includes mcp and httpx as core dependencies for the tool gateway.
-                string[] dependencies = { "pip", "install", "--python", envPath, "fastapi", "uvicorn", "ddgs", "trafilatura", "mcp", "httpx", "pypdf", "openpyxl" };
+                string[] dependencies = { "pip", "install", "--python", envPath, "fastapi", "uvicorn", "ddgs", "trafilatura", "mcp", "httpx", "pypdf", "openpyxl", "websockets", "gguf" };
                 int exitCode = OS.Execute(uvCommand, dependencies, output, true);
 
                 if (exitCode != 0)
@@ -310,7 +310,7 @@ namespace Logic.System.Drivers
                 GD.Print($"[PackageManager] Search Env: Installing pip dependencies on Windows...");
 
                 // Added mcp and httpx to the Windows pip installation command.
-                string[] winDeps = { "-m", "pip", "install", "fastapi", "uvicorn", "ddgs", "trafilatura", "mcp", "httpx", "pypdf", "openpyxl" };
+                string[] winDeps = { "-m", "pip", "install", "fastapi", "uvicorn", "ddgs", "trafilatura", "mcp", "httpx", "pypdf", "openpyxl", "websockets", "gguf" };
                 int pipExit = OS.Execute(pythonExe, winDeps, output, true);
 
                 if (pipExit != 0)

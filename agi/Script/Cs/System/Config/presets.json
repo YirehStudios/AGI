@@ -38,5 +38,50 @@
       "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2"
     ],
     "ExpectedSize": 380000000
+  },
+  {
+    "Name": "Pony Diffusion V6 XL",
+    "Description": "Modelo de ilustración estilizada y anime de alta calidad (SDXL).",
+    "DownloadLinks": [
+      "https://huggingface.co/LyliaEngine/Pony_Diffusion_V6_XL/blob/main/sdxl_vae.safetensors"
+    ],
+    "ExpectedSize": 6460000000,
+    "Category": "Image",
+    "PromptStrategy": "tags"
+  },
+  {
+    "Name": "Stable Video Diffusion (SVD)",
+    "Description": "Modelo oficial de Stability AI para generación de video a partir de prompts.",
+    "DownloadLinks": [
+      "https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt/resolve/main/svd_xt.safetensors"
+    ],
+    "ExpectedSize": 9500000000,
+    "Category": "Video",
+    "PromptStrategy": "natural"
+  },
+  {
+    "Name": "Pony Diffusion V6 XL Q8_0",
+    "Description": "Modelo de ilustración estilizada y anime de alta calidad (SDXL GGUF).",
+    "AdvancedDownloads": [
+      {
+        "Url": "https://huggingface.co/morikomorizz/Pony-Diffusion-V6-XL-GGUF/resolve/main/pony_diffusion_v6_xl_Q8_0.gguf",
+        "ComfySubfolder": "unet"
+      },
+      {
+        "Url": "https://huggingface.co/LyliaEngine/Pony_Diffusion_V6_XL/resolve/main/sdxl_vae.safetensors",
+        "ComfySubfolder": "vae"
+      },
+      {
+        "Url": "https://huggingface.co/comfyanonymous/edit_me/resolve/main/clip_l.safetensors",
+        "ComfySubfolder": "clip"
+      },
+      {
+        "Url": "https://huggingface.co/comfyanonymous/edit_me/resolve/main/t5xxl_fp16.safetensors",
+        "ComfySubfolder": "clip"
+      }
+    ],
+    "ExpectedSize": 8500000000,
+    "Category": "Image",
+    "PromptStrategy": "tags"
   }
 ]

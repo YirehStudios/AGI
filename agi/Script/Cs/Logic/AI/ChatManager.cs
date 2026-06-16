@@ -116,6 +116,50 @@ namespace Logic.Lite
                 builder.Append("\nCurrent System Time (Use this as your temporal reference): " + global::System.DateTime.Now.ToString("f") + ".");
             }
 
+            var config = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
+            if (config != null)
+            {
+                string presetsPath = ProjectSettings.GlobalizePath("user://presets.json");
+                if (global::System.IO.File.Exists(presetsPath))
+                {
+                    try
+                    {
+                        string jsonString = global::System.IO.File.ReadAllText(presetsPath);
+                        var options = new global::System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                        var presets = global::System.Text.Json.JsonSerializer.Deserialize<global::System.Collections.Generic.List<Logic.System.Config.ConfigManager.ModelPreset>>(jsonString, options);
+                        
+                        if (presets != null)
+                        {
+                            var activeImageModel = presets.FirstOrDefault(p => p.Name == config.ActiveImageModel);
+                            var activeVideoModel = presets.FirstOrDefault(p => p.Name == config.ActiveVideoModel);
+
+                            if (activeImageModel != null)
+                            {
+                                builder.AppendLine($"\n[IMAGE GEN CAPABILITY ENABLED]");
+                                builder.AppendLine($"Model: {activeImageModel.Name}");
+                                if (activeImageModel.PromptStrategy == "tags")
+                                    builder.AppendLine($"Prompt Strategy: You must use comma-separated Danbooru-style tags (e.g., '1girl, outdoors, masterpiece, best quality') for image generation.");
+                                else if (activeImageModel.PromptStrategy == "json")
+                                    builder.AppendLine($"Prompt Strategy: You must output a ComfyUI-compatible JSON node structure for image generation.");
+                                else
+                                    builder.AppendLine($"Prompt Strategy: Use natural language descriptions for image generation.");
+                            }
+
+                            if (activeVideoModel != null)
+                            {
+                                builder.AppendLine($"\n[VIDEO GEN CAPABILITY ENABLED]");
+                                builder.AppendLine($"Model: {activeVideoModel.Name}");
+                                builder.AppendLine($"Prompt Strategy: {activeVideoModel.PromptStrategy}. Apply appropriate video/motion instructions.");
+                            }
+                        }
+                    }
+                    catch (global::System.Exception ex)
+                    {
+                        GD.PrintErr($"[PROMPT BUILDER ERROR] Failed to load presets for PromptStrategy: {ex.Message}");
+                    }
+                }
+            }
+
             if (activeTools != null && (activeTools.Contains("MCP") || activeTools.Contains("Web Search")) && !string.IsNullOrEmpty(_availableTools))
             {
                 builder.Append("\nTo use a tool, output exactly this flat format immediately after </think>:");
@@ -133,7 +177,7 @@ namespace Logic.Lite
                                   : defaultWorkspace;
                 
                 builder.Append($"\n- For operations within your workspace, use absolute paths starting with one of these: {workspacesStr}.");
-                builder.Append("\n- You ARE ALLOWED to access external paths (like /home/Yahir_js/Descargas), but it will prompt the user for permission natively. You don't need a special tool to do this, just use the normal file tools (e.g., create_new_file) with the absolute path.");
+                builder.Append("\n- You ARE ALLOWED to access external paths (like /home/user/Descargas), but it will prompt the user for permission natively. You don't need a special tool to do this, just use the normal file tools (e.g., create_new_file) with the absolute path.");
                 builder.Append("\n- IMPORTANT: If a user attaches a file, its text content will be directly injected into the prompt for you. You don't need to read it manually. To modify a file, you can output the corrected version using your file writing tools.");
                 builder.Append("\nAvailable tools:\n");
                 builder.Append(GetCompactToolSchema(activeTools));
@@ -369,7 +413,7 @@ namespace Logic.Lite
                     if (isExtractable)
                     {
                         int waitCount = 0;
-                        while (!global::System.IO.File.Exists(pathToCheck) && waitCount < 30) // Wait up to 15s
+                        while (!global::System.IO.File.Exists(pathToCheck) && waitCount < 60) // Wait up to 30s
                         {
                             if (!showedWaitMessage)
                             {

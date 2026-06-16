@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://bvo0frg37bl"]
 
 [ext_resource type="Script" uid="uid://bx530v11h0p7s" path="res://Script/Cs/Logic/UI/Settings.cs" id="1_script"]
-[ext_resource type="Shader" uid="uid://c5f447olcpncs" path="res://Resources/Shaders/frosted_glass.gdshader" id="2_glass"]
 [ext_resource type="Texture2D" uid="uid://cdnwjgj0v1kyo" path="res://Resources/Images/Icons/Util/Models.svg" id="3_ttceo"]
 [ext_resource type="Texture2D" uid="uid://vftidia8yqei" path="res://Resources/Images/Icons/Util/Performance.svg" id="4_typf2"]
 [ext_resource type="Texture2D" uid="uid://d0tsudji8krk8" path="res://Resources/Images/Icons/Util/Tools.svg" id="5_0jj0d"]
@@ -13,11 +12,6 @@
 [ext_resource type="Texture2D" uid="uid://cekwobt1bjqdl" path="res://Resources/Images/Icons/Util/Workspace.svg" id="11_workspace"]
 [ext_resource type="Texture2D" uid="uid://d3sgdb2snebpe" path="res://Resources/Images/Icons/Util/Folder_Open.svg" id="12_folder"]
 [ext_resource type="Texture2D" uid="uid://b0deoufvhlxpv" path="res://Resources/Images/Icons/Util/Delete.svg" id="13_delete"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_GlassRoot"]
-shader = ExtResource("2_glass")
-shader_parameter/blur_amount = 1.8
-shader_parameter/mix_color = Color(0.06, 0.06, 0.09, 0.35)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_RootPanel"]
 content_margin_left = 24.0
@@ -37,8 +31,7 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[node name="SettingsRoot" type="PanelContainer" unique_id=1300762470 node_paths=PackedStringArray("ModelsBtn", "PerformanceBtn", "ToolsBtn", "PreferencesBtn", "WorkspacesBtn", "PrivacyBtn", "InfoBtn", "UpdateBtn", "ModelsViewContainer", "PerformanceViewContainer", "ToolsViewContainer", "PreferencesViewContainer", "WorkspacesViewContainer", "PrivacyViewContainer", "ActiveModelSelector", "TxtIaDisplayNameInput", "NumInputTokensLimit", "NumOutputTokensLimit", "NumContextWindowSize", "WeightImportLineEdit", "WeightImportBtn", "CpuThreadsSpinBox", "GpuLayersSpinBox", "GpuSelector", "RamSaturationSpinBox", "ToolsGrid", "DarkModeToggle", "WorkspaceListContainer", "WorkspaceItemTemplate", "WorkspaceBrowseBtn", "WorkspaceFileDialog", "StoragePathLineEdit", "PurgeDataBtn", "TelemetryToggle")]
-material = SubResource("ShaderMaterial_GlassRoot")
+[node name="SettingsRoot" type="PanelContainer" unique_id=1300762470 node_paths=PackedStringArray("ModelsBtn", "PerformanceBtn", "ToolsBtn", "PreferencesBtn", "WorkspacesBtn", "PrivacyBtn", "InfoBtn", "UpdateBtn", "ModelsViewContainer", "PerformanceViewContainer", "ToolsViewContainer", "PreferencesViewContainer", "WorkspacesViewContainer", "PrivacyViewContainer", "ActiveModelSelector", "ActiveImageModelSelector", "ActiveVideoModelSelector", "TxtIaDisplayNameInput", "NumInputTokensLimit", "NumOutputTokensLimit", "NumContextWindowSize", "WeightImportLineEdit", "WeightImportBtn", "CpuThreadsSpinBox", "GpuLayersSpinBox", "GpuSelector", "RamSaturationSpinBox", "ToolsGrid", "DarkModeToggle", "WorkspaceListContainer", "WorkspaceItemTemplate", "WorkspaceBrowseBtn", "WorkspaceFileDialog", "StoragePathLineEdit", "PurgeDataBtn", "TelemetryToggle")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -70,6 +63,8 @@ PreferencesViewContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/Conten
 WorkspacesViewContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/WorkspacesViewContainer")
 PrivacyViewContainer = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/PrivacyViewContainer")
 ActiveModelSelector = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/ActiveModelSelector")
+ActiveImageModelSelector = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/ActiveModelSelector")
+ActiveVideoModelSelector = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/ActiveVideoModelSelector")
 TxtIaDisplayNameInput = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/TxtIaDisplayNameInput")
 NumInputTokensLimit = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/NumInputTokensLimit")
 NumOutputTokensLimit = NodePath("HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer/NumOutputTokensLimit")
@@ -208,9 +203,27 @@ theme_override_constants/separation = 12
 
 [node name="LblSection1" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=918364815]
 layout_mode = 2
-text = "Perfil de Modelo Activo"
+text = "Perfil de Modelo Activo (Texto)"
 
 [node name="ActiveModelSelector" type="OptionButton" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=977808426]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LblSectionImage" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=918364816]
+layout_mode = 2
+text = "Perfil de Modelo Activo (Imagen)"
+
+[node name="ActiveImageModelSelector" type="OptionButton" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=977808427]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LblSectionVideo" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=918364817]
+layout_mode = 2
+text = "Perfil de Modelo Activo (Video)"
+
+[node name="ActiveVideoModelSelector" type="OptionButton" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/ModelsViewContainer" unique_id=977808428]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -368,6 +381,124 @@ layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 theme_override_constants/separation = 12
+
+[node name="LblTransMode" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=485047511]
+layout_mode = 2
+text = "Transparent Mode(Beta)"
+
+[node name="TransModeToggle" type="CheckButton" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=987654322]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Fondo Principal Transparente"
+
+[node name="TransBlurContainer" type="HBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=987654323]
+layout_mode = 2
+
+[node name="LblTransBlur" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/TransBlurContainer" unique_id=987654324]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+text = "Blur Principal"
+
+[node name="TransBlurSlider" type="HSlider" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/TransBlurContainer" unique_id=987654325]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 10.0
+step = 0.1
+value = 3.5
+
+[node name="TransOpacityContainer" type="HBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=987654326]
+layout_mode = 2
+
+[node name="LblTransOpacity" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/TransOpacityContainer" unique_id=987654327]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+text = "Opacidad Principal"
+
+[node name="TransOpacitySlider" type="HSlider" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/TransOpacityContainer" unique_id=987654328]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.05
+value = 0.5
+
+[node name="TransPopupsToggle" type="CheckButton" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=987654329]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Pestañas (Settings/Files)"
+
+[node name="TransPopupsBlurContainer" type="HBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=987654330]
+layout_mode = 2
+
+[node name="LblTransPopupsBlur" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/TransPopupsBlurContainer" unique_id=987654331]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+text = "Blur Pestañas"
+
+[node name="TransPopupsBlurSlider" type="HSlider" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/TransPopupsBlurContainer" unique_id=987654332]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 10.0
+step = 0.1
+value = 3.5
+
+[node name="TransPopupsOpacityContainer" type="HBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=987654333]
+layout_mode = 2
+
+[node name="LblTransPopupsOpacity" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/TransPopupsOpacityContainer" unique_id=987654334]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+text = "Opacidad Pestañas"
+
+[node name="TransPopupsOpacitySlider" type="HSlider" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/TransPopupsOpacityContainer" unique_id=987654335]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.05
+value = 0.5
+
+[node name="TransSubWindowsToggle" type="CheckButton" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=987654336]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Subventanas y Emergentes"
+
+[node name="TransSubWindowsBlurContainer" type="HBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=987654337]
+layout_mode = 2
+
+[node name="LblTransSubWindowsBlur" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/TransSubWindowsBlurContainer" unique_id=987654338]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+text = "Blur Subventanas"
+
+[node name="TransSubWindowsBlurSlider" type="HSlider" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/TransSubWindowsBlurContainer" unique_id=987654339]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 10.0
+step = 0.1
+value = 3.5
+
+[node name="TransSubWindowsOpacityContainer" type="HBoxContainer" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=987654340]
+layout_mode = 2
+
+[node name="LblTransSubWindowsOpacity" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/TransSubWindowsOpacityContainer" unique_id=987654341]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+text = "Opacidad Subventanas"
+
+[node name="TransSubWindowsOpacitySlider" type="HSlider" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer/TransSubWindowsOpacityContainer" unique_id=987654342]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.05
+value = 0.5
+
+[node name="TransSeparator" type="HSeparator" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=987654321]
+layout_mode = 2
 
 [node name="LblTheme" type="Label" parent="HBoxLayout/ContentArea/ContentScroll/ContentMargin/PreferencesViewContainer" unique_id=485047510]
 layout_mode = 2

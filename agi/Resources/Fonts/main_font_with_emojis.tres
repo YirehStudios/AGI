@@ -1,0 +1,8 @@
+[gd_resource type="FontVariation" format=3 uid="uid://b8eakx1k7w2v"]
+
+[ext_resource type="FontFile" uid="uid://p86vubqfskj0" path="res://Resources/Fonts/Roboto/Roboto-VariableFont_wdth,wght.ttf" id="1_base"]
+[ext_resource type="FontFile" path="res://Resources/Fonts/NotoColorEmoji.ttf" id="2_fallback"]
+
+[resource]
+base_font = ExtResource("1_base")
+fallbacks = Array[Font]([ExtResource("2_fallback")])

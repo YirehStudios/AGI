@@ -286,7 +286,7 @@ namespace Logic.UI
                             process.BeginOutputReadLine();
                             process.BeginErrorReadLine();
                             
-                            await global::System.Threading.Tasks.Task.Run(() => process.WaitForExit(15000)); // 15 seg timeout máximo
+                            await global::System.Threading.Tasks.Task.Run(() => process.WaitForExit(30000)); // 30 seg timeout máximo
                         }
                         
                         // Como ahora operamos bajo el telón, no renderizamos un chip nuevo visible para la versión .txt
@@ -458,12 +458,7 @@ namespace Logic.UI
 
         public void UpdateTheme(bool isDark)
         {
-            if (Material is ShaderMaterial glassMat)
-            {
-                Color blendColor = isDark ? new Color(0.06f, 0.06f, 0.09f, 0.45f) : new Color(0.95f, 0.95f, 0.98f, 0.30f);
-                glassMat.SetShaderParameter("mix_color", blendColor);
-                glassMat.SetShaderParameter("blur_amount", isDark ? 2.0f : 1.5f);
-            }
+            Material = null;
             
             var title = GetNodeOrNull<Label>("MainLayout/TopBar/Title");
             if (title != null)

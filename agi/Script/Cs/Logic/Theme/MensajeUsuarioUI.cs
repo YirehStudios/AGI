@@ -1,4 +1,5 @@
 using Godot;
+using Logic.UI.Effects;
 
 namespace Logic.UI.Components
 {
@@ -53,18 +54,14 @@ namespace Logic.UI.Components
                 miBurbuja.AddThemeStyleboxOverride("panel", panelStyle);
                 
                 // Aplicar el Shader de Liquid Glass
-                var shader = ResourceLoader.Load<Shader>("res://Resources/Shaders/frosted_glass.gdshader");
-                if (shader != null)
+                var effects = GetNodeOrNull<EffectsEngine>("/root/ThemeManager/EffectsEngine");
+                if (effects == null)
+                    effects = EffectsEngine.Instance;
+
+                if (effects != null)
                 {
-                    var material = new ShaderMaterial();
-                    material.Shader = shader;
-                    material.SetShaderParameter("blur_amount", 2.5f); // Intensidad del desenfoque
-                    
-                    // Pasar el color al shader para que aplique el tinte correcto
                     Color mixColor = isDark ? new Color(0.15f, 0.15f, 0.2f, 0.6f) : new Color(0.9f, 0.9f, 0.95f, 0.5f);
-                    material.SetShaderParameter("mix_color", mixColor);
-                    
-                    miBurbuja.Material = material;
+                    effects.ApplyFrostedGlass(miBurbuja, 2.5f, mixColor, true);
                 }
             }
 

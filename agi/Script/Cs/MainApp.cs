@@ -410,14 +410,25 @@ namespace Logic.UI
         {
             PopupMenu menu = new PopupMenu();
             
-            // Base stylebox for the menu panel (white card with soft shadow and thin grey border)
             var panelStyle = new StyleBoxFlat();
-            panelStyle.BgColor = new Color(1.0f, 1.0f, 1.0f); // Pure white background
+            bool esOscuro = Logic.UI.ThemeManager.Instance?.EsModoOscuro ?? true;
+            panelStyle.BgColor = esOscuro ? new Color(0.1f, 0.1f, 0.1f) : new Color(1.0f, 1.0f, 1.0f);
+            
+            var config = Logic.System.Config.ConfigManager.Instance;
+            if (config != null && config.TransModeApplyToPopups)
+            {
+                Color c = panelStyle.BgColor;
+                c.A = config.TransModePopupsOpacity;
+                panelStyle.BgColor = c;
+                menu.Transparent = true;
+                menu.TransparentBg = true;
+            }
+
             panelStyle.BorderWidthLeft = 1;
             panelStyle.BorderWidthTop = 1;
             panelStyle.BorderWidthRight = 1;
             panelStyle.BorderWidthBottom = 1;
-            panelStyle.BorderColor = new Color(0.85f, 0.85f, 0.85f); // Light grey border
+            panelStyle.BorderColor = esOscuro ? new Color(0.2f, 0.2f, 0.2f) : new Color(0.85f, 0.85f, 0.85f);
             panelStyle.CornerRadiusTopLeft = 8;
             panelStyle.CornerRadiusTopRight = 8;
             panelStyle.CornerRadiusBottomLeft = 8;

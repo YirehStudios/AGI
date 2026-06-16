@@ -99,7 +99,7 @@ namespace Logic.System.Platform
         {
             GD.Print("[LinuxBridge] Executing safe process teardown for local AGI resources.");
             
-            string[] targetResources = { "llama-server", "whisper-server", "sherpa-onnx-tts-server", "search_server.py", "mcp_server.py", "tts_server.py" };
+            string[] targetResources = { "llama-server", "whisper-server", "sherpa-onnx-tts-server", "search_server.py", "mcp_server.py", "tts_server.py", "image_server.py", "video_server.py" };
             string binPath = ProjectSettings.GlobalizePath("user://bin");
 
             foreach (string resourceName in targetResources)

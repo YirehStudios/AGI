@@ -1,5 +1,7 @@
 [gd_resource type="Theme" format=3 uid="uid://swswsokep821"]
 
+[ext_resource type="FontVariation" uid="uid://b8eakx1k7w2v" path="res://Resources/Fonts/main_font_with_emojis.tres" id="1_ycuci"]
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_g5qhj"]
 content_margin_left = 15.0
 content_margin_top = 15.0
@@ -577,6 +579,7 @@ corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
 [resource]
+default_font = ExtResource("1_ycuci")
 BubbleBot2/styles/panel = SubResource("StyleBoxFlat_g5qhj")
 BubbleUser2/styles/panel = SubResource("StyleBoxFlat_en4dn")
 Button/colors/font_color = Color(0.114, 0.114, 0.122, 1)

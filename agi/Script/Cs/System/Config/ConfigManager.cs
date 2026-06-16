@@ -85,6 +85,10 @@ namespace Logic.System.Config
         public string ActiveSTTModel { get; set; } = "base.bin";
         public string ActiveTTSEngine { get; set; } = "sherpa-onnx";
         public string ActiveTTSModel { get; set; } = "vits-piper-es_ES-miro-high";
+        public string ActiveImageEngine { get; set; } = "comfyui";
+        public string ActiveImageModel { get; set; } = "";
+        public string ActiveVideoEngine { get; set; } = "comfyui";
+        public string ActiveVideoModel { get; set; } = "";
 
         public int PersistedSelectedAiMode { get; set; } = 1; // Default to Focus (1)
         public int PersistedToolTimeActive { get; set; } = 1; // Default to Active (1)
@@ -92,6 +96,16 @@ namespace Logic.System.Config
         public int PersistedToolMcpActive { get; set; } = 1; // Default to Active (1)
         public string PersistedWorkspacePath { get; set; } = ""; // User's custom workspace
         public List<string> PinnedChats { get; set; } = new List<string>();
+
+        public bool TransModeEnabled { get; set; } = false;
+        public float TransModeBlur { get; set; } = 3.5f;
+        public float TransModeOpacity { get; set; } = 0.5f;
+        public bool TransModeApplyToPopups { get; set; } = false;
+        public float TransModePopupsBlur { get; set; } = 3.5f;
+        public float TransModePopupsOpacity { get; set; } = 0.5f;
+        public bool TransModeApplyToSubWindows { get; set; } = false;
+        public float TransModeSubWindowsBlur { get; set; } = 3.5f;
+        public float TransModeSubWindowsOpacity { get; set; } = 0.5f;
 
         /// <summary>
         /// Provides a global static reference to the active configuration manager instance.
@@ -154,6 +168,15 @@ namespace Logic.System.Config
         }
 
         /// <summary>
+        /// Explicit target mapping for dynamic model components (e.g. UNET, CLIP, VAE).
+        /// </summary>
+        public class DownloadTarget
+        {
+            public string Url { get; set; }
+            public string ComfySubfolder { get; set; } // "unet", "vae", "clip", "checkpoints", etc.
+        }
+
+        /// <summary>
         /// Define la estructura de los presets de modelos cargados desde el JSON externo.
         /// </summary>
         public class ModelPreset
@@ -161,7 +184,10 @@ namespace Logic.System.Config
             public string Name { get; set; }
             public string Description { get; set; }
             public List<string> DownloadLinks { get; set; }
+            public List<DownloadTarget> AdvancedDownloads { get; set; }
             public long ExpectedSize { get; set; }
+            public string Category { get; set; } = "LLM"; // LLM, STT, TTS, Image, Video
+            public string PromptStrategy { get; set; } = "description";
         }
 
         public class ChatTemplate
@@ -223,6 +249,10 @@ namespace Logic.System.Config
             public string ActiveSTTModel { get; set; }
             public string ActiveTTSEngine { get; set; }
             public string ActiveTTSModel { get; set; }
+            public string ActiveImageEngine { get; set; }
+            public string ActiveImageModel { get; set; }
+            public string ActiveVideoEngine { get; set; }
+            public string ActiveVideoModel { get; set; }
             public string CloudApiUrl { get; set; }
             public string CloudApiKey { get; set; }
             public string CloudModelName { get; set; }
@@ -238,6 +268,15 @@ namespace Logic.System.Config
             public int? PersistedToolMcpActive { get; set; }
             public string PersistedWorkspacePath { get; set; }
             public List<string> PinnedChats { get; set; }
+            public bool? TransModeEnabled { get; set; }
+            public float? TransModeBlur { get; set; }
+            public float? TransModeOpacity { get; set; }
+            public bool? TransModeApplyToPopups { get; set; }
+            public float? TransModePopupsBlur { get; set; }
+            public float? TransModePopupsOpacity { get; set; }
+            public bool? TransModeApplyToSubWindows { get; set; }
+            public float? TransModeSubWindowsBlur { get; set; }
+            public float? TransModeSubWindowsOpacity { get; set; }
             public int? SelectedGpuIndex { get; set; }
             public bool? UseCudaTurbo { get; set; }
         }
@@ -423,6 +462,10 @@ namespace Logic.System.Config
                     ActiveSTTModel = ActiveSTTModel,
                     ActiveTTSEngine = ActiveTTSEngine,
                     ActiveTTSModel = ActiveTTSModel,
+                    ActiveImageEngine = ActiveImageEngine,
+                    ActiveImageModel = ActiveImageModel,
+                    ActiveVideoEngine = ActiveVideoEngine,
+                    ActiveVideoModel = ActiveVideoModel,
                     CloudApiUrl = CloudApiUrl,
                     CloudApiKey = CloudApiKey,
                     CloudModelName = this.CloudModelName,
@@ -438,6 +481,15 @@ namespace Logic.System.Config
                     PersistedToolMcpActive = this.PersistedToolMcpActive,
                     PersistedWorkspacePath = this.PersistedWorkspacePath,
                     PinnedChats = this.PinnedChats,
+                    TransModeEnabled = this.TransModeEnabled,
+                    TransModeBlur = this.TransModeBlur,
+                    TransModeOpacity = this.TransModeOpacity,
+                    TransModeApplyToPopups = this.TransModeApplyToPopups,
+                    TransModePopupsBlur = this.TransModePopupsBlur,
+                    TransModePopupsOpacity = this.TransModePopupsOpacity,
+                    TransModeApplyToSubWindows = this.TransModeApplyToSubWindows,
+                    TransModeSubWindowsBlur = this.TransModeSubWindowsBlur,
+                    TransModeSubWindowsOpacity = this.TransModeSubWindowsOpacity,
                     SelectedGpuIndex = this.SelectedGpuIndex,
                     UseCudaTurbo = this.UseCudaTurbo
                 };
@@ -482,6 +534,10 @@ namespace Logic.System.Config
                     if (!string.IsNullOrEmpty(state.ActiveSTTModel)) ActiveSTTModel = state.ActiveSTTModel;
                     if (!string.IsNullOrEmpty(state.ActiveTTSEngine)) ActiveTTSEngine = state.ActiveTTSEngine;
                     if (!string.IsNullOrEmpty(state.ActiveTTSModel)) ActiveTTSModel = state.ActiveTTSModel;
+                    if (!string.IsNullOrEmpty(state.ActiveImageEngine)) ActiveImageEngine = state.ActiveImageEngine;
+                    if (!string.IsNullOrEmpty(state.ActiveImageModel)) ActiveImageModel = state.ActiveImageModel;
+                    if (!string.IsNullOrEmpty(state.ActiveVideoEngine)) ActiveVideoEngine = state.ActiveVideoEngine;
+                    if (!string.IsNullOrEmpty(state.ActiveVideoModel)) ActiveVideoModel = state.ActiveVideoModel;
 
                     CloudApiUrl = state.CloudApiUrl ?? "https://api.openai.com/v1";
                     CloudApiKey = state.CloudApiKey ?? string.Empty;
@@ -502,6 +558,17 @@ namespace Logic.System.Config
                     if (state.PersistedToolMcpActive.HasValue) PersistedToolMcpActive = state.PersistedToolMcpActive.Value;
                     if (state.PersistedWorkspacePath != null) PersistedWorkspacePath = state.PersistedWorkspacePath;
                     if (state.PinnedChats != null) PinnedChats = state.PinnedChats;
+
+                    if (state.TransModeEnabled.HasValue) TransModeEnabled = state.TransModeEnabled.Value;
+                    if (state.TransModeBlur.HasValue) TransModeBlur = state.TransModeBlur.Value;
+                    if (state.TransModeOpacity.HasValue) TransModeOpacity = state.TransModeOpacity.Value;
+                    if (state.TransModeApplyToPopups.HasValue) TransModeApplyToPopups = state.TransModeApplyToPopups.Value;
+                    if (state.TransModePopupsBlur.HasValue) TransModePopupsBlur = state.TransModePopupsBlur.Value;
+                    if (state.TransModePopupsOpacity.HasValue) TransModePopupsOpacity = state.TransModePopupsOpacity.Value;
+                    if (state.TransModeApplyToSubWindows.HasValue) TransModeApplyToSubWindows = state.TransModeApplyToSubWindows.Value;
+                    if (state.TransModeSubWindowsBlur.HasValue) TransModeSubWindowsBlur = state.TransModeSubWindowsBlur.Value;
+                    if (state.TransModeSubWindowsOpacity.HasValue) TransModeSubWindowsOpacity = state.TransModeSubWindowsOpacity.Value;
+
                     if (state.SelectedGpuIndex.HasValue) SelectedGpuIndex = state.SelectedGpuIndex.Value;
                     if (state.UseCudaTurbo.HasValue) UseCudaTurbo = state.UseCudaTurbo.Value;
                 }
@@ -514,17 +581,20 @@ namespace Logic.System.Config
 
         public async Task<List<ModelPreset>> GetOrDownloadPresetsAsync()
         {
-            string userPresetsPath = ProjectSettings.GlobalizePath("user://presets.json");
-            bool downloadSuccess = await DownloadPresetsFromGitHub(userPresetsPath);
+            string resPresetsPath = ProjectSettings.GlobalizePath("res://Script/Cs/System/Config/presets.json");
+            string targetPath = resPresetsPath;
 
-            if (!downloadSuccess)
+            if (!File.Exists(resPresetsPath))
             {
-                if (!File.Exists(userPresetsPath)) return new List<ModelPreset>();
+                string userPresetsPath = ProjectSettings.GlobalizePath("user://presets.json");
+                await DownloadPresetsFromGitHub(userPresetsPath);
+                targetPath = userPresetsPath;
             }
 
             try
             {
-                string jsonString = File.ReadAllText(userPresetsPath);
+                if (!File.Exists(targetPath)) return new List<ModelPreset>();
+                string jsonString = File.ReadAllText(targetPath);
                 JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 return JsonSerializer.Deserialize<List<ModelPreset>>(jsonString, options) ?? new List<ModelPreset>();
             }

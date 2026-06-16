@@ -84,7 +84,11 @@ namespace Logic.UI
             var dropCall = Callable.From<Vector2, Variant>(_DropDataForward);
             
             if (TextInputField != null) TextInputField.Call("SetInputDragForwarding", new Callable(), canDropCall, dropCall);
-            if (ChatScrollContainer != null) ChatScrollContainer.SetDragForwarding(new Callable(), canDropCall, dropCall);
+            if (ChatScrollContainer != null) 
+            {
+                ChatScrollContainer.SetDragForwarding(new Callable(), canDropCall, dropCall);
+                ChatScrollContainer.GetVScrollBar().Modulate = new Color(1, 1, 1, 0);
+            }
             if (MessagesContainer != null) MessagesContainer.SetDragForwarding(new Callable(), canDropCall, dropCall);
             if (CodeBlockTemplate != null) CodeBlockTemplate.Visible = false;
 
@@ -680,7 +684,7 @@ namespace Logic.UI
             MessagesContainer.AddChild(nuevoMsgUsuario);
             nuevoMsgUsuario.ConfigurarMensaje(text);
 
-            ScrollToBottom();
+            ScrollToBottom(true);
 
             // Capture Mode (Default to 1: Focus)
             int selectedMode = ModeSelector != null ? ModeSelector.Selected : 1;
@@ -723,7 +727,7 @@ namespace Logic.UI
             MessagesContainer.AddChild(_mensajeBotActual);
             _mensajeBotActual.IniciarEstadoPensando();
 
-            ScrollToBottom();
+            ScrollToBottom(true);
         }
 
         private async Task GenerateMockMediaResponse(bool isVideo)
@@ -788,7 +792,6 @@ namespace Logic.UI
         {
             if (_mensajeBotActual == null) return;
             _mensajeBotActual.AgregarToken(token);
-            RenderDynamicBlocks(_mensajeBotActual, _mensajeBotActual.ObtenerTextoCompleto());
             ScrollToBottom();
         }
 
@@ -808,18 +811,34 @@ namespace Logic.UI
             if (_mensajeBotActual != null)
             {
                 _mensajeBotActual.FinalizarRespuesta();
-                RenderDynamicBlocks(_mensajeBotActual, _mensajeBotActual.ObtenerTextoCompleto());
             }
         }
 
-        private async void ScrollToBottom()
+        private bool _isScrolling = false;
+        private async void ScrollToBottom(bool force = false)
         {
+            if (_isScrolling && !force) return;
+            _isScrolling = true;
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             if (ChatScrollContainer != null)
             {
                 ScrollBar vScroll = ChatScrollContainer.GetVScrollBar();
-                vScroll.Value = vScroll.MaxValue;
+                
+                if (force)
+                {
+                    vScroll.Value = vScroll.MaxValue;
+                    _isScrolling = false;
+                    return;
+                }
+                
+                // Smart auto-scroll: Si el usuario ha scrolleado hacia arriba más de 100px, no lo forzamos a bajar.
+                double distanceToBottom = vScroll.MaxValue - vScroll.Page - vScroll.Value;
+                if (distanceToBottom < 150) // Tolerancia un poco mayor
+                {
+                    vScroll.Value = vScroll.MaxValue;
+                }
             }
+            _isScrolling = false;
         }
 
         public void UpdateTheme(bool isDark)

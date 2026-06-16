@@ -11,7 +11,9 @@ namespace Logic.UI
     {
         LLM,
         STT,
-        TTS
+        TTS,
+        ImageGen,
+        VideoGen
     }
 
     /// <summary>

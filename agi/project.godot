@@ -37,15 +37,18 @@ PackageManager="*uid://byupl1skovdap"
 DownloadManager="*uid://cqsbifwhnnad8"
 ConfigManager="*uid://r3isoxio4wpf"
 ThemeManager="*uid://cyfyr5s4khbg4"
+NotificationManager="*uid://bvpfm0psskjmy"
 
 [display]
 
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/size/mode=2
+window/size/transparent=true
 window/energy_saving/keep_screen_on=false
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+window/per_pixel_transparency/allowed=true
 
 [dotnet]
 
@@ -57,11 +60,12 @@ enabled=PackedStringArray("res://addons/TextContainer/plugin.cfg")
 
 [gui]
 
-theme/custom_font="uid://eeyew7a4rkic"
+theme/custom_font="uid://p86vubqfskj0"
 
 [physics]
 
-3d/physics_engine="Jolt Physics"
+2d/run_on_separate_thread=true
+2d/physics_engine="GodotPhysics2D"
 
 [rendering]
 

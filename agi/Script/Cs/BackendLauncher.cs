@@ -25,6 +25,10 @@ namespace Logic.Backend
         private Process _whisperProcess;
         private Process _sherpaProcess;
         private Process _mcpProcess;
+        private Process _comfyProcess;
+        private Process _imageProcess;
+        private Process _videoProcess;
+        private static readonly object _comfyLogLock = new object();
         private const long MaxRamAllowed = 12L * 1024 * 1024 * 1024;
         private bool _isPanicking = false;
         private bool _isRunning = false;
@@ -75,25 +79,70 @@ namespace Logic.Backend
         {
             if (string.IsNullOrEmpty(data)) return;
 
-            string formattedLog = $"[{serviceName}] {data}";
-            string[] errorPatterns = { "ERR", "Error", "Exception", "Fault", "Critical", "Failure", "Unprocessable", "422", "500", "404", "Traceback" };
-            bool containsErrorPattern = false;
-
-            foreach (string pattern in errorPatterns)
+            if (serviceName == "ComfyUI")
             {
-                if (data.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                lock (_comfyLogLock)
                 {
-                    containsErrorPattern = true;
-                    break;
+                    try
+                    {
+                        string logPath = ProjectSettings.GlobalizePath("user://bin/comfyui.log");
+                        global::System.IO.File.AppendAllText(logPath, data + "\n");
+                    }
+                    catch {}
                 }
             }
 
-            bool isInfoLog = data.Contains("INFO:", StringComparison.OrdinalIgnoreCase) || 
-                             data.Contains("WARNING:", StringComparison.OrdinalIgnoreCase);
+            string formattedLog = $"[{serviceName}] {data}";
+            string lowerData = data.ToLower();
+
+            // Progress tracking
+            if (lowerData.Contains("%|") || lowerData.Contains("steps") || lowerData.Contains("it/s"))
+            {
+                GD.Print($"[PROGRESS] {formattedLog}");
+                // Can trigger NotificationManager to update progress here if a reference is kept
+                return;
+            }
+
+            // OOM / Critical Error checking
+            bool isOomError = lowerData.Contains("out of memory") || lowerData.Contains("cuda out of memory") || lowerData.Contains("allocation failed");
+            
+            string[] errorPatterns = { "err", "error", "exception", "fault", "critical", "failure", "traceback" };
+            bool containsErrorPattern = isOomError;
+
+            if (!containsErrorPattern)
+            {
+                foreach (string pattern in errorPatterns)
+                {
+                    if (lowerData.Contains(pattern))
+                    {
+                        containsErrorPattern = true;
+                        break;
+                    }
+                }
+            }
+
+            bool isInfoLog = lowerData.Contains("info:") || lowerData.Contains("warning:");
 
             if ((isErrorStream && !isInfoLog) || (containsErrorPattern && !isInfoLog))
             {
-                GD.PrintErr($"[DIAGNOSTIC-ERR] {formattedLog}");
+                GD.PrintErr($"[PYTHON ERROR] {formattedLog}");
+                
+                if (isOomError)
+                {
+                    if (Engine.HasSingleton("NotificationManager"))
+                    {
+                        dynamic notiManager = Engine.GetSingleton("NotificationManager");
+                        notiManager.NotifyError("Fallo Crítico de Renderizado (Out of Memory)", $"El hardware se quedó sin VRAM o RAM disponible.\nLogs técnicos:\n{data}");
+                    }
+                }
+                else if (containsErrorPattern && isErrorStream)
+                {
+                    if (Engine.HasSingleton("NotificationManager"))
+                    {
+                        dynamic notiManager = Engine.GetSingleton("NotificationManager");
+                        notiManager.NotifyError($"Error en {serviceName}", data);
+                    }
+                }
             }
             else
             {
@@ -205,6 +254,16 @@ namespace Logic.Backend
                 ProcessStartInfo searchInfo = _environmentManager.Bridge.ConfigurePythonMicroservice(searchScriptPath, $"--port {SearchPort}", projRoot, "python_search");
                 ProcessStartInfo mcpInfo = _environmentManager.Bridge.ConfigurePythonMicroservice(mcpScriptPath, $"--port {SearchPort + 2}", projRoot, "python_search");
                 
+                string imageScriptPath = global::System.IO.Path.Combine(_environmentManager.BinPath, "image_server.py");
+                string videoScriptPath = global::System.IO.Path.Combine(_environmentManager.BinPath, "video_server.py");
+                ProcessStartInfo imageInfo = _environmentManager.Bridge.ConfigurePythonMicroservice(imageScriptPath, $"--port {SearchPort + 4}", projRoot, "python_search");
+                ProcessStartInfo videoInfo = _environmentManager.Bridge.ConfigurePythonMicroservice(videoScriptPath, $"--port {SearchPort + 6}", projRoot, "python_search");
+
+                imageInfo.CreateNoWindow = true;
+                imageInfo.UseShellExecute = false;
+                videoInfo.CreateNoWindow = true;
+                videoInfo.UseShellExecute = false;
+                
                 string defaultWorkspace = ProjectSettings.GlobalizePath("user://workspace");
                 string activeWorkspace = !string.IsNullOrEmpty(_configManager?.PersistedWorkspacePath) 
                                          ? _configManager.PersistedWorkspacePath : defaultWorkspace;
@@ -284,6 +343,112 @@ namespace Logic.Backend
                 _searchProcess.Start();
                 _searchProcess.BeginOutputReadLine();
                 _searchProcess.BeginErrorReadLine();
+
+                _imageProcess = new Process { StartInfo = imageInfo, EnableRaisingEvents = true };
+                _imageProcess.OutputDataReceived += (s, e) => LogMicroserviceStream("ImageServer", e.Data, false);
+                _imageProcess.ErrorDataReceived += (s, e) => LogMicroserviceStream("ImageServer", e.Data, true);
+                _imageProcess.Exited += OnProcessExited;
+                _imageProcess.Start();
+                _imageProcess.BeginOutputReadLine();
+                _imageProcess.BeginErrorReadLine();
+
+                _videoProcess = new Process { StartInfo = videoInfo, EnableRaisingEvents = true };
+                _videoProcess.OutputDataReceived += (s, e) => LogMicroserviceStream("VideoServer", e.Data, false);
+                _videoProcess.ErrorDataReceived += (s, e) => LogMicroserviceStream("VideoServer", e.Data, true);
+                _videoProcess.Exited += OnProcessExited;
+                _videoProcess.Start();
+                _videoProcess.BeginOutputReadLine();
+                _videoProcess.BeginErrorReadLine();
+
+                string comfyuiDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "comfyui");
+                if (global::System.IO.Directory.Exists(comfyuiDir))
+                {
+                    // Clean up ComfyUI log file from previous run
+                    try
+                    {
+                        string logPath = ProjectSettings.GlobalizePath("user://bin/comfyui.log");
+                        if (global::System.IO.File.Exists(logPath))
+                        {
+                            global::System.IO.File.Delete(logPath);
+                        }
+                    }
+                    catch {}
+
+                    string gpuName = RenderingServer.GetVideoAdapterName().ToLower();
+                    string comfyArgs = "--listen 127.0.0.1 --port 8188";
+
+                    // Profiling Básico según PerformanceTier
+                    if (_configManager?.CurrentPerformanceTier == Logic.System.Config.ConfigManager.PerformanceTier.Low)
+                    {
+                        comfyArgs += " --lowvram --fp16-vae";
+                    }
+                    else if (_configManager?.CurrentPerformanceTier == Logic.System.Config.ConfigManager.PerformanceTier.Medium)
+                    {
+                        comfyArgs += " --normalvram";
+                    }
+
+                    // Arquitectura de GPU
+                    if (gpuName.Contains("nvidia"))
+                    {
+                        // NVIDIA predeterminado usa CUDA de base si la versión pytorch soporta
+                        GD.Print("[BackendLauncher] NVIDIA Architecture detected for Image/Video Pipeline.");
+                    }
+                    else if (gpuName.Contains("amd") || gpuName.Contains("radeon"))
+                    {
+                        GD.Print("[BackendLauncher] AMD Radeon detected.");
+                        if (osFolder == "windows")
+                        {
+                            comfyArgs += " --directml";
+                        }
+                    }
+                    else if (gpuName.Contains("intel") || gpuName.Contains("arc") || string.IsNullOrEmpty(gpuName))
+                    {
+                        GD.Print("[BackendLauncher] Intel iGPU / Unsupported architecture detected. Falling back to System RAM.");
+                        comfyArgs += " --cpu"; // Fallback seguro
+                    }
+
+                    GD.Print($"[BackendLauncher] Assembling ComfyUI Execution with flags: {comfyArgs}");
+
+                    ProcessStartInfo comfyInfo = new ProcessStartInfo
+                    {
+                        WorkingDirectory = comfyuiDir,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    if (osFolder == "linux")
+                    {
+                        comfyInfo.FileName = "uv";
+                        comfyInfo.Arguments = $"run main.py {comfyArgs}";
+                    }
+                    else
+                    {
+                        comfyInfo.FileName = global::System.IO.Path.Combine(comfyuiDir, "python_embedded", "python.exe");
+                        comfyInfo.Arguments = $"main.py {comfyArgs}";
+                    }
+
+                    comfyInfo.EnvironmentVariables["CUDA_VISIBLE_DEVICES"] = "-1";
+
+                    if (gpuIndex >= 0)
+                    {
+                        string vulkanGpuStr = GetVulkanIndexForGpu(gpuIndex);
+                        comfyInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = vulkanGpuStr;
+                    }
+                    else
+                    {
+                        comfyInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = "0";
+                    }
+
+                    _comfyProcess = new Process { StartInfo = comfyInfo, EnableRaisingEvents = true };
+                    _comfyProcess.OutputDataReceived += (s, e) => LogMicroserviceStream("ComfyUI", e.Data, false);
+                    _comfyProcess.ErrorDataReceived += (s, e) => LogMicroserviceStream("ComfyUI", e.Data, true);
+                    _comfyProcess.Exited += OnProcessExited;
+                    _comfyProcess.Start();
+                    _comfyProcess.BeginOutputReadLine();
+                    _comfyProcess.BeginErrorReadLine();
+                }
 
                 _mcpProcess = new Process { StartInfo = mcpInfo, EnableRaisingEvents = true };
                 _mcpProcess.OutputDataReceived += (s, e) => LogMicroserviceStream("MCP", e.Data, false);
@@ -473,6 +638,27 @@ namespace Logic.Backend
                     }
                 }
 
+                if (_comfyProcess != null)
+                {
+                    try
+                    {
+                        if (!_comfyProcess.HasExited)
+                        {
+                            _comfyProcess.Refresh();
+                            if (_comfyProcess.WorkingSet64 > MaxRamAllowed)
+                            {
+                                PanicKill("RAM overflow detected in ComfyUI Server.");
+                                break;
+                            }
+                        }
+                    }
+                    catch (InvalidOperationException) { }
+                    catch (Exception ex)
+                    {
+                        GD.PrintErr($"BackendLauncher: ComfyUI memory telemetry failure: {ex.Message}");
+                    }
+                }
+
                 await Task.Delay(2000);
             }
         }
@@ -517,6 +703,21 @@ namespace Logic.Backend
                 {
                     GD.Print($"BackendLauncher: Evaluating MCP process context. Exited state: {_mcpProcess.HasExited}");
                     if (!_mcpProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to MCP gateway."); _mcpProcess.Kill(true); }
+                }
+                if (_comfyProcess != null)
+                {
+                    GD.Print($"BackendLauncher: Evaluating ComfyUI process context. Exited state: {_comfyProcess.HasExited}");
+                    if (!_comfyProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to ComfyUI server."); _comfyProcess.Kill(true); }
+                }
+                if (_imageProcess != null)
+                {
+                    GD.Print($"BackendLauncher: Evaluating Image process context. Exited state: {_imageProcess.HasExited}");
+                    if (!_imageProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to Image server."); _imageProcess.Kill(true); }
+                }
+                if (_videoProcess != null)
+                {
+                    GD.Print($"BackendLauncher: Evaluating Video process context. Exited state: {_videoProcess.HasExited}");
+                    if (!_videoProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to Video server."); _videoProcess.Kill(true); }
                 }
             }
             catch (Exception ex)
@@ -607,6 +808,9 @@ namespace Logic.Backend
                 if (_sherpaProcess != null && !_sherpaProcess.HasExited) { _sherpaProcess.Kill(); _sherpaProcess.Dispose(); }
                 if (_searchProcess != null && !_searchProcess.HasExited) { _searchProcess.Kill(); _searchProcess.Dispose(); }
                 if (_mcpProcess != null && !_mcpProcess.HasExited) { _mcpProcess.Kill(); _mcpProcess.Dispose(); }
+                if (_comfyProcess != null && !_comfyProcess.HasExited) { _comfyProcess.Kill(); _comfyProcess.Dispose(); }
+                if (_imageProcess != null && !_imageProcess.HasExited) { _imageProcess.Kill(); _imageProcess.Dispose(); }
+                if (_videoProcess != null && !_videoProcess.HasExited) { _videoProcess.Kill(); _videoProcess.Dispose(); }
             }
             catch (Exception ex)
             {
