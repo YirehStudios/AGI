@@ -296,9 +296,8 @@ namespace Logic.UI.Components
                     string filename = content.Trim();
                     if (string.IsNullOrEmpty(filename)) continue;
                     
-                    string osFolder = OS.GetName().ToLower() == "windows" ? "windows" : "linux";
-                    string comfyOut = ProjectSettings.GlobalizePath($"user://bin/{osFolder}/comfyui/output");
-                    string fullPath = global::System.IO.Path.Combine(comfyOut, filename);
+                    string workspaceDir = ProjectSettings.GlobalizePath("user://workspace");
+                    string fullPath = global::System.IO.Path.Combine(workspaceDir, filename);
                     
                     var mediaPanel = (PanelContainer)DynamicBlocks[i];
                     if (!mediaPanel.HasMeta("media_loaded") || mediaPanel.GetMeta("media_loaded").AsString() != fullPath)

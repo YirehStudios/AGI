@@ -52,12 +52,8 @@
       "Category": "Image",
       "AdvancedDownloads": [
         {
-          "Url": "https://huggingface.co/morikomorizz/Pony-Diffusion-V6-XL-GGUF/resolve/main/pony_diffusion_v6_xl_Q8_0.gguf",
-          "ComfySubfolder": "unet"
-        },
-        {
           "Url": "https://huggingface.co/LyliaEngine/Pony_Diffusion_V6_XL/resolve/main/sdxl_vae.safetensors",
-          "ComfySubfolder": "vae"
+          "ComfySubfolder": "models/checkpoints"
         }
       ],
       "ExpectedSize": 8500000000,

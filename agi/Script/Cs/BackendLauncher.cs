@@ -74,7 +74,7 @@ namespace Logic.Backend
         /// Intercepts and parses continuous output streams from background microservices.
         /// Performs conditional pattern analysis to detect execution errors and routes telemetry to the appropriate diagnostic interface.
         /// </summary>
-        private static void LogMicroserviceStream(string serviceName, string data, bool isErrorStream = false)
+        public static void LogMicroserviceStream(string serviceName, string data, bool isErrorStream = false)
         {
             if (string.IsNullOrEmpty(data)) return;
 
@@ -215,23 +215,35 @@ namespace Logic.Backend
                 string osFolder = _environmentManager.Bridge.OperatingSystemIdentifier.ToLower();
                 string llamaDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "llama");
                 string whisperDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "whisper");
-
-                int llamaThreads = _configManager?.PerformanceProfile?.Llm?.CpuThreads ?? 4;
-                int llamaLayers = _configManager?.PerformanceProfile?.Llm?.GpuLayers ?? 99;
-                string llamaArgs = $"--model \"{modelLlamaPath}\" --host {bindAddress} --port {LlamaPort} --ctx-size {ctxSize} --threads {llamaThreads} -ngl {llamaLayers}{extraLlamaArgs}";
-                int whisperThreads = _configManager?.PerformanceProfile?.Whisper?.CpuThreads ?? 4;
-                string whisperArgs = $"-m \"{modelWhisperPath}\" --host {bindAddress} --port {WhisperPort} --threads {whisperThreads}";
+                string sdDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "sd_cpp");
 
                 ProcessStartInfo llamaInfo;
                 ProcessStartInfo whisperInfo;
+
+                if (safeFileName.EndsWith(".safetensors", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Detecta .safetensors y delega al motor SD.cpp CLI en modo servidor
+                    llamaInfo = Logic.Lite.SdCppEngine.GetServerStartInfo(_environmentManager, safeFileName, bindAddress);
+                    GD.Print("[BackendLauncher] Modelo .safetensors detectado. Bifurcación activada: Iniciando SD.cpp CLI en modo servidor.");
+                }
+                else
+                {
+                    int llamaThreads = _configManager?.PerformanceProfile?.Llm?.CpuThreads ?? 4;
+                    int llamaLayers = _configManager?.PerformanceProfile?.Llm?.GpuLayers ?? 99;
+                    string llamaArgs = $"--model \"{modelLlamaPath}\" --host {bindAddress} --port {LlamaPort} --ctx-size {ctxSize} --threads {llamaThreads} -ngl {llamaLayers}{extraLlamaArgs}";
+                    llamaInfo = _environmentManager.Bridge.ConfigureEngineExecution("llama-server", llamaArgs, llamaDir);
+                }
+
+                int whisperThreads = _configManager?.PerformanceProfile?.Whisper?.CpuThreads ?? 4;
+                string whisperArgs = $"-m \"{modelWhisperPath}\" --host {bindAddress} --port {WhisperPort} --threads {whisperThreads}";
+
                 try
                 {
-                    llamaInfo = _environmentManager.Bridge.ConfigureEngineExecution("llama-server", llamaArgs, llamaDir);
                     whisperInfo = _environmentManager.Bridge.ConfigureEngineExecution("whisper-server", whisperArgs, whisperDir);
                 }
                 catch (global::System.IO.FileNotFoundException)
                 {
-                    GD.PrintErr("BackendLauncher: Fatal - Essential binaries (Llama/Whisper) are missing.");
+                    GD.PrintErr("BackendLauncher: Fatal - Essential binaries (Llama/Whisper/SD) are missing.");
                     CallDeferred(MethodName.EmitSignal, SignalName.ConnectionLost);
                     return;
                 }

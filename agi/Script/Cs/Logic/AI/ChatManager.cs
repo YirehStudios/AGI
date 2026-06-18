@@ -999,7 +999,7 @@ namespace Logic.Lite
 
         [global::System.Text.RegularExpressions.GeneratedRegex(@"\[SESSION_NAME:\s*(.+?)\]")]
         private static partial global::System.Text.RegularExpressions.Regex MyRegex();
-        private SdCppCliEngine _sdCliEngine = new SdCppCliEngine();
+        private SdCppEngine _sdEngine = new SdCppEngine();
 
         private async global::System.Threading.Tasks.Task<string> GenerateMediaNativeAsync(string toolName, string prompt, Logic.System.Config.ConfigManager config)
         {
@@ -1014,8 +1014,8 @@ namespace Logic.Lite
                     return "Error: No model selected for media generation.";
                 }
                 
-                // Allow both .safetensors and .gguf as requested by the user
-                string imageSafeName = modelName.Replace(" ", "_") + ".gguf";
+                // Allow native safetensors support
+                string imageSafeName = modelName.Replace(" ", "_") + ".safetensors";
                 
                 var catalog = await config.GetOrDownloadPresetsAsync();
                 var allPresets = new global::System.Collections.Generic.List<Logic.System.Config.ConfigManager.ModelPreset>();
@@ -1037,11 +1037,7 @@ namespace Logic.Lite
                     }
                 }
 
-                string modelsDir = ProjectSettings.GlobalizePath("user://bin/linux/comfyui/models");
-                #if GODOT_WINDOWS
-                modelsDir = ProjectSettings.GlobalizePath("user://bin/windows/comfyui/models");
-                #endif
-                
+                string modelsDir = ProjectSettings.GlobalizePath("user://models");
                 string unetPathGguf = global::System.IO.Path.Combine(modelsDir, "checkpoints", imageSafeName);
                 if (!global::System.IO.File.Exists(unetPathGguf)) {
                     unetPathGguf = global::System.IO.Path.Combine(modelsDir, "unet", imageSafeName);
@@ -1057,9 +1053,9 @@ namespace Logic.Lite
                     GD.Print($"[ChatManager] Archivo encontrado: {unetPathGguf}");
                 }
 
-                GD.Print($"[ChatManager] Llamando a _sdCliEngine.GenerarImagenCliAsync con {imageSafeName}");
+                GD.Print($"[ChatManager] Llamando a _sdEngine.GenerarImagenCliAsync con {imageSafeName}");
 
-                return await _sdCliEngine.GenerarImagenCliAsync(prompt, imageSafeName, config);
+                return await _sdEngine.GenerarImagenCliAsync(prompt, imageSafeName, config);
             }
             catch (global::System.Exception ex)
             {

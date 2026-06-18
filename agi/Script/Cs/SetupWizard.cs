@@ -666,11 +666,11 @@ namespace Logic.Utils
                         {
                             string sFileName = global::System.IO.Path.GetFileName(new global::System.Uri(target.Url).LocalPath);
                             string subFolder = target.ComfySubfolder ?? "checkpoints";
-                            string dPath = ProjectSettings.GlobalizePath($"user://bin/{osFolder}/comfyui/models/{subFolder}/{sFileName}");
+                            string dPath = ProjectSettings.GlobalizePath($"user://models/{subFolder}/{sFileName}");
                             
                             // To properly handle download queue, since it expects modelsDir as base, 
                             // we'll pass the exact directory and file.
-                            string exactDir = ProjectSettings.GlobalizePath($"user://bin/{osFolder}/comfyui/models/{subFolder}");
+                            string exactDir = ProjectSettings.GlobalizePath($"user://models/{subFolder}");
                             global::System.IO.Directory.CreateDirectory(exactDir);
                             
                             if (!global::System.IO.File.Exists(dPath))
@@ -687,7 +687,7 @@ namespace Logic.Utils
                     }
                     else
                     {
-                        string exactDir = ProjectSettings.GlobalizePath($"user://bin/{osFolder}/comfyui/models/checkpoints");
+                        string exactDir = ProjectSettings.GlobalizePath($"user://models/checkpoints");
                         global::System.IO.Directory.CreateDirectory(exactDir);
                         
                         string sFileName = global::System.IO.Path.GetFileName(new global::System.Uri(preset.DownloadLinks[0]).LocalPath);
