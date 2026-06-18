@@ -10,6 +10,7 @@ namespace Logic.Lite
     {
         public async Task<string> GenerarImagenCliAsync(string promptUsuario, string modelSafeName, Logic.System.Config.ConfigManager config)
         {
+            GD.Print($"[SdCppCliEngine] GenerarImagenCliAsync INICIADO. ModelSafeName: {modelSafeName}");
             try
             {
                 string osFolder = "";
@@ -19,13 +20,19 @@ namespace Logic.Lite
                 osFolder = "linux";
 #endif
                 string modelsDir = ProjectSettings.GlobalizePath($"user://bin/{osFolder}/comfyui/models");
+                GD.Print($"[SdCppCliEngine] Directorio de modelos base: {modelsDir}");
                 
                 string unetPath = Path.Combine(modelsDir, "checkpoints", modelSafeName);
                 if (!File.Exists(unetPath))
                     unetPath = Path.Combine(modelsDir, "unet", modelSafeName);
 
                 if (!File.Exists(unetPath))
+                {
+                    GD.PrintErr($"[SdCppCliEngine] Checkpoint no encontrado. Rutas intentadas. Última: {unetPath}");
                     return $"Error: Checkpoint no encontrado. Esperado en {unetPath}";
+                }
+
+                GD.Print($"[SdCppCliEngine] Unet Path Confirmado: {unetPath}");
 
                 string vaePath = Path.Combine(modelsDir, "vae", "sdxl_vae.safetensors");
                 string clipPath = Path.Combine(modelsDir, "clip", "clip_l.safetensors");
@@ -39,6 +46,7 @@ namespace Logic.Lite
                 string outputPath = ProjectSettings.GlobalizePath($"user://workspace/{outputName}");
 
                 int threads = config?.PerformanceProfile?.Image?.CpuThreads ?? 4;
+                GD.Print($"[SdCppCliEngine] Configuración: Threads={threads}, Output={outputPath}");
                 
                 // Building standard sd.cpp cli arguments
                 string args = $"-m \"{unetPath}\" -p \"{promptUsuario}\" -o \"{outputPath}\" --sampling-method euler_a --steps 20 -t {threads}";
@@ -47,7 +55,7 @@ namespace Logic.Lite
                 if (File.Exists(clipPath)) args += $" --clip_l \"{clipPath}\"";
                 if (File.Exists(t5Path)) args += $" --t5xxl \"{t5Path}\"";
                 
-                args += " --vulkan"; // Obligatorio según el usuario
+                args += " --vulkan";
 
                 var startInfo = new ProcessStartInfo
                 {

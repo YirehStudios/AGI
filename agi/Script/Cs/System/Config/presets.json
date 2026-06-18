@@ -70,7 +70,7 @@
       "Description": "Modelo oficial de Stability AI para generación de video a partir de prompts.",
       "Category": "Video",
       "DownloadLinks": [
-        "https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt/resolve/main/svd_xt.safetensors"
+        "https://huggingface.co/comfyanonymous/svd_xt_safetensors/resolve/main/svd_xt.safetensors"
       ],
       "ExpectedSize": 9500000000,
       "PromptStrategy": "natural"

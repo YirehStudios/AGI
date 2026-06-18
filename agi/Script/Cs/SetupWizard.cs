@@ -689,7 +689,10 @@ namespace Logic.Utils
                     {
                         string exactDir = ProjectSettings.GlobalizePath($"user://bin/{osFolder}/comfyui/models/checkpoints");
                         global::System.IO.Directory.CreateDirectory(exactDir);
-                        string sFileName = preset.Name.Replace(" ", "_") + ".safetensors";
+                        
+                        string sFileName = global::System.IO.Path.GetFileName(new global::System.Uri(preset.DownloadLinks[0]).LocalPath);
+                        if (string.IsNullOrEmpty(sFileName)) sFileName = preset.Name.Replace(" ", "_") + ".safetensors";
+                        
                         string dPath = global::System.IO.Path.Combine(exactDir, sFileName);
 
                         if (!global::System.IO.File.Exists(dPath))

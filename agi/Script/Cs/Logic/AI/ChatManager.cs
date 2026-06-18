@@ -1003,13 +1003,40 @@ namespace Logic.Lite
 
         private async global::System.Threading.Tasks.Task<string> GenerateMediaNativeAsync(string toolName, string prompt, Logic.System.Config.ConfigManager config)
         {
+            GD.Print($"[ChatManager] GenerateMediaNativeAsync INICIADO. Tool: {toolName}");
             try
             {
                 string modelName = toolName == "generate_video" ? config?.ActiveVideoModel : config?.ActiveImageModel;
-                if (string.IsNullOrEmpty(modelName)) return "Error: No model selected for media generation.";
+                GD.Print($"[ChatManager] modelName extraído: {modelName}");
+                if (string.IsNullOrEmpty(modelName)) 
+                {
+                    GD.PrintErr("[ChatManager] Error: No model selected for media generation.");
+                    return "Error: No model selected for media generation.";
+                }
                 
                 // Allow both .safetensors and .gguf as requested by the user
                 string imageSafeName = modelName.Replace(" ", "_") + ".gguf";
+                
+                var catalog = await config.GetOrDownloadPresetsAsync();
+                var allPresets = new global::System.Collections.Generic.List<Logic.System.Config.ConfigManager.ModelPreset>();
+                if (catalog.Image != null) allPresets.AddRange(catalog.Image);
+                if (catalog.Video != null) allPresets.AddRange(catalog.Video);
+                
+                var preset = allPresets.Find(p => p.Name == modelName);
+                if (preset != null)
+                {
+                    if (preset.AdvancedDownloads != null && preset.AdvancedDownloads.Count > 0)
+                    {
+                        imageSafeName = global::System.IO.Path.GetFileName(new global::System.Uri(preset.AdvancedDownloads[0].Url).LocalPath);
+                        GD.Print($"[ChatManager] Filename derived from AdvancedDownloads: {imageSafeName}");
+                    }
+                    else if (preset.DownloadLinks != null && preset.DownloadLinks.Count > 0)
+                    {
+                        imageSafeName = global::System.IO.Path.GetFileName(new global::System.Uri(preset.DownloadLinks[0]).LocalPath);
+                        GD.Print($"[ChatManager] Filename derived from DownloadLinks: {imageSafeName}");
+                    }
+                }
+
                 string modelsDir = ProjectSettings.GlobalizePath("user://bin/linux/comfyui/models");
                 #if GODOT_WINDOWS
                 modelsDir = ProjectSettings.GlobalizePath("user://bin/windows/comfyui/models");
@@ -1022,8 +1049,15 @@ namespace Logic.Lite
 
                 if (!global::System.IO.File.Exists(unetPathGguf))
                 {
+                    GD.Print($"[ChatManager] Exact file no encontrado ({imageSafeName}), fallback a safetensors");
                     imageSafeName = modelName.Replace(" ", "_") + ".safetensors";
                 }
+                else
+                {
+                    GD.Print($"[ChatManager] Archivo encontrado: {unetPathGguf}");
+                }
+
+                GD.Print($"[ChatManager] Llamando a _sdCliEngine.GenerarImagenCliAsync con {imageSafeName}");
 
                 return await _sdCliEngine.GenerarImagenCliAsync(prompt, imageSafeName, config);
             }
