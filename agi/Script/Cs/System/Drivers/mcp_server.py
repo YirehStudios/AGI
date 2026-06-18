@@ -388,12 +388,12 @@ async def list_tools():
             },
             {
                 "name": "generate_image",
-                "description": "Generate an image using the local ComfyUI engine. The prompt can be natural language, Danbooru tags, or a raw ComfyUI JSON workflow depending on the selected Prompt Strategy.",
+                "description": "Generate an image using the local Native SD.cpp Engine. The prompt should be natural language or Danbooru tags.",
                 "parameters": {"prompt": "string"}
             },
             {
                 "name": "generate_video",
-                "description": "Generate a video using the local ComfyUI engine. The prompt can be natural language or a raw ComfyUI JSON workflow.",
+                "description": "Generate a video using the local Native SD.cpp Engine.",
                 "parameters": {"prompt": "string"}
             }
         ]

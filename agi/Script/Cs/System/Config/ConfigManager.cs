@@ -70,6 +70,7 @@ namespace Logic.System.Config
         public string RemoteHostUrl { get; set; } = string.Empty;
         public string ActiveModelPath { get; set; } = string.Empty;
         public string ActiveModelName { get; set; } = string.Empty;
+        public string ActiveModelCategory { get; set; } = "LLM";
 
         private string _settingsDirectory;
         private string _configFilePath;
@@ -85,15 +86,17 @@ namespace Logic.System.Config
         public string ActiveSTTModel { get; set; } = "base.bin";
         public string ActiveTTSEngine { get; set; } = "sherpa-onnx";
         public string ActiveTTSModel { get; set; } = "vits-piper-es_ES-miro-high";
-        public string ActiveImageEngine { get; set; } = "comfyui";
+        public string ActiveImageEngine { get; set; } = "sd_cpp";
         public string ActiveImageModel { get; set; } = "";
-        public string ActiveVideoEngine { get; set; } = "comfyui";
+        public string ActiveVideoEngine { get; set; } = "sd_cpp";
         public string ActiveVideoModel { get; set; } = "";
 
         public int PersistedSelectedAiMode { get; set; } = 1; // Default to Focus (1)
         public int PersistedToolTimeActive { get; set; } = 1; // Default to Active (1)
         public int PersistedToolWebSearchActive { get; set; } = 1; // Default to Active (1)
         public int PersistedToolMcpActive { get; set; } = 1; // Default to Active (1)
+        public int PersistedToolImageActive { get; set; } = 1; // Default to Active (1)
+        public int PersistedToolVideoActive { get; set; } = 1; // Default to Active (1)
         public string PersistedWorkspacePath { get; set; } = ""; // User's custom workspace
         public List<string> PinnedChats { get; set; } = new List<string>();
 
@@ -204,6 +207,7 @@ namespace Logic.System.Config
         {
             public string Nombre { get; set; }
             public int Tipo { get; set; }
+            public string Category { get; set; } = "LLM"; // Defaults to LLM if not specified
             public string EndpointUrl { get; set; }
             public string ModelId { get; set; }
             public string ApiKey { get; set; }
@@ -220,10 +224,23 @@ namespace Logic.System.Config
         public ModelProfile ActiveProfile { get; set; } = null;
         public string ActiveProfilePath { get; set; } = string.Empty;
 
-        public class ComputePerformanceProfile
+        public class EnginePerformanceProfile
         {
             public int CpuThreads { get; set; } = 4;
-            public int GpuLayers { get; set; } = 0;
+            public int GpuLayers { get; set; } = 99;
+        }
+
+        public class ComputePerformanceProfile
+        {
+            public EnginePerformanceProfile Llm { get; set; } = new EnginePerformanceProfile();
+            public EnginePerformanceProfile Image { get; set; } = new EnginePerformanceProfile();
+            public EnginePerformanceProfile Video { get; set; } = new EnginePerformanceProfile();
+            public EnginePerformanceProfile Whisper { get; set; } = new EnginePerformanceProfile();
+            public EnginePerformanceProfile PyScripts { get; set; } = new EnginePerformanceProfile();
+            
+            // Legacy global options or fallback
+            public int CpuThreads { get; set; } = 4;
+            public int GpuLayers { get; set; } = 99;
             public int RamSaturationCeilingMB { get; set; } = 8192;
         }
 
@@ -267,6 +284,8 @@ namespace Logic.System.Config
             public int? PersistedToolTimeActive { get; set; }
             public int? PersistedToolWebSearchActive { get; set; }
             public int? PersistedToolMcpActive { get; set; }
+            public int? PersistedToolImageActive { get; set; }
+            public int? PersistedToolVideoActive { get; set; }
             public string PersistedWorkspacePath { get; set; }
             public List<string> PinnedChats { get; set; }
             public bool? TransModeEnabled { get; set; }
@@ -484,6 +503,8 @@ namespace Logic.System.Config
                     PersistedToolTimeActive = this.PersistedToolTimeActive,
                     PersistedToolWebSearchActive = this.PersistedToolWebSearchActive,
                     PersistedToolMcpActive = this.PersistedToolMcpActive,
+                    PersistedToolImageActive = this.PersistedToolImageActive,
+                    PersistedToolVideoActive = this.PersistedToolVideoActive,
                     PersistedWorkspacePath = this.PersistedWorkspacePath,
                     PinnedChats = this.PinnedChats,
                     TransModeEnabled = this.TransModeEnabled,
@@ -561,6 +582,8 @@ namespace Logic.System.Config
                     if (state.PersistedToolTimeActive.HasValue) PersistedToolTimeActive = state.PersistedToolTimeActive.Value;
                     if (state.PersistedToolWebSearchActive.HasValue) PersistedToolWebSearchActive = state.PersistedToolWebSearchActive.Value;
                     if (state.PersistedToolMcpActive.HasValue) PersistedToolMcpActive = state.PersistedToolMcpActive.Value;
+                    if (state.PersistedToolImageActive.HasValue) PersistedToolImageActive = state.PersistedToolImageActive.Value;
+                    if (state.PersistedToolVideoActive.HasValue) PersistedToolVideoActive = state.PersistedToolVideoActive.Value;
                     if (state.PersistedWorkspacePath != null) PersistedWorkspacePath = state.PersistedWorkspacePath;
                     if (state.PinnedChats != null) PinnedChats = state.PinnedChats;
 
@@ -584,7 +607,16 @@ namespace Logic.System.Config
             }
         }
 
-        public async Task<List<ModelPreset>> GetOrDownloadPresetsAsync()
+        public class PresetsCatalog
+        {
+            public List<ModelPreset> LLM { get; set; } = new List<ModelPreset>();
+            public List<ModelPreset> STT { get; set; } = new List<ModelPreset>();
+            public List<ModelPreset> TTS { get; set; } = new List<ModelPreset>();
+            public List<ModelPreset> Image { get; set; } = new List<ModelPreset>();
+            public List<ModelPreset> Video { get; set; } = new List<ModelPreset>();
+        }
+
+        public async Task<PresetsCatalog> GetOrDownloadPresetsAsync()
         {
             string resPresetsPath = ProjectSettings.GlobalizePath("res://Script/Cs/System/Config/presets.json");
             string targetPath = resPresetsPath;
@@ -592,21 +624,24 @@ namespace Logic.System.Config
             if (!File.Exists(resPresetsPath))
             {
                 string userPresetsPath = ProjectSettings.GlobalizePath("user://presets.json");
-                await DownloadPresetsFromGitHub(userPresetsPath);
+                if (!File.Exists(userPresetsPath))
+                {
+                    await DownloadPresetsFromGitHub(userPresetsPath);
+                }
                 targetPath = userPresetsPath;
             }
 
             try
             {
-                if (!File.Exists(targetPath)) return new List<ModelPreset>();
+                if (!File.Exists(targetPath)) return new PresetsCatalog();
                 string jsonString = File.ReadAllText(targetPath);
                 JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                return JsonSerializer.Deserialize<List<ModelPreset>>(jsonString, options) ?? new List<ModelPreset>();
+                return JsonSerializer.Deserialize<PresetsCatalog>(jsonString, options) ?? new PresetsCatalog();
             }
             catch (Exception ex)
             {
-                GD.PrintErr($"ConfigManager: Error leyendo presets: {ex.Message}");
-                return new List<ModelPreset>();
+                GD.PrintErr($"ConfigManager: Error leyendo presets catalog: {ex.Message}");
+                return new PresetsCatalog();
             }
         }
 

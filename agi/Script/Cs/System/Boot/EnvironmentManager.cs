@@ -67,60 +67,6 @@ public partial class EnvironmentManager : Node
             CopyScriptFromRes(script);
         }
 
-        DeployBundledComfyNodes();
-    }
-
-    /// <summary>
-    /// Deploys bundled ComfyUI custom nodes to the runtime binary folder offline,
-    /// using a chunked reading mechanism to avoid RAM spikes.
-    /// </summary>
-    private void DeployBundledComfyNodes()
-    {
-        string osFolder = Godot.OS.GetName().ToLower();
-        string customNodesDestPath = Path.Combine(BinPath, osFolder, "comfyui", "custom_nodes");
-        Directory.CreateDirectory(customNodesDestPath);
-
-        string ggufNodeTarget = Path.Combine(customNodesDestPath, "ComfyUI-GGUF");
-        
-        if (!Directory.Exists(ggufNodeTarget))
-        {
-            GD.Print("EnvironmentManager: Instalando nodo ComfyUI-GGUF nativo desde empaquetado seguro offline...");
-            
-            string resZipPath = "res://Script/Python/ComfyUI-GGUF.zip";
-            string tempZipPath = Path.Combine(BinPath, "temp_node.zip");
-            
-            if (Godot.FileAccess.FileExists(resZipPath))
-            {
-                using (var src = Godot.FileAccess.Open(resZipPath, Godot.FileAccess.ModeFlags.Read))
-                using (var dest = Godot.FileAccess.Open(tempZipPath, Godot.FileAccess.ModeFlags.Write))
-                {
-                    // Memory-optimized 4KB chunk copying
-                    int bufferSize = 4096;
-                    long fileLength = (long)src.GetLength();
-                    long bytesRead = 0;
-                    
-                    while (bytesRead < fileLength)
-                    {
-                        int currentChunkSize = (int)System.Math.Min(bufferSize, fileLength - bytesRead);
-                        byte[] buffer = src.GetBuffer(currentChunkSize);
-                        dest.StoreBuffer(buffer);
-                        bytesRead += currentChunkSize;
-                    }
-                }
-                
-                System.IO.Compression.ZipFile.ExtractToDirectory(tempZipPath, customNodesDestPath);
-                System.IO.File.Delete(tempZipPath);
-                
-                // Handle potential "-main" suffix from GitHub zips
-                string extractedMainFolder = Path.Combine(customNodesDestPath, "ComfyUI-GGUF-main");
-                if (Directory.Exists(extractedMainFolder))
-                {
-                    Directory.Move(extractedMainFolder, ggufNodeTarget);
-                }
-                
-                GD.Print("EnvironmentManager: ComfyUI-GGUF desplegado correctamente en custom_nodes.");
-            }
-        }
     }
 
     private void CopyScriptFromRes(string scriptName)

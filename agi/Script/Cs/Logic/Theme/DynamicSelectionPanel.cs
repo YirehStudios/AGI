@@ -13,7 +13,8 @@ namespace Logic.UI
         STT,
         TTS,
         ImageGen,
-        VideoGen
+        VideoGen,
+        ImageEngine
     }
 
     /// <summary>

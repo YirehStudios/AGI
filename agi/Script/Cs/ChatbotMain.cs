@@ -39,6 +39,8 @@ namespace Logic.UI
         [Export] public Button ToggleToolTime;
         [Export] public Button ToggleToolWebSearch;
         [Export] public Button ToggleToolMCP; // For Filesystem/OS operations
+        [Export] public Button ToggleToolImage;
+        [Export] public Button ToggleToolVideo;
 
         [Export] public PanelContainer CodeBlockTemplate;
         [Export] public Texture2D RandomImage1;
@@ -145,6 +147,14 @@ namespace Logic.UI
                 {
                     ToggleToolMCP.ButtonPressed = configManager.PersistedToolMcpActive == 1;
                 }
+                if (ToggleToolImage != null)
+                {
+                    ToggleToolImage.ButtonPressed = configManager.PersistedToolImageActive == 1;
+                }
+                if (ToggleToolVideo != null)
+                {
+                    ToggleToolVideo.ButtonPressed = configManager.PersistedToolVideoActive == 1;
+                }
 
                 // Connect signals to save settings when modified
                 if (ModeSelector != null)
@@ -179,11 +189,29 @@ namespace Logic.UI
                         configManager.SaveConfiguration();
                     };
                 }
+                if (ToggleToolImage != null)
+                {
+                    ToggleToolImage.Toggled += (bool toggledOn) =>
+                    {
+                        configManager.PersistedToolImageActive = toggledOn ? 1 : 0;
+                        configManager.SaveConfiguration();
+                    };
+                }
+                if (ToggleToolVideo != null)
+                {
+                    ToggleToolVideo.Toggled += (bool toggledOn) =>
+                    {
+                        configManager.PersistedToolVideoActive = toggledOn ? 1 : 0;
+                        configManager.SaveConfiguration();
+                    };
+                }
             }
             else
             {
                 if (ToggleToolTime != null) ToggleToolTime.ButtonPressed = true;
                 if (ToggleToolMCP != null) ToggleToolMCP.ButtonPressed = true;
+                if (ToggleToolImage != null) ToggleToolImage.ButtonPressed = true;
+                if (ToggleToolVideo != null) ToggleToolVideo.ButtonPressed = true;
             }
 
             SetupAttachmentMenu();
@@ -694,6 +722,8 @@ namespace Logic.UI
             if (ToggleToolTime != null && ToggleToolTime.ButtonPressed) activeTools.Add("Time");
             if (ToggleToolWebSearch != null && ToggleToolWebSearch.ButtonPressed) activeTools.Add("Web Search");
             if (ToggleToolMCP != null && ToggleToolMCP.ButtonPressed) activeTools.Add("MCP");
+            if (ToggleToolImage != null && ToggleToolImage.ButtonPressed) activeTools.Add("Image Generator");
+            if (ToggleToolVideo != null && ToggleToolVideo.ButtonPressed) activeTools.Add("Video Generator");
 
             chatManager = GetNodeOrNull<Logic.Lite.ChatManager>("/root/ChatManager");
             if (chatManager != null)

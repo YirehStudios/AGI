@@ -160,12 +160,13 @@ namespace Logic.Lite
                 }
             }
 
-            if (activeTools != null && (activeTools.Contains("MCP") || activeTools.Contains("Web Search")) && !string.IsNullOrEmpty(_availableTools))
+            if (activeTools != null && (activeTools.Contains("MCP") || activeTools.Contains("Web Search") || activeTools.Contains("Image Generator") || activeTools.Contains("Video Generator")) && !string.IsNullOrEmpty(_availableTools))
             {
-                builder.Append("\nTo use a tool, output exactly this flat format immediately after </think>:");
+                builder.Append("\nTo use a tool, you MUST output EXACTLY this flat format immediately after </think>:");
                 builder.Append("\n[TOOL: tool_name | param1: value1 | param2: value2]");
+                builder.Append("\nExample: [TOOL: generate_image | prompt: cute dog]");
                 builder.Append("\nIMPORTANT TOOL RULES:");
-                builder.Append("\n- Do NOT use JSON formatting. Use the exact flat format above.");
+                builder.Append("\n- Do NOT use JSON formatting. You MUST use the exact flat format starting with '[TOOL: ' and ending with ']'.");
                 string defaultWorkspace = ProjectSettings.GlobalizePath("user://workspace");
                 
                 var activeWorkspaces = _currentSession.Workspaces != null ? 
@@ -212,10 +213,23 @@ namespace Logic.Lite
                     
                     if (string.IsNullOrEmpty(toolName)) continue;
 
+                    bool hasImage = activeTools != null && activeTools.Contains("Image Generator");
+                    bool hasVideo = activeTools != null && activeTools.Contains("Video Generator");
+
                     bool keep = false;
-                    if (hasWebSearch && !hasMcp && (toolName == "web_search" || toolName == "fetch_url_content")) keep = true;
-                    else if (hasMcp && !hasWebSearch && toolName != "web_search" && toolName != "fetch_url_content") keep = true;
-                    else if (hasWebSearch && hasMcp) keep = true;
+                    
+                    if (toolName == "web_search" || toolName == "fetch_url_content") {
+                        keep = hasWebSearch;
+                    }
+                    else if (toolName == "generate_image") {
+                        keep = hasImage;
+                    }
+                    else if (toolName == "generate_video") {
+                        keep = hasVideo;
+                    }
+                    else {
+                        keep = hasMcp;
+                    }
 
                     if (keep)
                     {
@@ -467,10 +481,10 @@ namespace Logic.Lite
                 toolExecuted = false;
                 string rawResponseAgent = _currentAssistantBuffer.Trim();
                 
-                // NEW REGEX: Catch everything inside [TOOL: ...]
+                // NEW REGEX: Catch everything inside [TOOL: ...] or [tool_name | param: ...]
                 var match = global::System.Text.RegularExpressions.Regex.Match(
                     rawResponseAgent, 
-                    @"\[TOOL:\s*(.+?)(?:\]|$)", // <-- Forgiving ending: Matches ']' OR End of String
+                    @"\[(?:TOOL:\s*)?([a-zA-Z0-9_]+\s*\|.+?)(?:\]|$)", 
                     global::System.Text.RegularExpressions.RegexOptions.Singleline
                 );
 
@@ -483,6 +497,10 @@ namespace Logic.Lite
                         // Split the parameters using the pipe character
                         var parts = innerContent.Split('|');
                         string toolName = parts[0].Trim();
+                        
+                        // Normalize common LLM typos
+                        if (toolName == "generateimage") toolName = "generate_image";
+                        if (toolName == "generatevideo") toolName = "generate_video";
 
                         var argsDict = new global::System.Collections.Generic.Dictionary<string, string>();
 
@@ -542,6 +560,10 @@ namespace Logic.Lite
                         {
                             toolPermission = savedPerm;
                         }
+                        else if (toolName == "generate_image" || toolName == "generate_video")
+                        {
+                            toolPermission = 0; // Auto-run for local media generation by default
+                        }
                         bool requiresApproval = toolPermission == 1; // Ask First
                         bool isExcluded       = toolPermission == 2; // Excluded (safety fallback)
 
@@ -572,6 +594,14 @@ namespace Logic.Lite
                         {
                             GD.Print($"[AGENT] Ejecución de herramienta '{toolName}' denegada por el usuario.");
                             contextResult = $"[MCP TOOL RESULT: {toolName}]\nExecution denied by the user. Do not attempt this specific action again without asking differently.";
+                        }
+                        else if (toolName == "generate_image" || toolName == "generate_video")
+                        {
+                            string imgPrompt = "";
+                            if (argsDict != null && argsDict.TryGetValue("prompt", out string pVal))
+                                imgPrompt = pVal;
+                            
+                            contextResult = await GenerateMediaNativeAsync(toolName, imgPrompt, configForApproval);
                         }
                         else
                         {
@@ -969,5 +999,38 @@ namespace Logic.Lite
 
         [global::System.Text.RegularExpressions.GeneratedRegex(@"\[SESSION_NAME:\s*(.+?)\]")]
         private static partial global::System.Text.RegularExpressions.Regex MyRegex();
+        private SdCppCliEngine _sdCliEngine = new SdCppCliEngine();
+
+        private async global::System.Threading.Tasks.Task<string> GenerateMediaNativeAsync(string toolName, string prompt, Logic.System.Config.ConfigManager config)
+        {
+            try
+            {
+                string modelName = toolName == "generate_video" ? config?.ActiveVideoModel : config?.ActiveImageModel;
+                if (string.IsNullOrEmpty(modelName)) return "Error: No model selected for media generation.";
+                
+                // Allow both .safetensors and .gguf as requested by the user
+                string imageSafeName = modelName.Replace(" ", "_") + ".gguf";
+                string modelsDir = ProjectSettings.GlobalizePath("user://bin/linux/comfyui/models");
+                #if GODOT_WINDOWS
+                modelsDir = ProjectSettings.GlobalizePath("user://bin/windows/comfyui/models");
+                #endif
+                
+                string unetPathGguf = global::System.IO.Path.Combine(modelsDir, "checkpoints", imageSafeName);
+                if (!global::System.IO.File.Exists(unetPathGguf)) {
+                    unetPathGguf = global::System.IO.Path.Combine(modelsDir, "unet", imageSafeName);
+                }
+
+                if (!global::System.IO.File.Exists(unetPathGguf))
+                {
+                    imageSafeName = modelName.Replace(" ", "_") + ".safetensors";
+                }
+
+                return await _sdCliEngine.GenerarImagenCliAsync(prompt, imageSafeName, config);
+            }
+            catch (global::System.Exception ex)
+            {
+                return $"Error executing native media generation: {ex.Message}";
+            }
+        }
     }
 }

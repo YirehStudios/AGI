@@ -1,0 +1,49 @@
+--- Script/Cs/BackendLauncher.cs
++++ Script/Cs/BackendLauncher.cs
+@@ -30,6 +30,7 @@
+         private bool _isPanicking = false;
+         private int _retryCount = 0;
+         private const int MaxRetries = 3;
++        private int _bootToken = 0;
+ 
+         // ─────────────────────────────────────────────────────────────
+         //  LIFECYCLE MANAGEMENT
+@@ -41,10 +42,14 @@
+         /// </summary>
+         public void StartBackend()
+         {
++            if (_isRunning) StopBackend();
++            
+             _retryCount = 0;
+             _isPanicking = false;
++            _isRunning = true;
++            
++            int currentToken = global::System.Threading.Interlocked.Increment(ref _bootToken);
+ 
+             // Enforces a sterile execution environment prior to instantiation.
+             TerminateOrphanedResources();
+ 
+@@ -58,7 +63,7 @@
+             Task.Run(async () =>
+             {
+                 global::System.IO.Directory.CreateDirectory(audioDir);
+-                await ManageBackendLifecycle(modelsDir, safeFileName);
++                await ManageBackendLifecycle(modelsDir, safeFileName, currentToken);
+             });
+         }
+ 
+@@ -70,12 +75,14 @@
+         /// <param name="modelsDir">Absolute path to the models directory.</param>
+         /// <param name="safeFileName">Sanitized filename of the LLM model to be loaded by Llama.</param>
+-        private async Task ManageBackendLifecycle(string modelsDir, string safeFileName)
++        private async Task ManageBackendLifecycle(string modelsDir, string safeFileName, int currentToken)
+         {
+             bool isCloudMode = _configManager != null &&
+                 (_configManager.CurrentMode == Logic.System.Config.ConfigManager.AppMode.CloudAPI ||
+                 _configManager.CurrentNetworkState == Logic.System.Config.ConfigManager.NetworkState.CloudAPI);
+ 
+             try
+             {
++                if (currentToken != _bootToken) return;
++
+                 int threadCount = Math.Max(1, global::System.Environment.ProcessorCount / 2);

@@ -77,8 +77,9 @@ font_color = Color(0.7708395, 0.77083945, 0.77083945, 1)
 shader = ExtResource("14_glass")
 shader_parameter/blur_amount = 2.5
 shader_parameter/mix_color = Color(0.04, 0.04, 0.07, 0.45)
+shader_parameter/panel_alpha = 0.8
 
-[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "AttachmentMenuBtn", "AttachmentFileDialog", "ToolsMenuButton", "ToolsMenuPanel", "panel", "MenuLayout", "Label", "InputPanel", "ModeSelector", "ToggleToolTime", "ToggleToolWebSearch", "ToggleToolMCP", "CodeBlockTemplate")]
+[node name="ChatbotInterface" type="Panel" unique_id=248099578 node_paths=PackedStringArray("ChatScrollContainer", "MessagesContainer", "TextInputField", "SendButton", "AttachmentMenuBtn", "AttachmentFileDialog", "ToolsMenuButton", "ToolsMenuPanel", "panel", "MenuLayout", "Label", "InputPanel", "ModeSelector", "ToggleToolTime", "ToggleToolWebSearch", "ToggleToolMCP", "ToggleToolImage", "ToggleToolVideo", "CodeBlockTemplate")]
 self_modulate = Color(1, 1, 1, 0)
 anchors_preset = 15
 anchor_right = 1.0
@@ -97,6 +98,10 @@ AttachmentFileDialog = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin
 ToolsMenuButton = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel/InputLayout/ToolsMenuButton")
 ToolsMenuPanel = NodePath("ToolsMenuPanel")
 panel = NodePath("ToolsMenuPanel/panel")
+ToggleToolMCP = NodePath("ToolsMenuPanel/MenuMargin/MenuLayout/ToggleToolMCP")
+ToggleToolImage = NodePath("ToolsMenuPanel/MenuMargin/MenuLayout/ToolImage")
+ToggleToolVideo = NodePath("ToolsMenuPanel/MenuMargin/MenuLayout/ToolVideo")
+CodeBlockTemplate = NodePath("MainContainer/ChatAreaContainer/ChatScrollContainer/ScrollMargin/MessagesContainer/CodeBlockTemplate")
 MenuLayout = NodePath("ToolsMenuPanel/MenuMargin/MenuLayout")
 Label = NodePath("ToolsMenuPanel/MenuMargin/MenuLayout/Label")
 InputPanel = NodePath("MainContainer/ChatAreaContainer/InputAreaMargin/InputPanel")
@@ -294,7 +299,7 @@ alignment = 0
 
 [node name="ToolImage" type="Button" parent="ToolsMenuPanel/MenuMargin/MenuLayout" unique_id=1705898862]
 layout_mode = 2
-disabled = true
+toggle_mode = true
 text = "Image"
 icon = ExtResource("22_2c06c")
 flat = true
@@ -302,7 +307,7 @@ alignment = 0
 
 [node name="ToolVideo" type="Button" parent="ToolsMenuPanel/MenuMargin/MenuLayout" unique_id=1911063531]
 layout_mode = 2
-disabled = true
+toggle_mode = true
 text = "Video"
 icon = ExtResource("23_wyifx")
 flat = true

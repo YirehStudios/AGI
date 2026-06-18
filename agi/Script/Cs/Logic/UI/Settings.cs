@@ -140,6 +140,14 @@ namespace Logic.UI
 
         /// <summary>Number of neural network layers offloaded to the GPU via CUDA/Vulkan.</summary>
         [Export] public SpinBox GpuLayersSpinBox { get; set; }
+        
+        // Modular specific profiles for future expansion
+        [Export] public SpinBox LlmCpuThreadsSpinBox { get; set; }
+        [Export] public SpinBox LlmGpuLayersSpinBox { get; set; }
+        [Export] public SpinBox ImageCpuThreadsSpinBox { get; set; }
+        [Export] public SpinBox VideoCpuThreadsSpinBox { get; set; }
+        [Export] public SpinBox WhisperCpuThreadsSpinBox { get; set; }
+        [Export] public SpinBox PyScriptsCpuThreadsSpinBox { get; set; }
 
         /// <summary>Selector for the hardware accelerator to use for Llama, Whisper and ONNX.</summary>
         [Export] public OptionButton GpuSelector { get; set; }
@@ -458,8 +466,15 @@ namespace Logic.UI
                 }
             }
             // ── Performance ─────────────────────────────────────────
-            if (CpuThreadsSpinBox   != null) CpuThreadsSpinBox.ValueChanged   += v => UpdateCpuThreads((int)v);
-            if (GpuLayersSpinBox    != null) GpuLayersSpinBox.ValueChanged    += v => UpdateGpuLayers((int)v);
+            if (CpuThreadsSpinBox   != null) CpuThreadsSpinBox.ValueChanged   += v => UpdateCpuThreads((int)v, "Llm");
+            if (GpuLayersSpinBox    != null) GpuLayersSpinBox.ValueChanged    += v => UpdateGpuLayers((int)v, "Llm");
+            
+            if (LlmCpuThreadsSpinBox != null) LlmCpuThreadsSpinBox.ValueChanged += v => UpdateCpuThreads((int)v, "Llm");
+            if (LlmGpuLayersSpinBox != null) LlmGpuLayersSpinBox.ValueChanged += v => UpdateGpuLayers((int)v, "Llm");
+            if (ImageCpuThreadsSpinBox != null) ImageCpuThreadsSpinBox.ValueChanged += v => UpdateCpuThreads((int)v, "Image");
+            if (VideoCpuThreadsSpinBox != null) VideoCpuThreadsSpinBox.ValueChanged += v => UpdateCpuThreads((int)v, "Video");
+            if (WhisperCpuThreadsSpinBox != null) WhisperCpuThreadsSpinBox.ValueChanged += v => UpdateCpuThreads((int)v, "Whisper");
+            if (PyScriptsCpuThreadsSpinBox != null) PyScriptsCpuThreadsSpinBox.ValueChanged += v => UpdateCpuThreads((int)v, "PyScripts");
             if (RamSaturationSpinBox!= null) RamSaturationSpinBox.ValueChanged += v => UpdateRamSaturation((int)v);
             if (GpuSelector         != null) GpuSelector.ItemSelected         += OnGpuSelected;
 
@@ -499,8 +514,15 @@ namespace Logic.UI
             if (_configManager == null) return;
 
             // ── Performance ─────────────────────────────────────────
-            CpuThreadsSpinBox?.SetValueNoSignal(_configManager.PerformanceProfile.CpuThreads);
-            GpuLayersSpinBox?.SetValueNoSignal(_configManager.PerformanceProfile.GpuLayers);
+            CpuThreadsSpinBox?.SetValueNoSignal(_configManager.PerformanceProfile.Llm.CpuThreads);
+            GpuLayersSpinBox?.SetValueNoSignal(_configManager.PerformanceProfile.Llm.GpuLayers);
+            
+            LlmCpuThreadsSpinBox?.SetValueNoSignal(_configManager.PerformanceProfile.Llm.CpuThreads);
+            LlmGpuLayersSpinBox?.SetValueNoSignal(_configManager.PerformanceProfile.Llm.GpuLayers);
+            ImageCpuThreadsSpinBox?.SetValueNoSignal(_configManager.PerformanceProfile.Image.CpuThreads);
+            VideoCpuThreadsSpinBox?.SetValueNoSignal(_configManager.PerformanceProfile.Video.CpuThreads);
+            WhisperCpuThreadsSpinBox?.SetValueNoSignal(_configManager.PerformanceProfile.Whisper.CpuThreads);
+            PyScriptsCpuThreadsSpinBox?.SetValueNoSignal(_configManager.PerformanceProfile.PyScripts.CpuThreads);
             RamSaturationSpinBox?.SetValueNoSignal(_configManager.PerformanceProfile.RamSaturationCeilingMB);
 
             // ── Preferences ─────────────────────────────────────────
@@ -625,6 +647,9 @@ namespace Logic.UI
             if (ActiveModelSelector == null) return;
 
             ActiveModelSelector.Clear();
+            if (ActiveImageModelSelector != null) ActiveImageModelSelector.Clear();
+            if (ActiveVideoModelSelector != null) ActiveVideoModelSelector.Clear();
+
             _rutasModelos.Clear();
 
             const string rutaModelos = "user://models";
@@ -641,25 +666,51 @@ namespace Logic.UI
             dir.ListDirBegin();
             string fileName = dir.GetNext();
 
+            int textIndex = 0;
+            int imageIndex = 0;
+            int videoIndex = 0;
+
             while (fileName != string.Empty)
             {
-                if (!dir.CurrentIsDir() && fileName.EndsWith(".json"))
+                if (!dir.CurrentIsDir() && fileName.EndsWith("_profile.json"))
                 {
                     string fullPath = $"{rutaModelos}/{fileName}";
-                    using var file = Godot.FileAccess.Open(fullPath, Godot.FileAccess.ModeFlags.Read);
-                    if (file != null)
+                    try 
                     {
-                        var json = new Json();
-                        if (json.Parse(file.GetAsText()) == Error.Ok)
-                        {
-                            var data = json.Data.AsGodotDictionary();
-                            string displayName = data.ContainsKey("nombre")
-                                ? (string)data["nombre"]
-                                : fileName.Replace(".json", string.Empty);
+                        string raw = global::System.IO.File.ReadAllText(ProjectSettings.GlobalizePath(fullPath));
+                        var profile = JsonSerializer.Deserialize<ConfigManager.ModelProfile>(raw);
+                        string displayName = !string.IsNullOrEmpty(profile?.Nombre) ? profile.Nombre : fileName;
+                        
+                        string cat = profile?.Category ?? "LLM";
 
-                            ActiveModelSelector.AddItem(displayName);
-                            _rutasModelos[ActiveModelSelector.GetItemCount() - 1] = fullPath;
+                        if (cat == "Image")
+                        {
+                            if (ActiveImageModelSelector != null)
+                            {
+                                ActiveImageModelSelector.AddItem(displayName);
+                                if (displayName == _configManager?.ActiveImageModel) ActiveImageModelSelector.Select(imageIndex);
+                                imageIndex++;
+                            }
                         }
+                        else if (cat == "Video")
+                        {
+                            if (ActiveVideoModelSelector != null)
+                            {
+                                ActiveVideoModelSelector.AddItem(displayName);
+                                if (displayName == _configManager?.ActiveVideoModel) ActiveVideoModelSelector.Select(videoIndex);
+                                videoIndex++;
+                            }
+                        }
+                        else
+                        {
+                            ActiveModelSelector.AddItem(displayName);
+                            _rutasModelos[textIndex] = fullPath;
+                            textIndex++;
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // Ignore invalid profiles
                     }
                 }
                 fileName = dir.GetNext();
@@ -669,70 +720,54 @@ namespace Logic.UI
             {
                 ActiveModelSelector.AddItem("Sin modelos instalados", 0);
                 ActiveModelSelector.Disabled = true;
-                return;
-            }
-
-            ActiveModelSelector.Disabled = false;
-
-            // Restore selection matching the persisted ActiveProfilePath.
-            if (_configManager != null && !string.IsNullOrEmpty(_configManager.ActiveProfilePath))
-            {
-                bool matched = false;
-                foreach (var kvp in _rutasModelos)
-                {
-                    if (ProjectSettings.GlobalizePath(kvp.Value) == _configManager.ActiveProfilePath)
-                    {
-                        ActiveModelSelector.Select(kvp.Key);
-                        matched = true;
-                        break;
-                    }
-                }
-
-                if (!matched) ActiveModelSelector.Select(0);
             }
             else
             {
-                ActiveModelSelector.Select(0);
+                ActiveModelSelector.Disabled = false;
+                if (_configManager != null && !string.IsNullOrEmpty(_configManager.ActiveProfilePath))
+                {
+                    bool matched = false;
+                    foreach (var kvp in _rutasModelos)
+                    {
+                        if (ProjectSettings.GlobalizePath(kvp.Value) == _configManager.ActiveProfilePath)
+                        {
+                            ActiveModelSelector.Select(kvp.Key);
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched) ActiveModelSelector.Select(0);
+                }
+                else
+                {
+                    ActiveModelSelector.Select(0);
+                }
+            }
+
+            if (ActiveImageModelSelector != null)
+            {
+                if (ActiveImageModelSelector.ItemCount == 0)
+                {
+                    ActiveImageModelSelector.AddItem("Sin modelos de imagen", 0);
+                    ActiveImageModelSelector.Disabled = true;
+                }
+                else ActiveImageModelSelector.Disabled = false;
+            }
+
+            if (ActiveVideoModelSelector != null)
+            {
+                if (ActiveVideoModelSelector.ItemCount == 0)
+                {
+                    ActiveVideoModelSelector.AddItem("Sin modelos de video", 0);
+                    ActiveVideoModelSelector.Disabled = true;
+                }
+                else ActiveVideoModelSelector.Disabled = false;
             }
         }
 
         private async void CargarModelosVisualesEnMenu()
         {
-            if (ActiveImageModelSelector == null && ActiveVideoModelSelector == null) return;
-
-            if (ActiveImageModelSelector != null) ActiveImageModelSelector.Clear();
-            if (ActiveVideoModelSelector != null) ActiveVideoModelSelector.Clear();
-
-            if (_configManager != null)
-            {
-                var presets = await _configManager.GetOrDownloadPresetsAsync();
-                
-                if (ActiveImageModelSelector != null)
-                {
-                    var imageModels = presets.Where(p => p.Category == "Image" || p.Name.Contains("Pony") || p.Name.Contains("SDXL") || p.Name.Contains("Diffusion")).ToList();
-                    for(int i = 0; i < imageModels.Count; i++)
-                    {
-                        ActiveImageModelSelector.AddItem(imageModels[i].Name);
-                        if (imageModels[i].Name == _configManager.ActiveImageModel)
-                        {
-                            ActiveImageModelSelector.Select(i);
-                        }
-                    }
-                }
-                
-                if (ActiveVideoModelSelector != null)
-                {
-                    var videoModels = presets.Where(p => p.Category == "Video" || p.Name.Contains("SVD") || p.Name.Contains("Video")).ToList();
-                    for(int i = 0; i < videoModels.Count; i++)
-                    {
-                        ActiveVideoModelSelector.AddItem(videoModels[i].Name);
-                        if (videoModels[i].Name == _configManager.ActiveVideoModel)
-                        {
-                            ActiveVideoModelSelector.Select(i);
-                        }
-                    }
-                }
-            }
+            // Migrated to CargarModelosEnMenu to strictly load locally installed profiles
         }
 
         private void OnImageModelSelected(long idx)
@@ -961,17 +996,29 @@ namespace Logic.UI
         //  PERFORMANCE HANDLERS
         // ─────────────────────────────────────────────────────────────
 
-        private void UpdateCpuThreads(int threads)
+        private void UpdateCpuThreads(int threads, string engine)
         {
             if (_configManager == null) return;
-            _configManager.PerformanceProfile.CpuThreads = threads;
+            switch(engine) {
+                case "Llm": _configManager.PerformanceProfile.Llm.CpuThreads = threads; break;
+                case "Image": _configManager.PerformanceProfile.Image.CpuThreads = threads; break;
+                case "Video": _configManager.PerformanceProfile.Video.CpuThreads = threads; break;
+                case "Whisper": _configManager.PerformanceProfile.Whisper.CpuThreads = threads; break;
+                case "PyScripts": _configManager.PerformanceProfile.PyScripts.CpuThreads = threads; break;
+            }
             SaveAndRestartBackend();
         }
 
-        private void UpdateGpuLayers(int layers)
+        private void UpdateGpuLayers(int layers, string engine)
         {
             if (_configManager == null) return;
-            _configManager.PerformanceProfile.GpuLayers = layers;
+            switch(engine) {
+                case "Llm": _configManager.PerformanceProfile.Llm.GpuLayers = layers; break;
+                case "Image": _configManager.PerformanceProfile.Image.GpuLayers = layers; break;
+                case "Video": _configManager.PerformanceProfile.Video.GpuLayers = layers; break;
+                case "Whisper": _configManager.PerformanceProfile.Whisper.GpuLayers = layers; break;
+                case "PyScripts": _configManager.PerformanceProfile.PyScripts.GpuLayers = layers; break;
+            }
             SaveAndRestartBackend();
         }
 

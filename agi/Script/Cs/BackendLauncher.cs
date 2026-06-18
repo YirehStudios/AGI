@@ -25,16 +25,12 @@ namespace Logic.Backend
         private Process _whisperProcess;
         private Process _sherpaProcess;
         private Process _mcpProcess;
-        private Process _comfyProcess;
-        private Process _imageProcess;
-        private Process _videoProcess;
-        private Process _sdCppProcess;
-        private static readonly object _comfyLogLock = new object();
         private const long MaxRamAllowed = 12L * 1024 * 1024 * 1024;
         private bool _isPanicking = false;
         private bool _isRunning = false;
         private int _retryCount = 0;
         private const int MaxRetries = 3;
+        private int _bootToken = 0;
         private Logic.System.Config.ConfigManager _configManager;
         private dynamic _environmentManager;
 
@@ -46,29 +42,31 @@ namespace Logic.Backend
 
         public void StartBackend()
         {
+            if (_isRunning) StopBackend();
+            
             _retryCount = 0;
             _isPanicking = false;
+            _isRunning = true;
+            
+            int currentToken = global::System.Threading.Interlocked.Increment(ref _bootToken);
 
             // Enforces a sterile execution environment prior to instantiation.
             TerminateOrphanedResources();
 
-            Logic.System.Config.ConfigManager configManager = GetNodeOrNull<Logic.System.Config.ConfigManager>("/root/ConfigManager");
-            string safeFileName = "default.gguf";
+            string modelsDir = _environmentManager.ModelsPath;
+            string audioDir  = global::System.IO.Path.Combine(_environmentManager.BinPath, "audio_cache");
 
-            if (configManager != null)
+            string safeFileName = "default.gguf";
+            if (_configManager != null)
             {
-                if (!string.IsNullOrEmpty(configManager.ActiveModelName))
-                    safeFileName = configManager.ActiveModelName.Replace(" ", "_") + ".gguf";
+                if (!string.IsNullOrEmpty(_configManager.ActiveModelName))
+                    safeFileName = _configManager.ActiveModelName.Replace(" ", "_") + ".gguf";
             }
 
-            string modelsDir = ProjectSettings.GlobalizePath("user://models");
-            string audioDir = ProjectSettings.GlobalizePath("user://audio");
-
-            // Allocates the execution to a background task context to prevent UI thread blockages.
             Task.Run(async () =>
             {
                 global::System.IO.Directory.CreateDirectory(audioDir);
-                await ManageBackendLifecycle(modelsDir, safeFileName);
+                await ManageBackendLifecycle(modelsDir, safeFileName, currentToken);
             });
         }
 
@@ -79,19 +77,6 @@ namespace Logic.Backend
         private static void LogMicroserviceStream(string serviceName, string data, bool isErrorStream = false)
         {
             if (string.IsNullOrEmpty(data)) return;
-
-            if (serviceName == "ComfyUI")
-            {
-                lock (_comfyLogLock)
-                {
-                    try
-                    {
-                        string logPath = ProjectSettings.GlobalizePath("user://bin/comfyui.log");
-                        global::System.IO.File.AppendAllText(logPath, data + "\n");
-                    }
-                    catch {}
-                }
-            }
 
             string formattedLog = $"[{serviceName}] {data}";
             string lowerData = data.ToLower();
@@ -186,7 +171,7 @@ namespace Logic.Backend
         /// </summary>
         /// <param name="modelsDir">Absolute path to the models directory.</param>
         /// <param name="safeFileName">Sanitized filename of the LLM model to be loaded by Llama.</param>
-        private async Task ManageBackendLifecycle(string modelsDir, string safeFileName)
+        private async Task ManageBackendLifecycle(string modelsDir, string safeFileName, int currentToken)
         {
             bool isCloudMode = _configManager != null &&
                 (_configManager.CurrentMode == Logic.System.Config.ConfigManager.AppMode.CloudAPI ||
@@ -194,6 +179,7 @@ namespace Logic.Backend
 
             try
             {
+                if (currentToken != _bootToken) return;
                 int threadCount = Math.Max(1, global::System.Environment.ProcessorCount / 2);
                 int ctxSize = 4096;
                 string extraLlamaArgs = string.Empty;
@@ -230,8 +216,11 @@ namespace Logic.Backend
                 string llamaDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "llama");
                 string whisperDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "whisper");
 
-                string llamaArgs = $"--model \"{modelLlamaPath}\" --host {bindAddress} --port {LlamaPort} --ctx-size {ctxSize} --threads {threadCount} -ngl {(_configManager?.PerformanceProfile?.GpuLayers ?? 99)}{extraLlamaArgs}";
-                string whisperArgs = $"-m \"{modelWhisperPath}\" --host {bindAddress} --port {WhisperPort} --threads {threadCount}";
+                int llamaThreads = _configManager?.PerformanceProfile?.Llm?.CpuThreads ?? 4;
+                int llamaLayers = _configManager?.PerformanceProfile?.Llm?.GpuLayers ?? 99;
+                string llamaArgs = $"--model \"{modelLlamaPath}\" --host {bindAddress} --port {LlamaPort} --ctx-size {ctxSize} --threads {llamaThreads} -ngl {llamaLayers}{extraLlamaArgs}";
+                int whisperThreads = _configManager?.PerformanceProfile?.Whisper?.CpuThreads ?? 4;
+                string whisperArgs = $"-m \"{modelWhisperPath}\" --host {bindAddress} --port {WhisperPort} --threads {whisperThreads}";
 
                 ProcessStartInfo llamaInfo;
                 ProcessStartInfo whisperInfo;
@@ -254,16 +243,6 @@ namespace Logic.Backend
 
                 ProcessStartInfo searchInfo = _environmentManager.Bridge.ConfigurePythonMicroservice(searchScriptPath, $"--port {SearchPort}", projRoot, "python_search");
                 ProcessStartInfo mcpInfo = _environmentManager.Bridge.ConfigurePythonMicroservice(mcpScriptPath, $"--port {SearchPort + 2}", projRoot, "python_search");
-                
-                string imageScriptPath = global::System.IO.Path.Combine(_environmentManager.BinPath, "image_server.py");
-                string videoScriptPath = global::System.IO.Path.Combine(_environmentManager.BinPath, "video_server.py");
-                ProcessStartInfo imageInfo = _environmentManager.Bridge.ConfigurePythonMicroservice(imageScriptPath, $"--port {SearchPort + 4}", projRoot, "python_search");
-                ProcessStartInfo videoInfo = _environmentManager.Bridge.ConfigurePythonMicroservice(videoScriptPath, $"--port {SearchPort + 6}", projRoot, "python_search");
-
-                imageInfo.CreateNoWindow = true;
-                imageInfo.UseShellExecute = false;
-                videoInfo.CreateNoWindow = true;
-                videoInfo.UseShellExecute = false;
                 
                 string defaultWorkspace = ProjectSettings.GlobalizePath("user://workspace");
                 string activeWorkspace = !string.IsNullOrEmpty(_configManager?.PersistedWorkspacePath) 
@@ -344,168 +323,6 @@ namespace Logic.Backend
                 _searchProcess.Start();
                 _searchProcess.BeginOutputReadLine();
                 _searchProcess.BeginErrorReadLine();
-
-                _imageProcess = new Process { StartInfo = imageInfo, EnableRaisingEvents = true };
-                _imageProcess.OutputDataReceived += (s, e) => LogMicroserviceStream("ImageServer", e.Data, false);
-                _imageProcess.ErrorDataReceived += (s, e) => LogMicroserviceStream("ImageServer", e.Data, true);
-                _imageProcess.Exited += OnProcessExited;
-                _imageProcess.Start();
-                _imageProcess.BeginOutputReadLine();
-                _imageProcess.BeginErrorReadLine();
-
-                _videoProcess = new Process { StartInfo = videoInfo, EnableRaisingEvents = true };
-                _videoProcess.OutputDataReceived += (s, e) => LogMicroserviceStream("VideoServer", e.Data, false);
-                _videoProcess.ErrorDataReceived += (s, e) => LogMicroserviceStream("VideoServer", e.Data, true);
-                _videoProcess.Exited += OnProcessExited;
-                _videoProcess.Start();
-                _videoProcess.BeginOutputReadLine();
-                _videoProcess.BeginErrorReadLine();
-
-                bool isImageModel = _configManager?.ActiveModelName != null && (_configManager.ActiveModelName.Contains("Pony") || _configManager.ActiveModelName.Contains("SDXL") || _configManager.ActiveModelName.Contains("Diffusion")) && !_configManager.ActiveModelName.Contains("SVD");
-                bool isVideoModel = _configManager?.ActiveModelName != null && (_configManager.ActiveModelName.Contains("SVD") || _configManager.ActiveModelName.Contains("Video"));
-
-                string sdCppDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "sd_cpp");
-                string sdCppBinaryName = osFolder == "windows" ? "sd.exe" : "sd";
-                string sdCppPath = global::System.IO.Path.Combine(sdCppDir, sdCppBinaryName);
-
-                string comfyuiDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "comfyui");
-                string comfyMainPy = global::System.IO.Path.Combine(comfyuiDir, "main.py");
-                
-                if (isImageModel && !isVideoModel && global::System.IO.File.Exists(sdCppPath))
-                {
-                    GD.Print("[BackendLauncher] Standard image model detected. Initializing stable-diffusion.cpp native server.");
-                    
-                    string modelsBaseDir = global::System.IO.Path.Combine(_environmentManager.BinPath, osFolder, "comfyui", "models");
-                    string unetPath = global::System.IO.Path.Combine(modelsBaseDir, "checkpoints", safeFileName);
-                    if (!global::System.IO.File.Exists(unetPath)) {
-                        unetPath = global::System.IO.Path.Combine(modelsBaseDir, "unet", safeFileName);
-                    }
-                    string vaePath = global::System.IO.Path.Combine(modelsBaseDir, "vae", "sdxl_vae.safetensors");
-                    string clipPath = global::System.IO.Path.Combine(modelsBaseDir, "clip", "clip_l.safetensors");
-                    string t5Path = global::System.IO.Path.Combine(modelsBaseDir, "clip", "t5xxl_fp16.safetensors");
-
-                    string sdArgs = $"--mode server --port 8188 -m \"{unetPath}\"";
-                    if (global::System.IO.File.Exists(vaePath)) sdArgs += $" --vae \"{vaePath}\"";
-                    if (global::System.IO.File.Exists(clipPath)) sdArgs += $" --clip_l \"{clipPath}\"";
-                    if (global::System.IO.File.Exists(t5Path)) sdArgs += $" --t5xxl \"{t5Path}\"";
-
-                    ProcessStartInfo sdInfo = new ProcessStartInfo
-                    {
-                        FileName = sdCppPath,
-                        Arguments = sdArgs,
-                        WorkingDirectory = sdCppDir,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-
-                    if (gpuIndex >= 0)
-                    {
-                        string vulkanGpuStr = GetVulkanIndexForGpu(gpuIndex);
-                        sdInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = vulkanGpuStr;
-                    }
-
-                    _sdCppProcess = new Process { StartInfo = sdInfo, EnableRaisingEvents = true };
-                    _sdCppProcess.OutputDataReceived += (s, e) => LogMicroserviceStream("SD.cpp", e.Data, false);
-                    _sdCppProcess.ErrorDataReceived += (s, e) => LogMicroserviceStream("SD.cpp", e.Data, true);
-                    _sdCppProcess.Exited += OnProcessExited;
-                    _sdCppProcess.Start();
-                    _sdCppProcess.BeginOutputReadLine();
-                    _sdCppProcess.BeginErrorReadLine();
-                }
-                else if (global::System.IO.File.Exists(comfyMainPy))
-                {
-                    // Clean up ComfyUI log file from previous run
-                    try
-                    {
-                        string logPath = ProjectSettings.GlobalizePath("user://bin/comfyui.log");
-                        if (global::System.IO.File.Exists(logPath))
-                        {
-                            global::System.IO.File.Delete(logPath);
-                        }
-                    }
-                    catch {}
-
-                    string gpuName = RenderingServer.GetVideoAdapterName().ToLower();
-                    string comfyArgs = "--listen 127.0.0.1 --port 8188";
-
-                    // Profiling Básico según PerformanceTier
-                    if (_configManager?.CurrentPerformanceTier == Logic.System.Config.ConfigManager.PerformanceTier.Low)
-                    {
-                        comfyArgs += " --lowvram --fp16-vae";
-                    }
-                    else if (_configManager?.CurrentPerformanceTier == Logic.System.Config.ConfigManager.PerformanceTier.Medium)
-                    {
-                        comfyArgs += " --normalvram";
-                    }
-
-                    // Arquitectura de GPU
-                    if (gpuName.Contains("nvidia"))
-                    {
-                        GD.Print("[BackendLauncher] NVIDIA Architecture detected for Image/Video Pipeline.");
-                    }
-                    else if (gpuName.Contains("amd") || gpuName.Contains("radeon"))
-                    {
-                        GD.Print("[BackendLauncher] AMD Radeon detected.");
-                        if (osFolder == "windows")
-                        {
-                            comfyArgs += " --directml";
-                        }
-                    }
-                    else if (gpuName.Contains("intel") || gpuName.Contains("arc") || string.IsNullOrEmpty(gpuName))
-                    {
-                        GD.Print("[BackendLauncher] Intel iGPU / Unsupported architecture detected. Falling back to System RAM.");
-                        comfyArgs += " --cpu"; // Fallback seguro
-                    }
-
-                    GD.Print($"[BackendLauncher] Assembling ComfyUI Execution with flags: {comfyArgs}");
-
-                    ProcessStartInfo comfyInfo = new ProcessStartInfo
-                    {
-                        WorkingDirectory = comfyuiDir,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-
-                    if (osFolder == "linux")
-                    {
-                        string home = global::System.Environment.GetEnvironmentVariable("HOME");
-                        string localUv = $"{home}/.local/bin/uv";
-                        string cargoUv = $"{home}/.cargo/bin/uv";
-                        string uvPath = "uv";
-                        if (global::System.IO.File.Exists(localUv)) uvPath = localUv;
-                        else if (global::System.IO.File.Exists(cargoUv)) uvPath = cargoUv;
-
-                        comfyInfo.FileName = uvPath;
-                        comfyInfo.Arguments = $"run main.py {comfyArgs}";
-                    }
-                    else
-                    {
-                        comfyInfo.FileName = global::System.IO.Path.Combine(comfyuiDir, "python_embedded", "python.exe");
-                        comfyInfo.Arguments = $"main.py {comfyArgs}";
-                    }
-
-                    if (gpuIndex >= 0)
-                    {
-                        string vulkanGpuStr = GetVulkanIndexForGpu(gpuIndex);
-                        comfyInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = vulkanGpuStr;
-                    }
-                    else
-                    {
-                        comfyInfo.EnvironmentVariables["GGML_VK_VISIBLE_DEVICES"] = "0";
-                    }
-
-                    _comfyProcess = new Process { StartInfo = comfyInfo, EnableRaisingEvents = true };
-                    _comfyProcess.OutputDataReceived += (s, e) => LogMicroserviceStream("ComfyUI", e.Data, false);
-                    _comfyProcess.ErrorDataReceived += (s, e) => LogMicroserviceStream("ComfyUI", e.Data, true);
-                    _comfyProcess.Exited += OnProcessExited;
-                    _comfyProcess.Start();
-                    _comfyProcess.BeginOutputReadLine();
-                    _comfyProcess.BeginErrorReadLine();
-                }
 
                 _mcpProcess = new Process { StartInfo = mcpInfo, EnableRaisingEvents = true };
                 _mcpProcess.OutputDataReceived += (s, e) => LogMicroserviceStream("MCP", e.Data, false);
@@ -695,27 +512,6 @@ namespace Logic.Backend
                     }
                 }
 
-                if (_comfyProcess != null)
-                {
-                    try
-                    {
-                        if (!_comfyProcess.HasExited)
-                        {
-                            _comfyProcess.Refresh();
-                            if (_comfyProcess.WorkingSet64 > MaxRamAllowed)
-                            {
-                                PanicKill("RAM overflow detected in ComfyUI Server.");
-                                break;
-                            }
-                        }
-                    }
-                    catch (InvalidOperationException) { }
-                    catch (Exception ex)
-                    {
-                        GD.PrintErr($"BackendLauncher: ComfyUI memory telemetry failure: {ex.Message}");
-                    }
-                }
-
                 await Task.Delay(2000);
             }
         }
@@ -736,51 +532,23 @@ namespace Logic.Backend
 
             try
             {
-                if (_llamaProcess != null)
+                void SafeKillWithLog(Process p, string name)
                 {
-                    GD.Print($"BackendLauncher: Evaluating Llama process context. Exited state: {_llamaProcess.HasExited}");
-                    if (!_llamaProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to Llama server."); _llamaProcess.Kill(true); }
+                    if (p == null) return;
+                    try
+                    {
+                        bool exited = p.HasExited;
+                        GD.Print($"BackendLauncher: Evaluating {name} process context. Exited state: {exited}");
+                        if (!exited) { GD.Print($"BackendLauncher: Dispatched kill signal to {name} server."); p.Kill(true); }
+                    }
+                    catch { }
                 }
-                if (_whisperProcess != null)
-                {
-                    GD.Print($"BackendLauncher: Evaluating Whisper process context. Exited state: {_whisperProcess.HasExited}");
-                    if (!_whisperProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to Whisper server."); _whisperProcess.Kill(true); }
-                }
-                if (_sherpaProcess != null)
-                {
-                    GD.Print($"BackendLauncher: Evaluating Sherpa process context. Exited state: {_sherpaProcess.HasExited}");
-                    if (!_sherpaProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to Sherpa server."); _sherpaProcess.Kill(true); }
-                }
-                if (_searchProcess != null)
-                {
-                    GD.Print($"BackendLauncher: Evaluating Search microservice context. Exited state: {_searchProcess.HasExited}");
-                    if (!_searchProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to Search microservice."); _searchProcess.Kill(true); }
-                }
-                if (_mcpProcess != null)
-                {
-                    GD.Print($"BackendLauncher: Evaluating MCP process context. Exited state: {_mcpProcess.HasExited}");
-                    if (!_mcpProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to MCP gateway."); _mcpProcess.Kill(true); }
-                }
-                if (_comfyProcess != null)
-                {
-                    GD.Print($"BackendLauncher: Evaluating ComfyUI process context. Exited state: {_comfyProcess.HasExited}");
-                    if (!_comfyProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to ComfyUI server."); _comfyProcess.Kill(true); }
-                }
-                if (_imageProcess != null)
-                {
-                    GD.Print($"BackendLauncher: Evaluating Image process context. Exited state: {_imageProcess.HasExited}");
-                    if (!_imageProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to Image server."); _imageProcess.Kill(true); }
-                }
-                if (_videoProcess != null)
-                {
-                    GD.Print($"BackendLauncher: Evaluating Video process context. Exited state: {_videoProcess.HasExited}");
-                    if (!_videoProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to Video server."); _videoProcess.Kill(true); }
-                }
-                if (_sdCppProcess != null)
-                {
-                    GD.Print($"BackendLauncher: Evaluating SD.cpp process context. Exited state: {_sdCppProcess.HasExited}");
-                    if (!_sdCppProcess.HasExited) { GD.Print("BackendLauncher: Dispatched kill signal to SD.cpp server."); _sdCppProcess.Kill(true); }
-                }
+
+                SafeKillWithLog(_llamaProcess, "Llama");
+                SafeKillWithLog(_whisperProcess, "Whisper");
+                SafeKillWithLog(_sherpaProcess, "Sherpa");
+                SafeKillWithLog(_searchProcess, "Search microservice");
+                SafeKillWithLog(_mcpProcess, "MCP");
             }
             catch (Exception ex)
             {
@@ -865,14 +633,18 @@ namespace Logic.Backend
 
             try
             {
-                if (_llamaProcess != null && !_llamaProcess.HasExited) { _llamaProcess.Kill(); _llamaProcess.Dispose(); }
-                if (_whisperProcess != null && !_whisperProcess.HasExited) { _whisperProcess.Kill(); _whisperProcess.Dispose(); }
-                if (_sherpaProcess != null && !_sherpaProcess.HasExited) { _sherpaProcess.Kill(); _sherpaProcess.Dispose(); }
-                if (_searchProcess != null && !_searchProcess.HasExited) { _searchProcess.Kill(); _searchProcess.Dispose(); }
-                if (_mcpProcess != null && !_mcpProcess.HasExited) { _mcpProcess.Kill(); _mcpProcess.Dispose(); }
-                if (_comfyProcess != null && !_comfyProcess.HasExited) { _comfyProcess.Kill(); _comfyProcess.Dispose(); }
-                if (_imageProcess != null && !_imageProcess.HasExited) { _imageProcess.Kill(); _imageProcess.Dispose(); }
-                if (_videoProcess != null && !_videoProcess.HasExited) { _videoProcess.Kill(); _videoProcess.Dispose(); }
+                void SafeKill(Process p)
+                {
+                    if (p == null) return;
+                    try { if (!p.HasExited) p.Kill(); } catch { }
+                    try { p.Dispose(); } catch { }
+                }
+
+                SafeKill(_llamaProcess);
+                SafeKill(_whisperProcess);
+                SafeKill(_sherpaProcess);
+                SafeKill(_searchProcess);
+                SafeKill(_mcpProcess);
             }
             catch (Exception ex)
             {

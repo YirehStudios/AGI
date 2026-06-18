@@ -204,94 +204,64 @@ async def generate_image(request: GenerateRequest):
     print(f"[ImageServer] Received prompt request: '{prompt}'", flush=True)
 
     try:
-        # Check if prompt is a raw JSON workflow (advanced usage)
-        try:
-            workflow = json.loads(prompt)
-        except (json.JSONDecodeError, TypeError):
-            # Dynamic Construction via Request Parameters
-            width = 1024 if "Pony" in str(request.unet_name or request.safetensors_name or "") else 512
-            height = width
+        model_name = args.model
+        if not model_name:
+            return {"result": "Error: No model assigned in settings. Please select an image model."}
 
-            if request.unet_name and request.unet_name.endswith(".gguf"):
-                workflow = ComfyWorkflowFactory.build_gguf_workflow(
-                    prompt=prompt,
-                    unet_name=request.unet_name,
-                    vae_name=request.vae_name or "sdxl_vae.safetensors",
-                    clip_l=request.clip_l or "clip_l.safetensors",
-                    clip_t5=request.clip_t5 or "t5xxl_fp16.safetensors",
-                    width=width,
-                    height=height
-                )
-            else:
-                workflow = ComfyWorkflowFactory.build_safetensors_workflow(
-                    prompt=prompt,
-                    checkpoint_name=request.safetensors_name or "v1-5-pruned-emaonly.ckpt",
-                    width=width,
-                    height=height
-                )
+        # Build paths
+        models_dir = os.path.expanduser("~/.local/share/agi/workspace").replace("workspace", "models")
+        image_safe_name = model_name.replace(" ", "_") + ".gguf"
+        unet_path = os.path.join(models_dir, "checkpoints", image_safe_name)
+        if not os.path.exists(unet_path):
+            unet_path = os.path.join(models_dir, "unet", image_safe_name)
 
-        payload = {"prompt": workflow}
+        if not os.path.exists(unet_path):
+            return {"result": f"Error: Checkpoint not found for model {model_name}."}
+
+        # Use sd-cli
+        sd_cli_path = os.path.expanduser("~/.local/share/agi/bin/linux/sd_cpp/sd-cli")
+        if not os.path.exists(sd_cli_path):
+             sd_cli_path = os.path.expanduser("~/.local/share/agi/bin/windows/sd_cpp/sd.exe")
+             
+        output_name = f"output_{uuid.uuid4().hex[:8]}.png"
+        output_path = os.path.join(os.path.expanduser("~/.local/share/agi/workspace"), output_name)
+
+        # Call sd-cli
+        cmd = [
+            sd_cli_path,
+            "-m", unet_path,
+            "-p", prompt,
+            "-o", output_path,
+            "--sampling-method", "euler_a",
+            "--steps", "20"
+        ]
         
-        async with httpx.AsyncClient(timeout=None) as client:
-            try:
-                resp = await client.post("http://127.0.0.1:8188/prompt", json=payload)
-            except httpx.ConnectError:
-                return {"result": "Error: ComfyUI engine is not running or failed to initialize. Please verify GPU memory availability or reboot AGI."}
-            
-            if resp.status_code == 200:
-                data = resp.json()
-                prompt_id = data.get("prompt_id")
-                
-                # Poll history to wait for completion (60 attempts x 2 seconds = 120 seconds)
-                for attempt in range(60):
-                    await asyncio.sleep(2)
-                    try:
-                        hist_resp = await client.get(f"http://127.0.0.1:8188/history/{prompt_id}")
-                    except Exception as poll_ex:
-                        print(f"[ImageServer] Polling error: {poll_ex}", flush=True)
-                        continue
-
-                    if hist_resp.status_code == 200:
-                        hist_data = hist_resp.json()
-                        if prompt_id in hist_data:
-                            outputs = hist_data[prompt_id].get("outputs", {})
-                            files = []
-                            for node_id, node_output in outputs.items():
-                                if "images" in node_output:
-                                    for img in node_output["images"]:
-                                        files.append(img.get("filename"))
-                            
-                            if files:
-                                script_dir = Path(__file__).resolve().parent
-                                for platform in ["linux", "windows"]:
-                                    cleanup_comfyui_output(script_dir / platform / "comfyui" / "output")
-
-                                return {"result": f"Success: Image generated. The files are located in the ComfyUI output directory: {', '.join(files)}. You MUST present this to the user by outputting the tag: [media]{files[0]}[/media]."}
-                            else:
-                                log_err = check_comfy_vram_errors()
-                                if log_err:
-                                    return {"result": log_err}
-                                return {"result": "Error: Generation finished but no output files were found. The model might have failed to compute the latent space."}
-                
-                log_err = check_comfy_vram_errors()
-                if log_err:
-                    return {"result": log_err}
-                return {"result": f"Error: Image generation timed out (exceeded 120 seconds). The engine is either under heavy load or compiling models. Please try again in a moment."}
-            else:
-                log_err = check_comfy_vram_errors()
-                if log_err:
-                    return {"result": log_err}
-                return {"result": f"Error: ComfyUI returned status code {resp.status_code} - {resp.text}"}
+        env = os.environ.copy()
+        print(f"[ImageServer] Executing: {' '.join(cmd)}", flush=True)
+        
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            env=env,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        stdout, stderr = await process.communicate()
+        
+        if process.returncode == 0 and os.path.exists(output_path):
+            # Move to workspace or accessible path
+            return {"result": f"Success: Image generated. You MUST present this to the user by outputting the tag: [media]{output_path}[/media]."}
+        else:
+            err_msg = stderr.decode('utf-8', errors='ignore')
+            return {"result": f"Error: Native sd_cpp engine failed to compute the latent space. Log: {err_msg[:500]}"}
 
     except Exception as e:
-        log_err = check_comfy_vram_errors()
-        if log_err:
-            return {"result": log_err}
         return {"result": f"Image Server Exception: {str(e)}"}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8004)
+    parser.add_argument("--model", type=str, default="")
     args = parser.parse_args()
 
     uvicorn.run(app, host="127.0.0.1", port=args.port)

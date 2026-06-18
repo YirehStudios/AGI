@@ -393,95 +393,80 @@ namespace Logic.Utils
 
                     if (_activeSelectionPanel != null)
                     {
-                        List<ConfigManager.ModelPreset> presets = await _configManager.GetOrDownloadPresetsAsync();
+                        ConfigManager.PresetsCatalog catalog = await _configManager.GetOrDownloadPresetsAsync();
                         var displayPayload = new Logic.UI.PanelDisplayData();
 
                         if (state == WizardState.SelectSTT)
                         {
                             displayPayload.Title = "Reconocimiento de Voz (STT)";
                             displayPayload.Category = Logic.UI.ModelCategory.STT;
-                            foreach (var preset in presets)
+                            foreach (var preset in catalog.STT)
                             {
-                                if (preset.Name.Contains("Whisper"))
+                                displayPayload.Items.Add(new Logic.UI.ModelItemData
                                 {
-                                    displayPayload.Items.Add(new Logic.UI.ModelItemData
-                                    {
-                                        Name = preset.Name,
-                                        Description = preset.Description,
-                                        TargetExecutable = "whisper-server"
-                                    });
-                                }
+                                    Name = preset.Name,
+                                    Description = preset.Description,
+                                    TargetExecutable = "whisper-server"
+                                });
                             }
                         }
                         else if (state == WizardState.SelectTTS)
                         {
                             displayPayload.Title = "Síntesis de Voz (TTS)";
                             displayPayload.Category = Logic.UI.ModelCategory.TTS;
-                            foreach (var preset in presets)
+                            foreach (var preset in catalog.TTS)
                             {
-                                if (preset.Name.Contains("Sherpa") || preset.Name.Contains("Piper") || preset.Name.Contains("Kokoro"))
+                                displayPayload.Items.Add(new Logic.UI.ModelItemData
                                 {
-                                    displayPayload.Items.Add(new Logic.UI.ModelItemData
-                                    {
-                                        Name = preset.Name,
-                                        Description = preset.Description,
-                                        TargetExecutable = "sherpa-onnx"
-                                    });
-                                }
+                                    Name = preset.Name,
+                                    Description = preset.Description,
+                                    TargetExecutable = "sherpa-onnx"
+                                });
                             }
                         }
                         else if (state == WizardState.SelectImageGen)
                         {
                             displayPayload.Title = "Generación de Imagen (ImageGen)";
                             displayPayload.Category = Logic.UI.ModelCategory.ImageGen;
-                            foreach (var preset in presets)
+                            foreach (var preset in catalog.Image)
                             {
-                                if (preset.Category == "Image" || preset.Name.Contains("Pony") || preset.Name.Contains("SDXL") || preset.Name.Contains("Diffusion"))
+                                displayPayload.Items.Add(new Logic.UI.ModelItemData
                                 {
-                                    displayPayload.Items.Add(new Logic.UI.ModelItemData
-                                    {
-                                        Name = preset.Name,
-                                        Description = preset.Description,
-                                        TargetExecutable = "comfyui"
-                                    });
-                                }
+                                    Name = preset.Name,
+                                    Description = preset.Description,
+                                    TargetExecutable = "sd"
+                                });
                             }
                         }
                         else if (state == WizardState.SelectVideoGen)
                         {
                             displayPayload.Title = "Generación de Video (VideoGen)";
                             displayPayload.Category = Logic.UI.ModelCategory.VideoGen;
-                            foreach (var preset in presets)
+                            foreach (var preset in catalog.Video)
                             {
-                                if (preset.Category == "Video" || preset.Name.Contains("SVD") || preset.Name.Contains("Video"))
+                                displayPayload.Items.Add(new Logic.UI.ModelItemData
                                 {
-                                    displayPayload.Items.Add(new Logic.UI.ModelItemData
-                                    {
-                                        Name = preset.Name,
-                                        Description = preset.Description,
-                                        TargetExecutable = "comfyui"
-                                    });
-                                }
+                                    Name = preset.Name,
+                                    Description = preset.Description,
+                                    TargetExecutable = "sd"
+                                });
                             }
                         }
-                        else
+                        else // Default to SelectLLM
                         {
-                            displayPayload.Title = "Modelos de Lenguaje (LLM)";
+                            displayPayload.Title = "Modelo de Lenguaje (LLM)";
                             displayPayload.Category = Logic.UI.ModelCategory.LLM;
-                            foreach (var preset in presets)
+                            foreach (var preset in catalog.LLM)
                             {
-                                if (!preset.Name.Contains("Whisper") && !preset.Name.Contains("Sherpa") && !preset.Name.Contains("Piper") && !preset.Name.Contains("Kokoro") && preset.Category != "Image" && preset.Category != "Video" && !preset.Name.Contains("Pony") && !preset.Name.Contains("SDXL") && !preset.Name.Contains("Diffusion") && !preset.Name.Contains("SVD"))
+                                displayPayload.Items.Add(new Logic.UI.ModelItemData
                                 {
-                                    displayPayload.Items.Add(new Logic.UI.ModelItemData
-                                    {
-                                        Name = preset.Name,
-                                        Description = preset.Description,
-                                        TargetExecutable = "llama-server"
-                                    });
-                                }
+                                    Name = preset.Name,
+                                    Description = preset.Description,
+                                    TargetExecutable = "llama-server"
+                                });
                             }
                         }
-
+                        
                         _activeSelectionPanel.LoadPanelData(displayPayload);
                     }
                     break;
@@ -601,23 +586,27 @@ namespace Logic.Utils
                 {
                     _configManager.ActiveSTTModel = safeFileName;
                 }
-                else if (preset.Category == "Image" || preset.Name.Contains("Pony") || preset.Name.Contains("SDXL") || preset.Name.Contains("Diffusion"))
-                {
-                    _configManager.ActiveImageModel = preset.Name;
-                }
-                else if (preset.Category == "Video" || preset.Name.Contains("SVD") || preset.Name.Contains("Video"))
-                {
-                    _configManager.ActiveVideoModel = preset.Name;
-                }
                 else
                 {
-                    _configManager.ActiveModelName = preset.Name;
-                    _configManager.ActiveModelPath = global::System.IO.Path.Combine(modelsDir, safeFileName);
+                    if (preset.Category == "Image" || preset.Name.Contains("Pony") || preset.Name.Contains("SDXL") || preset.Name.Contains("Diffusion"))
+                    {
+                        _configManager.ActiveImageModel = preset.Name;
+                    }
+                    else if (preset.Category == "Video" || preset.Name.Contains("SVD") || preset.Name.Contains("Video"))
+                    {
+                        _configManager.ActiveVideoModel = preset.Name;
+                    }
+                    else
+                    {
+                        _configManager.ActiveModelName = preset.Name;
+                        _configManager.ActiveModelPath = global::System.IO.Path.Combine(modelsDir, safeFileName);
+                    }
 
                     ConfigManager.ModelProfile newProfile = new ConfigManager.ModelProfile
                     {
                         Nombre = preset.Name,
                         Tipo = 2,
+                        Category = preset.Category ?? "LLM",
                         EndpointUrl = "http://127.0.0.1:8080",
                         ModelId = preset.Name,
                         ApiKey = "local-no-key",
@@ -628,8 +617,11 @@ namespace Logic.Utils
                     string jsonProfile = global::System.Text.Json.JsonSerializer.Serialize(newProfile, new global::System.Text.Json.JsonSerializerOptions { WriteIndented = true });
                     global::System.IO.File.WriteAllText(fullPath, jsonProfile);
 
-                    _configManager.ActiveProfile = newProfile;
-                    _configManager.ActiveProfilePath = fullPath;
+                    if (preset.Category != "Image" && preset.Category != "Video" && !preset.Name.Contains("Pony") && !preset.Name.Contains("SDXL") && !preset.Name.Contains("Diffusion") && !preset.Name.Contains("SVD") && !preset.Name.Contains("Video"))
+                    {
+                        _configManager.ActiveProfile = newProfile;
+                        _configManager.ActiveProfilePath = fullPath;
+                    }
                 }
 
                 if (preset.DownloadLinks != null && preset.DownloadLinks.Count > 0)
@@ -1277,8 +1269,15 @@ namespace Logic.Utils
         /// </summary>
         private async void OnDynamicModelConfirmed(int categoryIndex, string modelName, string targetExecutable)
         {
-            List<ConfigManager.ModelPreset> presets = await _configManager.GetOrDownloadPresetsAsync();
-            ConfigManager.ModelPreset verifiedPreset = presets.Find(targetPreset => targetPreset.Name == modelName);
+            ConfigManager.PresetsCatalog catalog = await _configManager.GetOrDownloadPresetsAsync();
+            List<ConfigManager.ModelPreset> allPresets = new List<ConfigManager.ModelPreset>();
+            if (catalog.LLM != null) allPresets.AddRange(catalog.LLM);
+            if (catalog.STT != null) allPresets.AddRange(catalog.STT);
+            if (catalog.TTS != null) allPresets.AddRange(catalog.TTS);
+            if (catalog.Image != null) allPresets.AddRange(catalog.Image);
+            if (catalog.Video != null) allPresets.AddRange(catalog.Video);
+
+            ConfigManager.ModelPreset verifiedPreset = allPresets.Find(targetPreset => targetPreset.Name == modelName);
 
             if (verifiedPreset != null)
             {
